@@ -1,9 +1,10 @@
 'use strict';
 
-// Setting her up with buttons, so nobody has to type in a terminal: Ollama (installed with winget,
+// Setting her up with buttons, so nobody has to type in a terminal: Ollama (installed with the
+// platform package manager where possible,
 // woken up, a model fetched with its progress), an API key pasted in her panel (kept encrypted with
 // your Windows account), and Claude Code or Codex run through Ollama in a window of their own.
-// Windows; elsewhere the buttons open the right pages instead.
+// all supported desktop platforms.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -39,8 +40,11 @@ function which(cmd) {
 
 // Ollama's own app (it runs the server from the tray) and its command, where its installer puts them
 function ollamaFiles() {
-  const dir = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'Programs', 'Ollama');
-  return { app: path.join(dir, 'ollama app.exe'), cli: path.join(dir, 'ollama.exe') };
+  if (WIN) {
+    const dir = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'Programs', 'Ollama');
+    return { app: path.join(dir, 'ollama app.exe'), cli: path.join(dir, 'ollama.exe') };
+  }
+  return { app: 'ollama', cli: 'ollama' };
 }
 
 // { running, installed, models, winget }: how far along Ollama is on this PC
@@ -53,6 +57,20 @@ async function ollamaState() {
 
 // Installs Ollama with winget (Windows' own package manager); onLine(text) for what it prints.
 function installOllama(onLine) {
+  if (!WIN) {
+    const command = process.platform === 'darwin' ? 'brew' : 'sh';
+    const args = process.platform === 'darwin'
+      ? ['install', '--cask', 'ollama']
+      : ['-c', 'curl -fsSL https://ollama.com/install.sh | sh'];
+    return new Promise((resolve) => {
+      const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      const read = (chunk) => String(chunk).split(/[\r\n]+/).filter(Boolean).forEach((line) => onLine?.(line));
+      child.stdout.on('data', read);
+      child.stderr.on('data', read);
+      child.on('error', (err) => resolve({ ok: false, error: err.message }));
+      child.on('close', (code) => resolve({ ok: code === 0, code }));
+    });
+  }
   return new Promise((resolve) => {
     const child = spawn('winget', [
       'install', '--id', 'Ollama.Ollama', '--exact', '--silent',

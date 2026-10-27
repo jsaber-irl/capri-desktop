@@ -1,8 +1,8 @@
 'use strict';
 
-// Opening things when you ask her to (chat.js): an app from the Start menu (Store apps like Spotify
-// included), a Steam or Epic game, your music (the media keys: pause, next…, so it works with
-// Spotify and most players), a Spotify search, or a website. Windows only.
+// Opening things when you ask her to (chat.js): installed apps, games, music controls, a Spotify
+// search, or a website. App discovery uses native stores on Windows and desktop bundles/files on
+// macOS and Linux.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -11,6 +11,7 @@ const { shell } = require('electron');
 const { powershell } = require('./apps');
 
 const WIN = process.platform === 'win32';
+const MAC = process.platform === 'darwin';
 // not things to open from a chat: uninstallers, help pages and the like
 const SKIP = /uninstall|désinstaller|desinstalar|deinstall|readme|documentation|release notes|support center|website|manual/i;
 const STEAM_SKIP = /redistributable|dedicated server|steamworks/i;
@@ -23,10 +24,35 @@ let cache = null; // { at, items }
 const plain = (text) => String(text || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 const words = (text) => plain(text).split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 2);
 
+function desktopApps() {
+  const dirs = process.platform === 'linux'
+    ? [path.join(process.env.HOME || '', '.local/share/applications'), '/usr/share/applications']
+    : MAC ? ['/Applications', path.join(process.env.HOME || '', 'Applications')] : [];
+  const items = [];
+  for (const dir of dirs) {
+    let files;
+    try { files = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+    for (const file of files) {
+      if (MAC && !file.name.endsWith('.app')) continue;
+      if (process.platform === 'linux' && !file.name.endsWith('.desktop')) continue;
+      const full = path.join(dir, file.name);
+      if (MAC) items.push({ name: file.name.replace(/\.app$/i, ''), kind: 'app', id: full });
+      else {
+        let text;
+        try { text = fs.readFileSync(full, 'utf8'); } catch { continue; }
+        if (/NoDisplay\s*=\s*true/i.test(text)) continue;
+        const name = /^Name=(.+)$/mi.exec(text)?.[1]?.trim();
+        const command = /^Exec=(.+)$/mi.exec(text)?.[1]?.replace(/\s+%[fFuUdDnNickvm]$/, '').trim();
+        if (name && command) items.push({ name, kind: 'app', id: command });
+      }
+    }
+  }
+  return items;
+}
+
 // Everything she can open: [{ name, kind: 'app' | 'steam' | 'epic', id }]
 async function launchables() {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.items;
-  if (!WIN) return [];
   const items = [];
   const seen = new Set();
   const add = (item) => {
@@ -35,14 +61,17 @@ async function launchables() {
     seen.add(key);
     items.push(item);
   };
-  // games first: a game's own entry wins over a shortcut to it
-  for (const game of [...steamGames(await steamRoot()), ...epicGames()]) add(game);
-  // the Start menu's list is slow the first time (PowerShell starting cold): main.js asks for it early
-  const out = await powershell('Get-StartApps | Select-Object Name, AppID | ConvertTo-Json -Compress', 45000).catch(() => null);
-  for (const { Name, AppID } of [].concat(out ? JSON.parse(out) : [])) {
-    if (Name && AppID && !/^https?:/i.test(AppID)) add({ name: Name, kind: 'app', id: AppID });
+  if (WIN) {
+    // games first: a game's own entry wins over a shortcut to it
+    for (const game of [...steamGames(await steamRoot()), ...epicGames()]) add(game);
+    const out = await powershell('Get-StartApps | Select-Object Name, AppID | ConvertTo-Json -Compress', 45000).catch(() => null);
+    for (const { Name, AppID } of [].concat(out ? JSON.parse(out) : [])) {
+      if (Name && AppID && !/^https?:/i.test(AppID)) add({ name: Name, kind: 'app', id: AppID });
+    }
+  } else {
+    for (const item of desktopApps()) add(item);
   }
-  if (out !== null) cache = { at: Date.now(), items }; // a list that failed isn't kept: next time, again
+  cache = { at: Date.now(), items };
   return items;
 }
 
@@ -130,14 +159,20 @@ async function find(text) {
   return match(await launchables(), text);
 }
 
-// Opens one of them (only something she listed herself): a Start menu app through its AppsFolder
-// entry (desktop and Store apps alike), a game through its launcher's link.
+// Opens one of the entries she listed herself.
 async function launch({ kind, id } = {}) {
   const item = (await launchables()).find((i) => i.kind === kind && i.id === id);
   if (!item) throw new Error('not found');
   if (kind === 'steam') return shell.openExternal(`steam://rungameid/${id}`);
   if (kind === 'epic') return shell.openExternal(`com.epicgames.launcher://apps/${encodeURIComponent(id)}?action=launch&silent=true`);
-  spawn('explorer.exe', [`shell:AppsFolder\\${id}`], { detached: true, stdio: 'ignore' }).on('error', () => {}).unref();
+  if (WIN) {
+    spawn('explorer.exe', [`shell:AppsFolder\\${id}`], { detached: true, stdio: 'ignore' }).unref();
+  } else if (MAC) {
+    spawn('open', [id], { detached: true, stdio: 'ignore' }).unref();
+  } else {
+    const [command, ...args] = id.split(/\s+/);
+    spawn(command, args, { detached: true, stdio: 'ignore' }).unref();
+  }
   return undefined;
 }
 
@@ -149,12 +184,20 @@ const KEY_DOWN = 1; // KEYEVENTF_EXTENDEDKEY
 const KEY_UP = 3;   // ...and KEYEVENTF_KEYUP
 
 async function media(action) {
-  if (!WIN || !MEDIA[action]) return false;
-  const [key, times] = MEDIA[action];
-  return powershell(
+  if (WIN && MEDIA[action]) {
+    const [key, times] = MEDIA[action];
+    return powershell(
     'Add-Type -Namespace Capri -Name Keys -MemberDefinition \'[DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, System.UIntPtr extra);\'; '
     + `1..${times} | ForEach-Object { [Capri.Keys]::keybd_event(${key}, 0, ${KEY_DOWN}, [UIntPtr]::Zero); [Capri.Keys]::keybd_event(${key}, 0, ${KEY_UP}, [UIntPtr]::Zero) }`,
-  ).then(() => true, () => false);
+    ).then(() => true, () => false);
+  }
+  if (MAC && ['play', 'pause'].includes(action)) {
+    return new Promise((resolve) => execFile('osascript', ['-e', 'tell application "System Events" to key code 16'], (err) => resolve(!err)));
+  }
+  if (process.platform === 'linux' && ['play', 'pause', 'next', 'previous'].includes(action)) {
+    return new Promise((resolve) => execFile('playerctl', [action === 'previous' ? 'previous' : action], (err) => resolve(!err)));
+  }
+  return false;
 }
 
 // A Spotify search for it: in the app if it's installed, else on the web.

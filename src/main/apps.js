@@ -2,9 +2,11 @@
 
 // Closing an app when you ask her to (chat.js), after you've confirmed with a click. The apps with
 // a window, by name; closing one the way its own close button does (it can still ask you to save),
-// and only if you ask again, forcing it. Windows only.
+// and only if you ask again, forcing it.
 
 const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+const execFileAsync = promisify(execFile);
 
 // never these: the desktop itself, Windows' own pieces, her (Capri), Claude (she watches it) and
 // Ollama (she talks through it)
@@ -24,7 +26,25 @@ function powershell(script, timeout = 15000) {
 
 // [{ name, process, ids }]: one per program with a window open ("AM Music", "Discord"...)
 async function list() {
-  if (process.platform !== 'win32') return [];
+  if (process.platform !== 'win32') {
+    try {
+      const { stdout } = await execFileAsync('ps', ['-axo', 'pid=,comm='], { timeout: 5000 });
+      const apps = new Map();
+      for (const line of stdout.split(/\r?\n/)) {
+        const match = /^\s*(\d+)\s+(.+)$/.exec(line);
+        if (!match || Number(match[1]) === process.pid) continue;
+        const name = match[2].trim().split('/').pop();
+        if (!name || ['launchd', 'systemd', 'kernel_task'].includes(name)) continue;
+        const app = apps.get(name) || { name, process: name, label: name, ids: [] };
+        app.ids.push(Number(match[1]));
+        apps.set(name, app);
+      }
+      return [...apps.values()];
+    } catch (err) {
+      console.error('[capri] could not list processes:', err.message);
+      return [];
+    }
+  }
   const out = await powershell(
     'Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | '
     + 'ForEach-Object { [pscustomobject]@{ id = $_.Id; name = $_.ProcessName; label = $_.Description } } | '
@@ -64,6 +84,16 @@ async function find(wanted) {
 async function close(name, { force = false } = {}) {
   const app = (await list()).find((a) => a.process === name);
   if (!app) return { running: false };
+  if (process.platform !== 'win32') {
+    for (const pid of app.ids) {
+      try { process.kill(pid, force ? 'SIGKILL' : 'SIGTERM'); } catch (err) {
+        if (err.code !== 'ESRCH') throw err;
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, force ? 600 : 2500));
+    const remaining = await list();
+    return { running: remaining.some((item) => item.process === name) };
+  }
   const ids = app.ids.join(',');
   const out = await powershell(force
     ? `Stop-Process -Id ${ids} -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 600; `

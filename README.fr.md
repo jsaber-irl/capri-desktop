@@ -40,7 +40,7 @@ glitche, commente chaque action, vient te chercher quand elle attend ta permissi
   le résumé (`12 actions · 3 fichiers modifiés · 2 min 14`) et la dernière phrase de Claude.
 - **Quand Claude te répond et que tu es sur une autre fenêtre** : elle t'affiche sa réponse en entier, dans un panneau
   plus large qui défile (paragraphes, listes et code gardés). Il s'en va quand tu reviens sur la fenêtre de Claude, ou
-  quand tu cliques dessus. La fenêtre de Claude, c'est celle où tu as tapé ton message. Sous Windows, comme le suivi des fenêtres.
+  quand tu cliques dessus. La fenêtre de Claude, c'est celle où tu as tapé ton message. Le suivi des fenêtres est actuellement limité à Windows.
 - **Le reste du temps** : elle flotte, sa crinière ondule et perd des éclats, elle se balade d'un coin à l'autre de l'écran,
   se retourne et penche la tête quand ta souris approche (ou, petite peste, lui envoie un éclair rouge avec un sourire en coin),
   lève les yeux vers le satellite, et s'endort si rien ne se passe pendant 10 minutes.
@@ -86,7 +86,8 @@ glitche, commente chaque action, vient te chercher quand elle attend ta permissi
 ![Elle s'endort jusqu'à son masque, se réveille, et rangée en bas à gauche](docs/sleep.png)
 
 Le suivi des fenêtres ne marche que sous Windows pour l'instant (un petit script PowerShell lit la position des fenêtres, pas leurs titres ni leur contenu).
-Sur macOS et Linux, elle flotte, dépasse des bords, tombe et se balade quand même.
+Sur macOS et Linux, elle flotte, dépasse des bords, tombe et se balade quand même. La découverte des
+applications et les commandes multimédias fonctionnent sur les trois systèmes ; Linux nécessite `playerctl`.
 
 ### Elle te fait visiter
 

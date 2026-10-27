@@ -38,7 +38,7 @@ glitches, comments on every action, comes to find you when it needs your permiss
   the summary (`12 actions · 3 files changed · 2m 14s`) and Claude's last sentence.
 - **When Claude answers and you're on another window**: she shows you its whole answer, in a wider panel that
   scrolls (paragraphs, lists and code kept). It goes away when you're back on Claude's window, or when you click it.
-  Claude's window is the one you typed your prompt in. Windows only, like the window tracking.
+  Claude's window is the one you typed your prompt in. Window tracking is currently Windows-only.
 - **The rest of the time**: she floats, her mane sways and sheds shards, she drifts from one corner to another,
   turns around and cocks her head when your mouse comes near (or, little menace, zaps it with red lightning and a sly grin),
   looks up at the satellite, and falls asleep after 10 quiet minutes.
@@ -82,7 +82,8 @@ glitches, comments on every action, comes to find you when it needs your permiss
 ![Asleep down to her mask, waking up, and put away bottom left](docs/sleep.png)
 
 Window tracking is Windows-only for now (a tiny PowerShell helper reads window positions, no titles, no contents).
-On macOS and Linux she still floats, peeks, falls and wanders.
+On macOS and Linux she still floats, peeks, falls and wanders. Installed applications and media
+controls work on all three platforms; Linux media controls require `playerctl`.
 
 ### She shows you around
 
@@ -428,4 +429,3 @@ her, change her and share what you made, for free. Selling Capri, or anything ma
 paid access, paid orders), is not allowed. Versions up to 0.4.3 were under the MIT License.
 
 Fonts: Chakra Petch and JetBrains Mono, under the SIL Open Font License, via Fontsource.
-

@@ -8,6 +8,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "test": "npm run test:hooks",
     "dev": "electron . --dev",
     "demo": "node scripts/demo.js",
     "hooks:install": "node scripts/install-hooks.js",
@@ -18,7 +19,7 @@
     "hooks:agy:uninstall": "node scripts/install-hooks-agy.js --uninstall",
     "check:llm": "node scripts/check-llm.js",
     "test:hooks": "node --test tests/hooks.test.js",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder"
   },
   "keywords": [
     "claude-code",
@@ -57,6 +58,15 @@
     "win": {
       "target": "nsis",
       "icon": "assets/icons/capri.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility",
+      "icon": "assets/icons/capri.png"
     },
     "nsis": {
       "oneClick": true,
