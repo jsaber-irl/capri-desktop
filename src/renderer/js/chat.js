@@ -116,10 +116,14 @@ export class Chat {
       if (result && this.calling) this.send(result);
     };
     recognition.onerror = (event) => {
-      if (event.error !== 'aborted') this.panel.say({ kind: 'error', line: `Microphone: ${event.error}`, hold: 3500 });
+      if (event.error !== 'aborted') {
+        this.calling = false;
+        recognition.stop();
+        this.panel.say({ kind: 'error', line: `Microphone: ${event.error}`, quote: 'Voice recognition stopped. Start the call again to retry.', hold: 5000 });
+      }
     };
     recognition.onend = () => {
-      if (this.calling) recognition.start();
+      this.recognition = null;
     };
     recognition.start();
     this.panel.say({ kind: 'info', line: 'Call active — speak to Capri.', hold: 2500 });

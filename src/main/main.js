@@ -280,18 +280,18 @@ function rebuildTray() {
   const current = targetDisplay().id;
 
   const menu = Menu.buildFromTemplate([
+    { label: `Capri ${app.getVersion()}`, click: () => sendCommand('version') },
     { label: t.online(PORT), enabled: false },
     { type: 'separator' },
     { label: t.teleport, click: () => sendCommand('teleport') },
     { label: t.satellite, click: () => sendCommand('satellite') },
     { label: t.demo, click: playDemo },
     { label: t.help, click: () => sendCommand('welcome') },
-    { label: `Capri ${app.getVersion()}`, click: () => sendCommand('version') },
     ...(cfg.claude ? [{ label: t.report, click: () => sendCommand('report') }] : []),
     { label: t.talk, click: () => sendCommand('chat') },
     { label: `${t.talk} (call)`, click: () => sendCommand('call') },
     { label: t.custom, click: () => sendCommand('customize') },
-    { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
+    { label: cfg.visible ? t.hide : t.show, accelerator: cfg.shortcuts?.toggle || undefined, click: () => toggleVisible() },
     { type: 'separator' },
     {
       label: t.size,
