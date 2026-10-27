@@ -24,6 +24,7 @@ const PROVIDERS = {
   gemini: { label: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai', env: 'GEMINI_API_KEY' },
   deepseek: { label: 'DeepSeek', url: 'https://api.deepseek.com/v1', env: 'DEEPSEEK_API_KEY' },
   mistral: { label: 'Mistral', url: 'https://api.mistral.ai/v1', env: 'MISTRAL_API_KEY' },
+  nvidia: { label: 'NVIDIA NIM (free tier)', url: 'https://integrate.api.nvidia.com/v1', env: 'NVIDIA_API_KEY' },
   custom: { label: 'Custom (customUrl in config)' },
   claude: { label: 'Claude Code (sends to the terminal agent)', kind: 'claude' },
 };

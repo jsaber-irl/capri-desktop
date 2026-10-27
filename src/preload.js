@@ -56,4 +56,8 @@ contextBridge.exposeInMainWorld('host', {
   music: (query) => ipcRenderer.invoke('apps:music', query),
   openSite: (address) => ipcRenderer.invoke('apps:site', address),
   focusOverlay: (on) => ipcRenderer.send('overlay:focus', Boolean(on)),
+  getSpeechSupport: () => ({
+    recognition: Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
+    synthesis: 'speechSynthesis' in window,
+  }),
 });

@@ -414,6 +414,9 @@ async function boot() {
       case 'chat': // "Talk to her" in her menu
         chat.start();
         break;
+      case 'call':
+        chat.call();
+        break;
       case 'report': // "Mission report" in her menu
         if (capri.stowed) {
           host.setConfig({ visible: true });

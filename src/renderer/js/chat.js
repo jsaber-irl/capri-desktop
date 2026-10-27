@@ -88,6 +88,42 @@ export class Chat {
     host.onChatDelta(({ id, text }) => this.onDelta(id, text));
   }
 
+  async call() {
+    const support = this.host.getSpeechSupport?.() || {};
+    if (!support.recognition || !support.synthesis) {
+      this.panel.say({ kind: 'error', line: 'Voice call is not supported by this system.', hold: 4000 });
+      return;
+    }
+    if (this.calling) {
+      this.calling = false;
+      this.recognition?.stop();
+      speechSynthesis.cancel();
+      return;
+    }
+    if (!this.open) await this.start();
+    if (!this.open) return;
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new Recognition();
+    this.recognition = recognition;
+    this.calling = true;
+    this.voice.play('hello');
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = document.documentElement.lang || 'en-US';
+    recognition.onresult = (event) => {
+      const result = event.results[event.results.length - 1][0]?.transcript?.trim();
+      if (result && this.calling) this.send(result);
+    };
+    recognition.onerror = (event) => {
+      if (event.error !== 'aborted') this.panel.say({ kind: 'error', line: `Microphone: ${event.error}`, hold: 3500 });
+    };
+    recognition.onend = () => {
+      if (this.calling) recognition.start();
+    };
+    recognition.start();
+    this.panel.say({ kind: 'info', line: 'Call active — speak to Capri.', hold: 2500 });
+  }
+
   get t() {
     return this.brain.t.chat;
   }
@@ -172,6 +208,11 @@ export class Chat {
   close() {
     if (!this.open) return;
     this.open = false;
+    if (this.calling) {
+      this.calling = false;
+      this.recognition?.stop();
+      speechSynthesis.cancel();
+    }
     if (this.turn) this.host.chatStop(this.turn);
     this.turn = 0;
     this.host.focusOverlay(false);
@@ -223,6 +264,10 @@ export class Chat {
     this.panel.stream(answer, { done: true });
     this.panel.setFace(mood(answer));
     this.panel.setChatBusy(false);
+    if (this.calling) {
+      speechSynthesis.cancel();
+      speechSynthesis.speak(new SpeechSynthesisUtterance(answer));
+    }
     if (!this.agent) this.after(res.text, answer, asked, early, text);
     this.listApps(); // fresh for the next message
   }

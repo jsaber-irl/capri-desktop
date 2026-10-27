@@ -6,8 +6,8 @@
 import { fmt } from './util.js';
 
 // the services that take a key, in the order she offers them (the first two have a free tier)
-const KEYED = ['groq', 'gemini', 'openrouter', 'openai', 'mistral', 'deepseek'];
-const NAMES = { groq: 'Groq', gemini: 'Gemini', openrouter: 'OpenRouter', openai: 'OpenAI', mistral: 'Mistral', deepseek: 'DeepSeek' };
+const KEYED = ['groq', 'gemini', 'openrouter', 'openai', 'mistral', 'deepseek', 'nvidia'];
+const NAMES = { groq: 'Groq', gemini: 'Gemini', openrouter: 'OpenRouter', openai: 'OpenAI', mistral: 'Mistral', deepseek: 'DeepSeek', nvidia: 'NVIDIA NIM' };
 const ROOMY = 12 * 2 ** 30; // enough memory for the bigger model
 
 export class Setup {

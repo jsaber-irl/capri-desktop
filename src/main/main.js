@@ -190,6 +190,19 @@ function toggleVisible(force) {
   rebuildTray();
 }
 
+function registerShortcuts() {
+  globalShortcut.unregisterAll();
+  const shortcuts = config.load().shortcuts || {};
+  const toggle = shortcuts.toggle;
+  const chat = shortcuts.chat;
+  if (toggle && !globalShortcut.register(toggle, () => toggleVisible())) {
+    console.error(`[capri] shortcut unavailable: ${toggle}`);
+  }
+  if (chat && !globalShortcut.register(chat, () => sendCommand('chat'))) {
+    console.error(`[capri] shortcut unavailable: ${chat}`);
+  }
+}
+
 function playDemo() {
   clearTimeout(demoTimer);
   const steps = demoSteps(resolveLang(config.load().lang)); // in her language
@@ -275,6 +288,7 @@ function rebuildTray() {
     { label: t.help, click: () => sendCommand('welcome') },
     ...(cfg.claude ? [{ label: t.report, click: () => sendCommand('report') }] : []),
     { label: t.talk, click: () => sendCommand('chat') },
+    { label: `${t.talk} (call)`, click: () => sendCommand('call') },
     { label: t.custom, click: () => sendCommand('customize') },
     { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     { type: 'separator' },
@@ -386,6 +400,37 @@ function rebuildTray() {
       submenu: [[t.auto, 'auto'], ...LANGS.map((lang) => [TRAY[lang].name, lang])].map(([label, lang]) => ({
         label, type: 'radio', checked: cfg.lang === lang, click: () => updateConfig({ lang }),
       })),
+    },
+    {
+      label: 'Keyboard shortcuts',
+      submenu: [
+        {
+          label: 'Show / hide Capri',
+          submenu: [
+            ['CommandOrControl+Alt+C', 'Ctrl/Command + Alt + C'],
+            ['', 'Disabled'],
+          ].map(([value, label]) => ({
+            label, type: 'radio', checked: (cfg.shortcuts?.toggle || '') === value,
+            click: () => {
+              updateConfig({ shortcuts: { ...(cfg.shortcuts || {}), toggle: value } });
+              registerShortcuts();
+            },
+          })),
+        },
+        {
+          label: 'Open chat',
+          submenu: [
+            ['CommandOrControl+Alt+V', 'Ctrl/Command + Alt + V'],
+            ['', 'Disabled'],
+          ].map(([value, label]) => ({
+            label, type: 'radio', checked: (cfg.shortcuts?.chat || '') === value,
+            click: () => {
+              updateConfig({ shortcuts: { ...(cfg.shortcuts || {}), chat: value } });
+              registerShortcuts();
+            },
+          })),
+        },
+      ],
     },
     {
       label: t.startup,
@@ -782,7 +827,7 @@ function main() {
       onEvent: (evt) => !llm.isChatSession(evt.session_id) && overlay?.webContents.send('claude:event', evt),
       onDebug: DEV ? debugHandler : null,
     });
-    globalShortcut.register('CommandOrControl+Alt+C', () => toggleVisible());
+    registerShortcuts();
     llm.restoreClaude(readMemory().claude);
     refreshModels(); // for her menu's model list
     setTimeout(() => launch.launchables().catch(() => {}), 20000); // what she can open, before you ask

@@ -62,8 +62,8 @@ assistants, les sons et les actions d'applications sont disponibles sur Windows,
 - [x] Configuration du modèle d'IA depuis le Mainframe.
 - [x] Utilisation d'une IA locale sur l'ordinateur.
 - [x] Utilisation d'une IA distante via une clé API.
-- [ ] Possibilité d'utiliser une clé NVIDIA gratuite, selon les quotas disponibles.
-- [ ] Ajout la possibilité d’”appel” avec Capri dans le style Cyberpunk 2077 avec la sonnerie, la transcription et la réponse directement 
+- [x] Possibilité d'utiliser une clé NVIDIA gratuite, selon les quotas disponibles.
+- [x] Ajout la possibilité d’”appel” avec Capri dans le style Cyberpunk 2077 avec la sonnerie, la transcription et la réponse directement (API vocale du navigateur).
 
 4. Fonctionnalités vocales
 - [ ] Synthèse vocale pour faire parler la mascotte (les sons synthétisés sont disponibles, pas la parole).
@@ -97,7 +97,7 @@ assistants, les sons et les actions d'applications sont disponibles sur Windows,
 - [x] Accès à l'aide.
 - [x] Menu contextuel par clic droit sur la mascotte.
 - [x] Accès aux paramètres depuis l'icône de la zone de notification.
-- [ ] Personnalisation des raccourcis clavier.
+- [x] Personnalisation des raccourcis clavier depuis le menu Capri (profils afficher/masquer, chat ou désactivation).
 
 7. Conversation avec Capri
 - [ ] Ouvrir un panneau de discussion depuis le menu.
