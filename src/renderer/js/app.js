@@ -414,6 +414,11 @@ async function boot() {
       case 'chat': // "Talk to her" in her menu
         chat.start();
         break;
+      case 'version': {
+        const version = await host.getVersion();
+        panel.say({ kind: 'info', line: `Capri ${version}`, quote: 'Version actuelle de Capri.', hold: 5000 });
+        break;
+      }
       case 'call':
         chat.call();
         break;

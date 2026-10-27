@@ -68,6 +68,7 @@ const SITES = {
 const BROWSER = /chrome|edge|firefox|opera|brave|vivaldi|duckduckgo|browser/i;
 // local models this small mostly talk nonsense ("llama3.2:1b", "qwen2.5:0.5b"…)
 const TINY = /[:-](0\.5b|1b|1\.5b|135m|270m|360m)\b/i;
+const VERSION_ASK = /\b(version|versión|versao|верси[яи])\b.*\b(capri|elle|her|app|application)\b|\b(capri|elle|her)\b.*\b(version|versión|versao|верси[яи])\b/i;
 
 export class Chat {
   constructor({ capri, panel, voice, host, brain }) {
@@ -229,6 +230,15 @@ export class Chat {
     this.panel.setChatBusy(true);
     this.panel.setActions([]); // a close button she offered before goes with a new message
     this.panel.chatTurn({ quote: text, face: 'aside' });
+    if (VERSION_ASK.test(text)) {
+      const version = await this.host.getVersion();
+      const answer = `Capri ${version}`;
+      this.turn = 0;
+      this.remember({ role: 'assistant', content: answer });
+      this.panel.stream(answer, { done: true });
+      this.panel.setChatBusy(false);
+      return;
+    }
     this.capri.pulse();
     // what you asked for plainly happens right away (the music, the volume, an app you named): her
     // line about it comes under her answer (Claude Code, answering her chat, does things its own way)
