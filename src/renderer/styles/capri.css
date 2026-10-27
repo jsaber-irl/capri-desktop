@@ -635,6 +635,70 @@ html[data-motion='reduced'] .panel__bar {
   width: clamp(320px, 24vw, 420px);
 }
 
+.panel.is-call {
+  width: clamp(330px, 27vw, 460px);
+}
+
+.panel.is-call .panel__plate {
+  grid-template-columns: 1fr;
+}
+
+.panel.is-call .panel__face {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  background: transparent;
+  clip-path: none;
+}
+
+.panel.is-call .panel__face img {
+  width: 100%;
+  height: auto;
+  max-height: 220px;
+  object-fit: contain;
+  clip-path: none;
+}
+
+.panel.is-call .panel__meta {
+  border-bottom: 1px solid oklch(0.97 0.012 350 / 0.14);
+  padding-bottom: 8px;
+}
+
+.panel.is-call .panel__line {
+  color: var(--green);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-shadow: 2px 0 var(--blue);
+}
+
+.panel.is-call .panel__quote {
+  margin-top: 12px;
+  padding: 9px 10px;
+  border: 1px solid oklch(0.88 0.24 148 / 0.35);
+  border-left: 3px solid var(--green);
+  background: oklch(0.12 0.03 300);
+  color: var(--green);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panel.is-call .panel__quote::before {
+  content: '// ';
+  color: var(--violet);
+}
+
+.panel.is-call .panel__actions {
+  border-top: 1px solid oklch(0.97 0.012 350 / 0.14);
+  padding-top: 11px;
+}
+
+.panel.is-call .panel__chat,
+.panel.is-call .panel__note {
+  display: none !important;
+}
+
 /* your line up top like a prompt, her answer under it */
 .panel.is-chat .panel__body {
   display: flex;

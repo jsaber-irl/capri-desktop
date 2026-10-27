@@ -82,6 +82,10 @@ export class Chat {
     this.open = false;
     this.turn = 0;     // id of the answer coming in, if any
     this.answer = '';
+    this.ringtone = new Audio(new URL('../../../assets/songs/phone-call.mp3', import.meta.url));
+    this.ringtone.loop = true;
+    this.ringtone.preload = 'auto';
+    this.ringtone.volume = 0.8;
     this.apps = [];    // the apps open on this PC, as last listed: [{ name, label }]
     this.appsReady = Promise.resolve();
     this.onSetup = null; // (status) => void: she can't answer yet (app.js hands it to setup.js)
@@ -95,19 +99,31 @@ export class Chat {
       this.panel.say({ kind: 'error', line: 'Voice call is not supported by this system.', hold: 4000 });
       return;
     }
-    if (this.calling) {
+    if (this.calling || this.open) {
       this.calling = false;
       this.recognition?.stop();
       speechSynthesis.cancel();
+      this.panel.hide();
       return;
     }
-    if (!this.open) await this.start();
+    if (!this.open) await this.start({ call: true });
     if (!this.open) return;
+    if (this.incoming) return;
+    this.answerCall();
+  }
+
+  answerCall() {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new Recognition();
     this.recognition = recognition;
     this.calling = true;
-    this.voice.play('hello');
+    this.incoming = false;
+    this.stopRinging();
+    this.panel.setCallState({
+      line: this.t.call?.connected || 'CANAL VOCAL OUVERT',
+      quote: this.t.call?.speak || 'Retranscription active. Parlez à Capri.',
+      actions: [{ id: 'hangup', label: this.t.call?.hangup || 'Raccrocher', primary: true }],
+    });
     recognition.continuous = true;
     recognition.interimResults = false;
     recognition.lang = document.documentElement.lang || 'en-US';
@@ -126,14 +142,13 @@ export class Chat {
       this.recognition = null;
     };
     recognition.start();
-    this.panel.say({ kind: 'info', line: 'Call active — speak to Capri.', hold: 2500 });
   }
 
   get t() {
     return this.brain.t.chat;
   }
 
-  async start() {
+  async start({ call = false } = {}) {
     const { capri, host, t } = this;
     if (this.open) {
       this.panel.chatInput.focus();
@@ -183,19 +198,29 @@ export class Chat {
       face: 'look',
       badge: t.badge,
       tag: shortModel,
-      line: tiny ? fmt(t.tiny, { model: shortModel }) : pick(this.history.length ? t.again : t.hello),
-      actions: tiny ? [{ id: 'better', label: t.better, primary: true }] : [],
-      onAction: () => {
-        this.panel.hide(); // her chat holds off her guide's panels: it goes first
-        this.onBetterModel?.();
-      },
-      chat: {
+      line: call ? (t.call?.incoming || 'APPEL ENTRANT') : (tiny ? fmt(t.tiny, { model: shortModel }) : pick(this.history.length ? t.again : t.hello)),
+      quote: call ? (t.call?.channel || 'CAPRI // CANAL SÉCURISÉ') : '',
+      actions: call
+        ? [
+          { id: 'answer', label: t.call?.answer || 'Décrocher', primary: true },
+          { id: 'decline', label: t.call?.decline || 'Refuser' },
+        ]
+        : (tiny ? [{ id: 'better', label: t.better, primary: true }] : []),
+      call,
+      chat: call ? null : {
         placeholder: t.placeholder,
         send: t.send,
         close: t.close,
         noteTag: t.noteTag,
         note: status.local ? t.note : t.noteCloud,
       },
+      onAction: call ? (id) => {
+        if (id === 'answer') this.answerCall();
+        else this.panel.hide();
+      } : (tiny ? (id) => {
+        this.panel.hide();
+        if (id === 'better') this.onBetterModel?.();
+      } : undefined),
       onSend: (text) => this.send(text),
       onLeave: () => this.close(),
       hold: null,
@@ -205,7 +230,9 @@ export class Chat {
       return;
     }
     this.open = true;
-    setTimeout(() => this.panel.chatInput.focus(), 150); // once the overlay has the keyboard
+    this.incoming = call;
+    if (call) this.startRinging();
+    if (!call) setTimeout(() => this.panel.chatInput.focus(), 150); // once the overlay has the keyboard
     capri.perform('hop');
     capri.nextMove = capri.nextGaze = performance.now() + STAY_MS;
   }
@@ -218,11 +245,26 @@ export class Chat {
       this.recognition?.stop();
       speechSynthesis.cancel();
     }
+    this.stopRinging();
+    this.incoming = false;
     if (this.turn) this.host.chatStop(this.turn);
     this.turn = 0;
     this.host.focusOverlay(false);
     this.capri.nextMove = performance.now() + 30000;
     this.capri.nextGaze = performance.now() + 60000;
+  }
+
+  startRinging() {
+    this.stopRinging();
+    this.ringtone.currentTime = 0;
+    this.ringtone.play().catch((err) => {
+      console.warn('[capri] could not play call ringtone', err);
+    });
+  }
+
+  stopRinging() {
+    this.ringtone.pause();
+    this.ringtone.currentTime = 0;
   }
 
   async send(text) {

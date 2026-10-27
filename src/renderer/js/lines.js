@@ -84,6 +84,15 @@ export const LINES = {
       openIt: 'Ouvrir {app}', opened: '{app} : c’est parti.', notInstalled: 'Je ne trouve pas « {app} » sur ton PC.',
       music: 'Je cherche « {song} » sur Spotify.', siteIt: 'Ouvrir {site}', siteOpened: '{site} : ouvert.',
       media: { pause: 'Pause.', play: 'Ça repart.', next: 'Suivante.', previous: 'Précédente.', volup: 'Plus fort.', voldown: 'Moins fort.', mute: 'J’ai appuyé sur muet.' },
+      call: {
+        incoming: 'APPEL ENTRANT',
+        channel: 'CAPRI // CANAL SÉCURISÉ',
+        answer: 'Décrocher',
+        decline: 'Refuser',
+        connected: 'CANAL VOCAL OUVERT',
+        speak: 'RETRANSCRIPTION ACTIVE // Parlez à Capri.',
+        hangup: 'Raccrocher',
+      },
     },
     // sa carte de rapport : ce que Claude a abattu aujourd'hui (son menu, ou d'elle-même le soir)
     report: {

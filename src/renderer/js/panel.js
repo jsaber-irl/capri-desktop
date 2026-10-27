@@ -7,6 +7,7 @@ const NOISE = '▚▞▙▟░▒#%&/\\<>01XZ';
 // Her faces, frames of her from the show (tools/build-cutins.py). A message can ask for one;
 // otherwise it goes with what kind of message it is.
 const FACE_DIR = '../../assets/capri/';
+const CALL_IMAGE = '../../assets/capri-calling-image.png';
 export const FACES = {
   calm: 'face-calm.png',   // watching, mouth shut
   aside: 'face-aside.png', // turned away: a sigh, thinking
@@ -128,6 +129,7 @@ export class Panel {
 
     this.el.dataset.kind = msg.kind;
     this.setFace(msg.face || KIND_FACE[msg.kind] || 'grin');
+    if (msg.call) this.portrait.src = CALL_IMAGE;
     this.tag.textContent = msg.tag || '';
     this.state.textContent = msg.badge || this.labels.state[msg.kind] || '';
     this.quote.textContent = msg.quote || '';
@@ -276,6 +278,7 @@ export class Panel {
 
   renderChat(chat) {
     this.el.classList.toggle('is-chat', Boolean(chat));
+    this.el.classList.toggle('is-call', Boolean(this.current?.call));
     this.line.classList.remove('is-streaming');
     this.chatForm.hidden = !chat;
     this.note.hidden = !chat?.note;
@@ -292,13 +295,25 @@ export class Panel {
       tag.textContent = chat.noteTag || '';
       this.note.replaceChildren(...(chat.noteTag ? [tag, ' '] : []), chat.note);
     }
+
     requestAnimationFrame(() => this.chatInput.focus());
+  }
+
+  setCallState({ line, quote = '', actions = [] } = {}) {
+    if (!this.current?.call) return;
+    this.current.line = line;
+    this.current.quote = quote;
+    this.quote.textContent = quote;
+    this.quote.hidden = !quote;
+    this.renderActions(actions, this.current.onAction);
+    this.decode(line, 'chat');
+    this.place();
   }
 
   // A chat turn: what you said goes up top, her answer starts coming in under it (stream), without
   // announcing the panel all over again.
   chatTurn({ quote, face }) {
-    if (!this.current?.chat) return;
+    if (!this.current?.chat && !this.current?.call) return;
     clearInterval(this.decodeTimer);
     this.stopStream();
     this.setFace(face);
@@ -312,7 +327,7 @@ export class Panel {
   // Her answer so far (done: all of it). It decodes in through noise like her other lines, catching
   // up faster the further behind it is (Claude Code's answer comes in one piece), and glitches once done.
   stream(text, { done = false } = {}) {
-    if (!this.current?.chat) return;
+    if (!this.current?.chat && !this.current?.call) return;
     this.streamTo = [...text];
     this.streamDone = done;
     // an answer rewritten rather than added to (a reasoning block cut out, an error): from where they part
