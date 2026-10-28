@@ -133,21 +133,21 @@ Modèles et fournisseurs d'IA compatibles avec le chat
 - [x] Ouvrir des applications.
 - [x] Reconnaître des noms traduits d'applications système, comme « météo » pour l'application Weather.
 - [x] Fermer des applications.
-- [ ] Lire de la musique (recherche Spotify disponible, lecture directe non implémentée).
-- [x] Mettre la musique en pause.
-- [ ] Demander quelle musique est en cours de lecture.
+- [x] Rechercher une musique et ouvrir sa recherche dans l'application Spotify ou Deezer, ou dans leur version web.
+- [x] Lire et mettre en pause la musique dans Spotify, Deezer ou un onglet de navigateur actif.
+- [x] Demander quelle musique est en cours de lecture (macOS, Windows et Linux avec un lecteur compatible).
 - [x] Fermer un onglet après confirmation.
 - [ ] Observer l'écran pendant les jeux.
 - [ ] Commenter ce qui se passe pendant une partie.
-- [ ] Ouvrir les applications du menu Démarrer.
-- [ ] Lancer des applications du Microsoft Store, comme Spotify.
+- [Windows] Ouvrir les applications du menu Démarrer.
+- [Windows] Lancer des applications du Microsoft Store, comme Spotify.
 - [x] Lancer des jeux installés via Steam et Epic Games.
-- [x] Contrôler la lecture multimédia : pause, piste suivante, volume et silence.
-- [x] Rechercher un artiste ou un morceau sur Spotify.
+- [x] Contrôler la lecture multimédia : lecture, pause, piste suivante, volume et silence, dans une application ou un onglet compatible.
+- [x] Rechercher un artiste ou un morceau sur Spotify et Deezer.
 - [x] Ouvrir un site web après confirmation via un bouton.
 - [x] Fermer une application après confirmation.
 - [x] Proposer une fermeture forcée si l'application reste dans la zone de notification.
-- [ ] Conserver la possibilité pour l'application de demander d'enregistrer les modifications avant de se fermer.
+- [x] Conserver la possibilité pour l'application de demander d'enregistrer les modifications avant de se fermer.
 - [x] Menu macOS pour autoriser les fonctions système nécessaires à l'ouverture et à la fermeture des applications.
 
 9. Guide interactif
@@ -198,7 +198,7 @@ Modèles et fournisseurs d'IA compatibles avec le chat
 - [x] Désinstallation des hooks sans supprimer les autres hooks existants.
 - [x] Stockage local du journal des missions et des paramètres.
 - [x] Chiffrement de la clé API avec le stockage sécurisé du système.
-- [ ] Possibilité de désinstaller l'application depuis les paramètres Windows (dépend du package installé).
+- [Windows] Possibilité de désinstaller l'application depuis les paramètres Windows (entrée générée par l'installateur NSIS).
 - [x] Mode développement avec outils de débogage et fenêtres de test.
 
 13. Fonctionnalités supplémentaires

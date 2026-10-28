@@ -41,13 +41,14 @@ const MEDIA_ASK = [
   ['mute', /\bmute\b|coupe le son|silencia|sem som|выключи звук/i],
 ];
 const MUSIC_WORD = /musi|chanson|song|track|titre|morceau|spotify|canci|faixa|песн|музык|трек/i;
-// "put X on Spotify", "mets X sur Spotify", "pon X en Spotify", "coloca X no Spotify", "включи X в Spotify"
-const SPOTIFY_ASK = /(?:play|put on|put|mets|joue|lance|écoute|pon|toca|reproduce|coloca|toque|включи|поставь)\s+(?:moi\s+|me\s+)?(.+?)\s+(?:on|sur|en|no|na|в)\s+spotify/i;
+// "put X on Spotify/Deezer", "mets X sur Spotify", "coloca X no Deezer", etc.
+const MUSIC_REQUEST = /(?:play|put on|put|mets|joue|lance|écoute|pon|toca|reproduce|coloca|toque|включи|поставь)\s+(?:moi\s+|me\s+)?(.+?)\s+(?:on|sur|en|no|na|в)\s+(spotify|deezer)\b/i;
 const MEDIA_ACTIONS = new Set(MEDIA_ASK.map(([action]) => action));
 // what her tag needs to find in your message before it does anything: a small model tags answers about
 // anything ("[[music: synthwave]]" under a film tip), and music and the media keys act right away
 const LISTEN = /[ée]cout|listen|escuch|\bouv(ir|e)\b|слуша|playlist|album|\b(play|joue|mets|pon|toca|coloca)\b|включи|поставь/i;
 const SOUND = /\b(sound|volume|volumen)\b|\b(le|du|au) son\b|\bo som\b|звук|громк/i; // not "son": "his" in French
+const NOW_PLAYING = /(?:what(?:'s| is) playing|currently playing|quel(?:le)? musique|qu['’]est-ce qui joue|quelle chanson|qué (?:música|canción) está sonando|o que está tocando|что играет)/i;
 const PLAY = /\bjou(er|e)\b|\bplay\b|jugar|juega|jogar|joga|играть|поигра/i;
 const SITE = /\b(site|web|page|lien|link|url|enlace|p[aá]gina)|сайт|ссылк|\.(com|fr|org|net|io|gg|tv|be|ch|ca|es|br|pt|ru)\b/i;
 // "appelle-moi Max", "call me Max", "llámame Max", "me chama de Max", "зови меня Макс"
@@ -447,11 +448,12 @@ export class Chat {
     if (name) return { kind: 'name', name };
     const memo = MEMO_ASK.exec(text)?.[1]?.trim();
     if (memo) return { kind: 'memo', text: memo };
+    if (NOW_PLAYING.test(text)) return { kind: 'nowPlaying' };
     const media = MEDIA_ASK.find(([, re]) => re.test(text))?.[0];
     if (media && (count <= 5 || MUSIC_WORD.test(text))) return { kind: 'media', action: media };
     if (TAB_ASK.test(text)) return { kind: 'tab' };
-    const song = SPOTIFY_ASK.exec(text)?.[1];
-    if (song) return { kind: 'music', song };
+    const music = MUSIC_REQUEST.exec(text);
+    if (music) return { kind: 'music', song: music[1], provider: music[2].toLowerCase() };
     const app = this.askedToClose(text);
     if (app) return { kind: 'close', name: app };
     if (OPEN_ASK.test(text) && count <= 8) return { kind: 'open', text };
@@ -472,13 +474,20 @@ export class Chat {
       this.host.setConfig({ memories: custom.memories });
       return { line: this.brain.t.custom.remembered, face: 'smug' };
     }
+    if (asked.kind === 'nowPlaying') {
+      const current = await this.host.nowPlaying();
+      return current
+        ? { line: current.title, face: 'smug' }
+        : { line: t.media.none, face: 'aside' };
+    }
     if (asked.kind === 'media') {
       this.capri.pulse();
       return (await this.host.media(asked.action)) ? { line: t.media[asked.action], face: 'smug' } : null;
     }
     if (asked.kind === 'music') {
       this.zap();
-      return (await this.host.music(asked.song)) ? { line: fmt(t.music, { song: asked.song }), face: 'laugh' } : null;
+      const provider = asked.provider[0].toUpperCase() + asked.provider.slice(1);
+      return (await this.host.music(asked.song, asked.provider)) ? { line: fmt(t.music, { song: asked.song, provider }), face: 'laugh' } : null;
     }
     const item = await this.host.findLaunch(asked.text);
     const site = namedSite(asked.text);
@@ -514,7 +523,7 @@ export class Chat {
     if (!value || !wanted(kind, text)) return undefined;
     if (kind === 'tab') return this.offerTab(answer);
     if (kind === 'media') return MEDIA_ACTIONS.has(value.toLowerCase()) ? this.media(value.toLowerCase(), answer) : undefined;
-    if (kind === 'music') return this.music(value, answer);
+    if (kind === 'music') return this.music(value, answer, /\bdeezer\b/i.test(text) ? 'deezer' : 'spotify');
     if (kind === 'site') return this.offerSite(value, answer);
     const item = await this.host.findLaunch(value);
     if (item) return this.launch(item, answer);
@@ -577,10 +586,11 @@ export class Chat {
   }
 
   // A Spotify search, in the app if it's there.
-  async music(song, answer) {
+  async music(song, answer, provider = 'spotify') {
     this.zap();
-    const ok = await this.host.music(song);
-    if (ok) this.addLine(answer, fmt(this.t.music, { song }), 'laugh');
+    const ok = await this.host.music(song, provider);
+    const service = provider[0].toUpperCase() + provider.slice(1);
+    if (ok) this.addLine(answer, fmt(this.t.music, { song, provider: service }), 'laugh');
   }
 
   // A website: always behind a button that shows where it goes.

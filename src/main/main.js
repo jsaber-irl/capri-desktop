@@ -711,8 +711,9 @@ function registerIpc() {
   ipcMain.handle('apps:findLaunch', (_e, text) => launch.find(String(text || '')).catch(() => null));
   ipcMain.handle('apps:launch', (_e, item) => launch.launch(item).then(() => ({ ok: true }), (err) => ({ ok: false, error: err.message })));
   ipcMain.handle('apps:media', (_e, action) => launch.media(action));
+  ipcMain.handle('apps:nowPlaying', () => launch.nowPlaying());
   ipcMain.handle('apps:closeTab', () => launch.closeTab());
-  ipcMain.handle('apps:music', (_e, query) => launch.music(query).catch(() => false));
+  ipcMain.handle('apps:music', (_e, { query, provider } = {}) => launch.music(query, provider).catch(() => false));
   ipcMain.handle('apps:site', (_e, address) => launch.site(address).catch(() => false));
   // typing to her: the overlay takes the keyboard while the chat is open, and gives it back after
   ipcMain.on('overlay:focus', (_e, on) => {

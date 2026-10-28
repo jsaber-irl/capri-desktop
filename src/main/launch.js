@@ -305,6 +305,38 @@ async function media(action) {
   return false;
 }
 
+async function nowPlaying() {
+  if (MAC) {
+    return new Promise((resolve) => execFile('osascript', ['-e', `
+      tell application "System Events"
+        set players to {"Music", "Spotify"}
+        repeat with playerName in players
+          if (exists process playerName) then
+            try
+              tell application playerName
+                if player state is playing then return (name of current track) & " — " & (artist of current track)
+              end tell
+            end try
+          end if
+        end repeat
+      end tell
+      return ""
+    `], (err, stdout) => resolve(!err && stdout.trim() ? { title: stdout.trim() } : null)));
+  }
+  if (WIN) {
+    const out = await powershell(
+      '$ErrorActionPreference = "Stop"; '
+      + '(Get-Process | Where-Object { $_.MainWindowTitle } | '
+      + 'Select-Object -ExpandProperty MainWindowTitle | '
+      + 'Where-Object { $_ -and $_ -notmatch "Capri" } | Select-Object -First 1)',
+    ).catch(() => '');
+    return out ? { title: out } : null;
+  }
+  return new Promise((resolve) => execFile('playerctl', ['metadata', '--format', '{{title}} — {{artist}}'], (err, stdout) => (
+    resolve(!err && stdout.trim() ? { title: stdout.trim() } : null)
+  )));
+}
+
 async function closeTab() {
   if (WIN) {
     return powershell(
@@ -321,14 +353,22 @@ async function closeTab() {
   return new Promise((resolve) => execFile('xdotool', ['key', 'ctrl+w'], (err) => resolve(!err)));
 }
 
-// A Spotify search for it: in the app if it's installed, else on the web.
-async function music(query) {
+// A search in the requested music service. The media keys below control the active
+// desktop app or browser tab, so playback does not depend on which service has focus.
+async function music(query, provider = 'spotify') {
   const q = String(query || '').trim().slice(0, 200);
   if (!q) return false;
+  const service = String(provider).toLowerCase() === 'deezer' ? 'deezer' : 'spotify';
+  const appUrl = service === 'deezer'
+    ? `deezer://www.deezer.com/search/${encodeURIComponent(q)}`
+    : `spotify:search:${encodeURIComponent(q)}`;
+  const webUrl = service === 'deezer'
+    ? `https://www.deezer.com/search/${encodeURIComponent(q)}`
+    : `https://open.spotify.com/search/${encodeURIComponent(q)}`;
   try {
-    await shell.openExternal(`spotify:search:${encodeURIComponent(q)}`);
+    await shell.openExternal(appUrl);
   } catch {
-    await shell.openExternal(`https://open.spotify.com/search/${encodeURIComponent(q)}`);
+    await shell.openExternal(webUrl);
   }
   return true;
 }
@@ -350,4 +390,4 @@ async function site(address) {
   return true;
 }
 
-module.exports = { launchables, match, find, launch, media, closeTab, music, site, siteUrl };
+module.exports = { launchables, match, find, launch, media, nowPlaying, closeTab, music, site, siteUrl };
