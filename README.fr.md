@@ -154,15 +154,18 @@ conversations** efface ce qu'elle a retenu de vos discussions.
 **C'est une IA.** Ses réponses sont écrites par le modèle, pas par les scénaristes de la série : c'est une version
 fan d'elle, et le panneau du chat le dit à chaque fois.
 
-**Ce qu'elle peut faire sur ton PC** (Windows), quand tu lui demandes dans le chat :
+**Ce qu'elle peut faire sur ton PC** (Windows, macOS ou Linux), quand tu lui demandes dans le chat :
 
-- **Ouvrir une appli ou un jeu** : tout ce qui est dans ton menu Démarrer (les applis du Store comme Spotify
-  comprises), tes jeux Steam et Epic (« ouvre Spotify », « lance Brawlhalla »). Si tu l'as nommé toi-même, ça s'ouvre
-  tout de suite ; si c'est son IA qui l'a proposé, tu as d'abord un bouton.
+- **Ouvrir une appli ou un jeu** : les applis du menu Démarrer sous Windows, du dossier Applications (y compris ses
+  sous-dossiers) sous macOS ou des entrées desktop sous Linux, ainsi que les jeux Steam et Epic exposés par leur lanceur
+  (« ouvre Spotify », « lance Brawlhalla »). Si tu l'as nommé toi-même, ça s'ouvre tout de suite ; si c'est son IA qui
+  l'a proposé, tu as d'abord un bouton.
 - **La musique** : « pause », « suivante », « plus fort », « coupe le son »… appuient sur les touches multimédia, donc
   ça marche avec Spotify et la plupart des lecteurs, dès que tu envoies. « Mets Daft Punk sur Spotify » ouvre Spotify
   sur une recherche (l'appli si tu l'as, sinon le site).
 - **Un site** : toujours derrière un bouton qui montre où il mène.
+- **Fermer l'onglet courant du navigateur** : elle demande confirmation, puis envoie le raccourci natif de fermeture
+  d'onglet au bureau actif.
 - **Fermer une appli** (« ferme AM Music », « tu peux couper Discord ? ») : un bouton au nom de l'appli, et rien ne se
   passe tant que tu ne cliques pas. Elle la ferme comme son propre bouton de fermeture, donc l'appli peut encore te
   demander d'enregistrer. Si elle s'est seulement cachée dans la zone de notification, elle te propose **Forcer la

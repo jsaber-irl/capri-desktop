@@ -146,14 +146,17 @@ edit files without asking. **Forget our conversations** clears what she remember
 **It's AI.** Her replies are written by the model, not by the show's writers: it's a fan version of her, and the chat
 panel says so every time.
 
-**What she can do on your PC** (Windows), when you ask her in the chat:
+**What she can do on your PC** (Windows, macOS or Linux), when you ask her in the chat:
 
-- **Open an app or a game**: anything in your Start menu (Store apps like Spotify included), your Steam and Epic
-  games ("open Spotify", "launch Brawlhalla"). Named in your own words, it opens right away; if only her AI came up
-  with it, you get a button first.
+- **Open an app or a game**: apps from the Start menu on Windows, Applications (including subfolders) on macOS,
+  desktop entries on Linux, and installed Steam or Epic games where their launcher exposes them ("open Spotify",
+  "launch Brawlhalla"). Named in your own words, it opens right away; if only her AI came up with it, you get a
+  button first.
 - **Music**: "pause", "next", "louder", "mute"… press the media keys, so it works with Spotify and most players, right
   as you send it. "Put Daft Punk on Spotify" opens Spotify on a search for it (the app if you have it, else the site).
 - **A website**: always behind a button showing where it goes.
+- **Close the current browser tab**: she asks for confirmation, then sends the native close-tab shortcut on the
+  active desktop.
 - **Close an app** ("close AM Music", "can you shut Discord down?"): a button with the app's name, and nothing happens
   until you click it. She closes it the way its own close button does, so it can still ask you to save. If it only
   hid in the tray, she offers **Force quit**, again only on your click (unsaved work is lost then). She never closes

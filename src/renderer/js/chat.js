@@ -1,6 +1,6 @@
 // Talking to her: you type in her panel, and a model (setup.js picks which) answers as her, in
 // writing. The replies are AI-generated, and the panel says so on every chat.
-// She can do a few things on your PC when you ask (Windows): open an app or a game, play music or
+// She can do a few things on your PC when you ask: open an app or a game, play music or
 // control what's playing, open a website, close an app. She spots what you want in what you wrote,
 // or the model asks for it with a tag in its answer. Music right away; an app you named yourself
 // right away; anything only the model asked for, a website, and closing an app behind a button.
@@ -25,7 +25,8 @@ const CLOSE_TAG = /\[\[\s*close\s*:?\s*([^\]]*)\]\]/i; // [[close: AM Music]] at
 // "close", "shut down", "ferme", "quitte", "cierra", "fecha", "закрой"... in any of her languages
 const CLOSE_ASK = /\b(close|shut|quit|kill|exit)|ferm|quitt|coupe|arr[êe]t|cierr|cerra|fech|закр|выключ/i;
 // her other tags: [[open: Spotify]], [[music: Bad Bunny]], [[media: next]], [[site: youtube.com]]
-const TAG = /\[\[\s*(open|music|media|site)\s*:\s*([^\]]*)\]\]/i;
+const TAG = /\[\[\s*(open|music|media|site|tab)\s*:\s*([^\]]*)\]\]/i;
+const TAB_ASK = /\b(close|shut|quit|ferme|fermer|cierra|fechar|закрой)\b.{0,30}\b(tab|onglet|pestaña|aba|вкладк)/i;
 // "open", "launch", "ouvre", "lance", "abre", "открой"... in any of her languages
 const OPEN_ASK = /\b(open|launch|start|run)\b|ouvr|lance|démarre|abre|abrir|inicia|ejecuta|executa|открой|запусти/i;
 // what to do with the music playing, said plainly (only when it's about music, or said in a few words)
@@ -349,6 +350,7 @@ export class Chat {
     if (memo) return { kind: 'memo', text: memo };
     const media = MEDIA_ASK.find(([, re]) => re.test(text))?.[0];
     if (media && (count <= 5 || MUSIC_WORD.test(text))) return { kind: 'media', action: media };
+    if (TAB_ASK.test(text)) return { kind: 'tab' };
     const song = SPOTIFY_ASK.exec(text)?.[1];
     if (song) return { kind: 'music', song };
     const app = this.askedToClose(text);
@@ -396,8 +398,13 @@ export class Chat {
   async after(raw, answer, asked, early, text) {
     const { t } = this;
     const done = early && (await early);
-    if (done) return this.addLine(answer, done.line, done.face);
+    if (done) {
+      // The local action is authoritative: a model can still answer that it failed while the
+      // application has already opened successfully.
+      return this.addLine(asked?.kind === 'open' ? '' : answer, done.line, done.face);
+    }
     if (asked?.kind === 'close') return this.offerClose(asked.name, answer);
+    if (asked?.kind === 'tab') return this.offerTab(answer);
     if (asked && asked.kind !== 'open') return undefined; // music that didn't work out: nothing more to offer
     const closeTag = tagged(raw);
     if (closeTag) return wanted('close', text) ? this.offerClose(closeTag, answer) : undefined;
@@ -406,6 +413,7 @@ export class Chat {
     const kind = tag[1].toLowerCase();
     const value = tag[2].trim();
     if (!value || !wanted(kind, text)) return undefined;
+    if (kind === 'tab') return this.offerTab(answer);
     if (kind === 'media') return MEDIA_ACTIONS.has(value.toLowerCase()) ? this.media(value.toLowerCase(), answer) : undefined;
     if (kind === 'music') return this.music(value, answer);
     if (kind === 'site') return this.offerSite(value, answer);
@@ -418,7 +426,7 @@ export class Chat {
   // her answer, with a line of what she did under it
   addLine(answer, line, face = null) {
     if (!this.open || this.turn) return;
-    this.panel.stream(`${answer}\n${line}`, { done: true });
+    this.panel.stream(answer ? `${answer}\n${line}` : line, { done: true });
     if (face) this.panel.setFace(face);
   }
 
@@ -442,7 +450,11 @@ export class Chat {
     this.panel.setActions([]);
     this.zap();
     const res = await this.host.launch(item);
-    this.addLine(answer, res.ok ? fmt(t.opened, { app: item.name }) : `${t.failed} ${res.error}`, res.ok ? 'laugh' : 'aside');
+    this.addLine(
+      res.ok ? '' : answer,
+      res.ok ? fmt(t.opened, { app: item.name }) : `${t.failed} ${res.error}`,
+      res.ok ? 'laugh' : 'aside',
+    );
   }
 
   // The media keys: pause, next, louder…
@@ -450,6 +462,19 @@ export class Chat {
     this.capri.pulse();
     const ok = await this.host.media(action);
     if (ok) this.addLine(answer, this.t.media[action], 'smug');
+  }
+
+  offerTab(answer) {
+    const { t } = this;
+    if (!this.open || this.turn) return;
+    this.panel.setActions(
+      [{ id: 'tab', label: t.closeTab, primary: true }, { id: 'no', label: t.no }],
+      async (id) => {
+        this.panel.setActions([]);
+        if (id !== 'tab') return;
+        if (await this.host.closeTab()) this.addLine(answer, t.tabClosed, 'smug');
+      },
+    );
   }
 
   // A Spotify search, in the app if it's there.
@@ -536,7 +561,7 @@ export class Chat {
   // What she can do on the PC when you ask (Windows), and nothing else.
   powers() {
     const lines = [
-      'Only when the user asks you to open an app or a game installed on their PC, play something on Spotify, control the music playing, or open a website: say in a few words that you will, and end your answer with one tag: [[open: NAME]], [[music: WHAT TO PLAY]], [[media: ACTION]] (ACTION: pause, play, next, previous, volup, voldown or mute), or [[site: ADDRESS]]. Some of these get a button to confirm, so never say it is already done. Any other time, write no tag at all: there are no other tags.',
+      'Only when the user asks you to open an app or a game installed on their PC, play something on Spotify, control the music playing, close the current browser tab, or open a website: say in a few words that you will, and end your answer with one tag: [[open: NAME]], [[music: WHAT TO PLAY]], [[media: ACTION]] (ACTION: pause, play, next, previous, volup, voldown or mute), [[tab: close]], or [[site: ADDRESS]]. Some of these get a button to confirm, so never say it is already done. Any other time, write no tag at all: there are no other tags.',
     ];
     if (this.apps.length) {
       const open = this.apps.map(({ name, label }) => (label && label !== name ? `${name} (${label})` : name)).join(', ');
@@ -608,13 +633,14 @@ function namedSite(text) {
   return name ? { name: new URL(SITES[name]).hostname.replace(/^www\./, ''), url: SITES[name] } : null;
 }
 
-// Whether your message asks for what her tag (its kind: open, music, media, site, close) would do.
+// Whether your message asks for what her tag (its kind: open, music, media, site, tab, close) would do.
 function wanted(kind, text) {
   const music = MUSIC_WORD.test(text) || LISTEN.test(text);
   if (kind === 'music') return music;
   if (kind === 'media') return music || SOUND.test(text) || MEDIA_ASK.some(([, re]) => re.test(text));
   if (kind === 'site') return OPEN_ASK.test(text) || SITE.test(text);
   if (kind === 'close') return CLOSE_ASK.test(text);
+  if (kind === 'tab') return TAB_ASK.test(text);
   return OPEN_ASK.test(text) || PLAY.test(text); // an app, or a game to play
 }
 

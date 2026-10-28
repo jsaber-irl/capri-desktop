@@ -73,7 +73,7 @@ export const LINES = {
       tiny: 'Je tourne sur {model} : il est tout petit, je risque de dire n’importe quoi. On en prend un plus gros ?', better: 'Un meilleur modèle',
       working: 'Je m’en occupe… (Claude Code bosse)',
       // fermer une appli que tu lui demandes de fermer, après ton clic
-      closeIt: 'Fermer {app}', no: 'Non',
+      closeIt: 'Fermer {app}', closeTab: "Fermer l’onglet", tabClosed: "Onglet fermé.", no: 'Non',
       closed: '{app} : flatliné. C’est fait.',
       stillOpen: '{app} tourne encore : il se cache dans la zone de notification, ou il te demande d’enregistrer quelque chose.',
       force: 'Forcer la fermeture', leave: 'Laisser',
@@ -317,7 +317,7 @@ export const LINES = {
       tiny: 'I’m running on {model}: it’s tiny, I might talk nonsense. Want a bigger one?', better: 'A better model',
       working: 'On it… (Claude Code is working)',
       // closing an app you ask her to close, after your click
-      closeIt: 'Close {app}', no: 'No',
+      closeIt: 'Close {app}', closeTab: 'Close the tab', tabClosed: 'Tab closed.', no: 'No',
       closed: '{app}: flatlined. Done.',
       stillOpen: '{app} is still running: it hides in the tray, or it’s asking you to save something.',
       force: 'Force quit', leave: 'Leave it',
@@ -551,7 +551,7 @@ export const LINES = {
       tiny: 'Funciono con {model}: es muy pequeño, puedo decir tonterías. ¿Cogemos uno más grande?', better: 'Un modelo mejor',
       working: 'En ello… (Claude Code está trabajando)',
       // cerrar una app que le pides cerrar, tras tu clic
-      closeIt: 'Cerrar {app}', no: 'No',
+      closeIt: 'Cerrar {app}', closeTab: 'Cerrar la pestaña', tabClosed: 'Pestaña cerrada.', no: 'No',
       closed: '{app}: flatline. Hecho.',
       stillOpen: '{app} sigue abierta: se esconde en la bandeja, o te pide guardar algo.',
       force: 'Forzar cierre', leave: 'Dejarla',
@@ -784,7 +784,7 @@ export const LINES = {
       tiny: 'Tô rodando no {model}: ele é bem pequeno, posso falar besteira. Pega um maior?', better: 'Um modelo melhor',
       working: 'Tô nessa… (o Claude Code está trabalhando)',
       // fechar um app que você pede para fechar, depois do seu clique
-      closeIt: 'Fechar {app}', no: 'Não',
+      closeIt: 'Fechar {app}', closeTab: 'Fechar a aba', tabClosed: 'Aba fechada.', no: 'Não',
       closed: '{app}: flatline. Feito.',
       stillOpen: '{app} continua rodando: ele se esconde na bandeja, ou está pedindo para você salvar algo.',
       force: 'Forçar fechamento', leave: 'Deixar',
@@ -1017,7 +1017,7 @@ export const LINES = {
       tiny: 'Я работаю на {model}: она совсем маленькая, могу нести чушь. Возьмём побольше?', better: 'Модель получше',
       working: 'Уже занимаюсь… (Claude Code работает)',
       // закрыть приложение, которое ты просишь закрыть, после твоего клика
-      closeIt: 'Закрыть {app}', no: 'Нет',
+      closeIt: 'Закрыть {app}', closeTab: 'Закрыть вкладку', tabClosed: 'Вкладка закрыта.', no: 'Нет',
       closed: '{app}: флэтлайн. Готово.',
       stillOpen: '{app} всё ещё работает: прячется в трее или просит что-то сохранить.',
       force: 'Закрыть принудительно', leave: 'Оставить',

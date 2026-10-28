@@ -27,9 +27,47 @@ const words = (text) => plain(text).split(/[^\p{L}\p{N}]+/u).filter((w) => w.len
 function desktopApps() {
   const dirs = process.platform === 'linux'
     ? [path.join(process.env.HOME || '', '.local/share/applications'), '/usr/share/applications']
-    : MAC ? ['/Applications', path.join(process.env.HOME || '', 'Applications')] : [];
+    : MAC ? [
+      '/Applications',
+      '/System/Applications',
+      path.join(process.env.HOME || '', 'Applications'),
+      path.join(process.env.HOME || '', 'Aplication'),
+    ] : [];
   const items = [];
+  const visited = new Set();
+  const addMacApps = (dir, depth = 0) => {
+    let files;
+    try { files = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const file of files) {
+      if (file.name.startsWith('.')) continue;
+      const full = path.join(dir, file.name);
+      let stat;
+      try { stat = fs.statSync(full); } catch { continue; }
+      if (stat.isDirectory() && file.name.endsWith('.app')) {
+        let real;
+        try { real = fs.realpathSync.native(full); } catch { continue; }
+        if (visited.has(real)) continue;
+        visited.add(real);
+        let name = file.name.replace(/\.app$/i, '');
+        try {
+          const plist = fs.readFileSync(path.join(full, 'Contents/Info.plist'), 'utf8');
+          name = /<key>CFBundleDisplayName<\/key>\s*<string>([^<]+)<\/string>/i.exec(plist)?.[1]
+            || /<key>CFBundleName<\/key>\s*<string>([^<]+)<\/string>/i.exec(plist)?.[1]
+            || name;
+        } catch {
+          // The bundle name is a suitable fallback when its Info.plist is unreadable.
+        }
+        items.push({ name, kind: 'app', id: full });
+      } else if (stat.isDirectory() && depth < 3) {
+        addMacApps(full, depth + 1);
+      }
+    }
+  };
   for (const dir of dirs) {
+    if (MAC) {
+      addMacApps(dir);
+      continue;
+    }
     let files;
     try { files = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
     for (const file of files) {
@@ -51,8 +89,8 @@ function desktopApps() {
 }
 
 // Everything she can open: [{ name, kind: 'app' | 'steam' | 'epic', id }]
-async function launchables() {
-  if (cache && Date.now() - cache.at < CACHE_MS) return cache.items;
+async function launchables(refresh = false) {
+  if (!refresh && cache && Date.now() - cache.at < CACHE_MS) return cache.items;
   const items = [];
   const seen = new Set();
   const add = (item) => {
@@ -76,6 +114,15 @@ async function launchables() {
 }
 
 function steamRoot() {
+  if (!WIN) {
+    const candidates = MAC
+      ? [path.join(process.env.HOME || '', 'Library/Application Support/Steam')]
+      : [
+        path.join(process.env.HOME || '', '.steam/steam'),
+        path.join(process.env.HOME || '', '.local/share/Steam'),
+      ];
+    return Promise.resolve(candidates.find((candidate) => fs.existsSync(path.join(candidate, 'steamapps'))));
+  }
   return new Promise((resolve) => {
     execFile('reg.exe', ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'], { windowsHide: true, timeout: 5000 }, (err, out) => {
       const found = !err && /SteamPath\s+REG_SZ\s+(.+)/.exec(String(out))?.[1].trim();
@@ -118,7 +165,25 @@ function steamGames(root) {
 
 // Epic's games, from its launcher's manifests (not the Unreal Engine plugins it also keeps there)
 function epicGames() {
-  const dir = path.join(process.env.ProgramData || 'C:\\ProgramData', 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests');
+  const dir = WIN
+    ? path.join(process.env.ProgramData || 'C:\\ProgramData', 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests')
+    : MAC
+      ? path.join(process.env.HOME || '', 'Library/Application Support/Epic/EpicGamesLauncher/Data/Manifests')
+      : path.join(process.env.HOME || '', '.config/epic/UnrealEngineLauncher/LauncherInstalled.dat');
+  if (!WIN && !MAC) {
+    try {
+      const installed = JSON.parse(fs.readFileSync(dir, 'utf8'));
+      return (installed.InstallationList || [])
+        .filter((game) => game.AppName && game.DisplayName && !STEAM_SKIP.test(game.DisplayName))
+        .map((game) => ({
+          name: game.DisplayName,
+          kind: 'epic',
+          id: `${game.CatalogNamespace || ''}:${game.CatalogItemId || ''}:${game.AppName}`,
+        }));
+    } catch {
+      return [];
+    }
+  }
   let files = [];
   try {
     files = fs.readdirSync(dir).filter((f) => f.endsWith('.item'));
@@ -156,7 +221,8 @@ function match(items, text) {
 }
 
 async function find(text) {
-  return match(await launchables(), text);
+  const found = match(await launchables(), text);
+  return found || match(await launchables(true), text);
 }
 
 // Opens one of the entries she listed herself.
@@ -194,10 +260,43 @@ async function media(action) {
   if (MAC && ['play', 'pause'].includes(action)) {
     return new Promise((resolve) => execFile('osascript', ['-e', 'tell application "System Events" to key code 16'], (err) => resolve(!err)));
   }
+  if (MAC && ['next', 'previous'].includes(action)) {
+    const key = action === 'next' ? 17 : 18;
+    return new Promise((resolve) => execFile('osascript', ['-e', `tell application "System Events" to key code ${key}`], (err) => resolve(!err)));
+  }
+  if (MAC && ['volup', 'voldown', 'mute'].includes(action)) {
+    const key = action === 'volup' ? 0 : action === 'voldown' ? 1 : 7;
+    if (action === 'mute') {
+      return new Promise((resolve) => execFile('osascript', ['-e', `tell application "System Events" to key code ${key}`], (err) => resolve(!err)));
+    }
+    return new Promise((resolve) => execFile('osascript', ['-e', `tell application "System Events" to key code ${key}`], (err) => resolve(!err)));
+  }
   if (process.platform === 'linux' && ['play', 'pause', 'next', 'previous'].includes(action)) {
     return new Promise((resolve) => execFile('playerctl', [action === 'previous' ? 'previous' : action], (err) => resolve(!err)));
   }
+  if (process.platform === 'linux' && ['volup', 'voldown', 'mute'].includes(action)) {
+    const args = action === 'mute'
+      ? ['set-sink-mute', '@DEFAULT_SINK@', 'toggle']
+      : ['set-sink-volume', '@DEFAULT_SINK@', `${action === 'volup' ? '+' : '-'}5%`];
+    return new Promise((resolve) => execFile('pactl', args, (err) => resolve(!err)));
+  }
   return false;
+}
+
+async function closeTab() {
+  if (WIN) {
+    return powershell(
+      'Add-Type -Namespace Capri -Name Keys -MemberDefinition \'[DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, System.UIntPtr extra);\'; '
+      + '[Capri.Keys]::keybd_event(0x11, 0, 1, [UIntPtr]::Zero); [Capri.Keys]::keybd_event(0x57, 0, 1, [UIntPtr]::Zero); '
+      + '[Capri.Keys]::keybd_event(0x57, 0, 3, [UIntPtr]::Zero); [Capri.Keys]::keybd_event(0x11, 0, 3, [UIntPtr]::Zero)',
+    ).then(() => true, () => false);
+  }
+  if (MAC) {
+    return new Promise((resolve) => execFile('osascript', [
+      '-e', 'tell application "System Events" to keystroke "w" using {command down}',
+    ], (err) => resolve(!err)));
+  }
+  return new Promise((resolve) => execFile('xdotool', ['key', 'ctrl+w'], (err) => resolve(!err)));
 }
 
 // A Spotify search for it: in the app if it's installed, else on the web.
@@ -229,4 +328,4 @@ async function site(address) {
   return true;
 }
 
-module.exports = { launchables, match, find, launch, media, music, site, siteUrl };
+module.exports = { launchables, match, find, launch, media, closeTab, music, site, siteUrl };

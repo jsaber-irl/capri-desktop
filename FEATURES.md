@@ -77,15 +77,15 @@ assistants, les sons et les actions d'applications sont disponibles sur Windows,
 5. Positionnement et interactions avec les fenêtres
 - [x] Mascotte flottante au premier plan.
 - [x] Déplacement par glisser-déposer.
-- [x] Possibilité de s'asseoir sur le bord supérieur d'une fenêtre (Windows).
-- [x] Déplacement avec la fenêtre lorsque celle-ci est déplacée (Windows).
-- [x] Chute lorsque la fenêtre disparaît, est minimisée ou recouverte (Windows).
-- [x] Possibilité de tomber sur le rebord d'une autre fenêtre (Windows).
+- [ ] Possibilité de s'asseoir sur le bord supérieur d'une fenêtre.
+- [ ] Déplacement avec la fenêtre lorsque celle-ci est déplacée.
+- [ ] Chute lorsque la fenêtre disparaît, est minimisée ou recouverte.
+- [ ] Possibilité de tomber sur le rebord d'une autre fenêtre.
 - [x] Apparition partielle sur les bords de l'écran.
 - [x] Déplacement lorsqu'on approche la souris d'elle.
-- [x] Effet de possession d'une fenêtre avec des yeux et un sourire animés (Windows).
+- [ ] Effet de possession d'une fenêtre avec des yeux et un sourire animés.
 - [x] Désactivation de la possession des fenêtres depuis le menu.
-- [x] Suivi des fenêtres ouvertes sous Windows.
+- [ ] Suivi des fenêtres ouvertes sous Windows.
 - [x] Mise en retrait dans le biochip avec Ctrl + Alt + C.
 - [x] Réapparition par clic sur le masque ou avec le même raccourci.
 
@@ -132,22 +132,22 @@ Modèles et fournisseurs d'IA compatibles avec le chat
 - [ ] Lire de la musique (recherche Spotify disponible, lecture directe non implémentée).
 - [x] Mettre la musique en pause.
 - [ ] Demander quelle musique est en cours de lecture.
-- [ ] Fermer un onglet.
+- [x] Fermer un onglet après confirmation.
 - [ ] Observer l'écran pendant les jeux.
 - [ ] Commenter ce qui se passe pendant une partie.
-- [x] Ouvrir les applications du menu Démarrer (Windows).
-- [x] Lancer des applications du Microsoft Store, comme Spotify (Windows).
-- [x] Lancer des jeux installés via Steam et Epic Games (Windows).
+- [ ] Ouvrir les applications du menu Démarrer.
+- [ ] Lancer des applications du Microsoft Store, comme Spotify.
+- [x] Lancer des jeux installés via Steam et Epic Games.
 - [x] Contrôler la lecture multimédia : pause, piste suivante, volume et silence.
 - [x] Rechercher un artiste ou un morceau sur Spotify.
 - [x] Ouvrir un site web après confirmation via un bouton.
 - [x] Fermer une application après confirmation.
 - [x] Proposer une fermeture forcée si l'application reste dans la zone de notification.
-- [x] Conserver la possibilité pour l'application de demander d'enregistrer les modifications avant de se fermer.
+- [ ] Conserver la possibilité pour l'application de demander d'enregistrer les modifications avant de se fermer.
 
 9. Guide interactif
 - [x] Expliquer le fonctionnement de Capri directement depuis son menu.
-- [x] Indiquer où se trouve son icône dans la barre des tâches.
+- [x] Indiquer où se trouve son icône dans la zone de notification.
 - [x] Montrer où se trouve la fenêtre de Claude Code.
 - [x] Ouvrir le dossier ~/.claude.
 - [x] Sélectionner settings.json pour expliquer la configuration des hooks.
