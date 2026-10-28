@@ -33,6 +33,7 @@ assistants, les sons et les actions d'applications sont disponibles sur Windows,
 - [ ] Positionnement sur les fenêtres, les icônes ou le bas de l'écran.
 - [ ] Déplacement entre les fenêtres ouvertes.
 - [x] Accrochage à une position précise ou à la souris.
+- [x] Menu « MacOS Permissions » pour autoriser l'accès nécessaire aux interactions avec les fenêtres sur macOS.
 
 2. Intégration avec les assistants de programmation
 - [x] Intégration avec Claude Code.
@@ -73,6 +74,7 @@ assistants, les sons et les actions d'applications sont disponibles sur Windows,
 - [ ] Voix ElevenLabs avec une clé API.
 - [ ] Activation et arrêt de la conversation vocale par raccourci clavier.
 - [ ] Coupure et réactivation du microphone.
+- [x] Demande d'autorisation du microphone depuis le menu « MacOS Permissions » sur macOS.
 
 5. Positionnement et interactions avec les fenêtres
 - [x] Mascotte flottante au premier plan.
@@ -86,6 +88,7 @@ assistants, les sons et les actions d'applications sont disponibles sur Windows,
 - [ ] Effet de possession d'une fenêtre avec des yeux et un sourire animés.
 - [x] Désactivation de la possession des fenêtres depuis le menu.
 - [ ] Suivi des fenêtres ouvertes sous Windows.
+- [x] Accès aux réglages macOS d'accessibilité et d'enregistrement de l'écran pour les interactions avec les fenêtres.
 - [x] Mise en retrait dans le biochip avec Ctrl + Alt + C.
 - [x] Réapparition par clic sur le masque ou avec le même raccourci.
 
@@ -144,6 +147,7 @@ Modèles et fournisseurs d'IA compatibles avec le chat
 - [x] Fermer une application après confirmation.
 - [x] Proposer une fermeture forcée si l'application reste dans la zone de notification.
 - [ ] Conserver la possibilité pour l'application de demander d'enregistrer les modifications avant de se fermer.
+- [x] Menu macOS pour autoriser les fonctions système nécessaires à l'ouverture et à la fermeture des applications.
 
 9. Guide interactif
 - [x] Expliquer le fonctionnement de Capri directement depuis son menu.
@@ -197,7 +201,7 @@ Modèles et fournisseurs d'IA compatibles avec le chat
 - [x] Mode développement avec outils de débogage et fenêtres de test.
 
 13. Fonctionnalités supplémentaires
-- [x] Ajouter un terminal Capri au style cyberpunk, déplaçable et redimensionnable librement lorsqu'il est développé, réductible à sa ligne de commande puis extensible, permettant de commander Capri avec de fausses commandes (`/open`, `/download`, `/help`, `/network status`, `/get arasaka data`, etc.), avec l'historique des commandes et des résultats.
+- [x] Ajouter un terminal Capri au style cyberpunk, déplaçable et redimensionnable librement lorsqu'il est développé, réductible à sa ligne de commande puis extensible, permettant de commander Capri avec des commandes (`/chat`, `/call`, `/report`, `/guide`, `/setup`, `/customize`, `/version`, `/open`, `/download`, `/help`, `/network status`, `/get arasaka data`, etc.), avec l'historique des commandes et des résultats.
 - [ ] Ouvrir les fichiers sélectionnés.
 - [ ] Lire et modifier des fichiers.
 - [ ] Contrôler YouTube.
@@ -212,6 +216,7 @@ Modèles et fournisseurs d'IA compatibles avec le chat
 - [ ] Ajouter des interactions comme les caresses sur la tête.
 - [x] Ajouter un mode espiègle avec des glitches et des effets de faux piratage.
 - [x] Étendre les commandes d'applications et le mode vocal navigateur à macOS et Linux.
+- [x] Ajouter le menu « MacOS Permissions », disponible uniquement sur macOS, pour le microphone, l'accessibilité et l'enregistrement de l'écran.
 
 14. Informations sur l'application
 - [x] Afficher la version actuelle de Capri depuis le menu et le chat.

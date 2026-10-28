@@ -9,6 +9,14 @@ const COMMANDS = {
       '/get arasaka data          récupérer des données fictives',
       '/scan <district>           scanner un quartier',
       '/jackin                    établir une connexion au cyberspace',
+      '/chat                      ouvrir le chat écrit',
+      '/call                      démarrer ou arrêter un appel vocal',
+      '/report                    afficher le rapport de mission',
+      '/guide                     ouvrir le guide de Capri',
+      '/setup                     configurer le chat de Capri',
+      '/customize                 personnaliser Capri',
+      '/version                   afficher la version de Capri',
+      '/test demoSatellite        tester l’animation satellite',
       '/clear                     effacer l’historique',
       '/help                      afficher cette aide',
       '/exit                      fermer le terminal',
@@ -37,6 +45,14 @@ const COMMANDS = {
       '/get arasaka data          retrieve fake corporate data',
       '/scan <district>           scan a district',
       '/jackin                    connect to cyberspace',
+      '/chat                      open the text chat',
+      '/call                      start or stop a voice call',
+      '/report                    show the mission report',
+      '/guide                     open Capri’s guide',
+      '/setup                     configure Capri’s chat',
+      '/customize                 customize Capri',
+      '/version                   show Capri’s version',
+      '/test demoSatellite        test the satellite animation',
       '/clear                     clear the history',
       '/help                      show this help',
       '/exit                      close the terminal',
@@ -60,10 +76,11 @@ const COMMANDS = {
 const text = (value) => String(value || '').trim();
 
 export class Terminal {
-  constructor({ element, host, lang = 'en' }) {
+  constructor({ element, host, lang = 'en', onCommand = async () => {} }) {
     this.element = element;
     this.host = host;
     this.lang = lang;
+    this.onCommand = onCommand;
     this.screen = element.querySelector('.terminal__screen');
     this.form = element.querySelector('.terminal__form');
     this.input = element.querySelector('.terminal__input');
@@ -184,6 +201,44 @@ export class Terminal {
         break;
       case '/jackin':
         this.write(t.jackin);
+        break;
+      case '/chat':
+      case '/talk':
+        this.close();
+        await this.onCommand('chat');
+        break;
+      case '/call':
+      case '/voice':
+        this.close();
+        await this.onCommand('call');
+        break;
+      case '/report':
+        this.close();
+        await this.onCommand('report');
+        break;
+      case '/guide':
+        this.close();
+        await this.onCommand('guide');
+        break;
+      case '/setup':
+        this.close();
+        await this.onCommand('setup');
+        break;
+      case '/customize':
+        this.close();
+        await this.onCommand('customize');
+        break;
+      case '/version':
+        this.close();
+        await this.onCommand('version');
+        break;
+      case '/test':
+        if (subcommand !== 'demosatellite') {
+          this.write(t.empty, 'error');
+          break;
+        }
+        this.close();
+        await this.onCommand('demoSatellite');
         break;
       case '/exit':
       case '/quit':

@@ -624,7 +624,7 @@ export class Capri {
   // follows it. Mostly she just looks at it ("gaze"). She sends the red light up to it
   // ("uplink") only when it means something: the first time of the day, and a little while
   // after Claude finishes a long job (earnUplink). The cues in onCue do the sky.
-  gaze({ big } = {}) {
+  gaze({ big, hold = false } = {}) {
     if (this.busy || this.hidden || this.act || this.stance === 'peek' || this.stance === 'fall') return false;
     big ??= this.uplinkDue || this.lastUplinkDay() !== today();
     if (reducedMotion.matches) big = false; // no strobing bolt
@@ -656,6 +656,7 @@ export class Capri {
     this.sky = { sat, road, dir, side, motes: null, surge: null, head: null };
     if (!big) this.onGaze?.('start');
     this.perform(big ? 'uplink' : 'gaze', dir, { reach }).then(() => {
+      if (hold) return;
       this.clearSky();
       if (big) this.onGaze?.('end');
     });

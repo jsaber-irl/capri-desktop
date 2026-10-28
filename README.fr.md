@@ -154,6 +154,19 @@ conversations** efface ce qu'elle a retenu de vos discussions.
 **C'est une IA.** Ses réponses sont écrites par le modèle, pas par les scénaristes de la série : c'est une version
 fan d'elle, et le panneau du chat le dit à chaque fois.
 
+### Les commandes du terminal Capri
+
+Dans le terminal Capri, tape `/help` pour afficher toutes les commandes. Les raccourcis principaux sont :
+
+- `/chat` ouvre le chat écrit et ferme le terminal.
+- `/call` ouvre l'appel vocal (ou l'arrête s'il est déjà actif).
+- `/report` affiche le rapport de mission.
+- `/guide`, `/setup` et `/customize` ouvrent respectivement le guide, la configuration du chat et la personnalisation.
+- `/version` affiche la version de Capri.
+
+Les commandes d'applications (`/open`), de simulation (`/download`, `/scan`, `/network status`) et `/exit` restent
+disponibles dans le même terminal.
+
 **Ce qu'elle peut faire sur ton PC** (Windows, macOS ou Linux), quand tu lui demandes dans le chat :
 
 - **Ouvrir une appli ou un jeu** : les applis du menu Démarrer sous Windows, du dossier Applications (y compris ses

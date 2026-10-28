@@ -74,11 +74,7 @@ async function boot() {
     ticker: document.getElementById('ticker'),
     labels: linesFor(config.lang, config.assistant),
   });
-  const terminal = new Terminal({
-    element: document.getElementById('terminal'),
-    host,
-    lang: config.lang,
-  });
+  let terminal;
 
   const capri = new Capri({
     root: document.getElementById('capri'),
@@ -235,6 +231,51 @@ async function boot() {
   const custom = new Custom({ guide, host, brain, capri, voice });
   guide.custom = custom;
   brain.custom = mine(config);
+  const showReport = async () => {
+    if (capri.stowed) {
+      host.setConfig({ visible: true });
+      await capri.unstow();
+    }
+    capri.wake();
+    if (brain.report()) capri.perform('curious', capri.towardCenter());
+  };
+  terminal = new Terminal({
+    element: document.getElementById('terminal'),
+    host,
+    lang: config.lang,
+    onCommand: async (name) => {
+      switch (name) {
+        case 'chat':
+          chat.start();
+          break;
+        case 'call':
+          await chat.call();
+          break;
+        case 'demoSatellite':
+          await chat.demoSatellite();
+          break;
+        case 'report':
+          await showReport();
+          break;
+        case 'guide':
+          guide.menu();
+          break;
+        case 'setup':
+          await setup.chat();
+          break;
+        case 'customize':
+          custom.open();
+          break;
+        case 'version': {
+          const version = await host.getVersion();
+          panel.say({ kind: 'info', line: `Capri ${version}`, quote: 'Version actuelle de Capri.', hold: 5000 });
+          break;
+        }
+        default:
+          break;
+      }
+    },
+  });
   // the first Claude Code event that ever reaches her: so you know it worked
   brain.linked = config.linked;
   brain.watching = config.claude !== false;
@@ -436,13 +477,12 @@ async function boot() {
       case 'call':
         chat.call();
         break;
+      case 'demoSatellite':
+        console.log('[renderer] commande demoSatellite reçue');
+        await chat.demoSatellite();
+        break;
       case 'report': // "Mission report" in her menu
-        if (capri.stowed) {
-          host.setConfig({ visible: true });
-          await capri.unstow();
-        }
-        capri.wake();
-        if (brain.report()) capri.perform('curious', capri.towardCenter());
+        await showReport();
         break;
       case 'fakeClaude': { // --dev: the topmost window (the test window) is where a prompt was typed, and you're elsewhere
         const win = capri.windows.wins[0];

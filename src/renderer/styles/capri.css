@@ -504,9 +504,19 @@ body {
   line-height: 1.5;
   color: var(--paper-2);
   display: -webkit-box;
+  line-clamp: 3;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.panel.is-satellite-loading .panel__quote {
+  animation: satellite-loading 900ms steps(2, jump-none) infinite;
+}
+
+@keyframes satellite-loading {
+  0%, 45% { opacity: 1; }
+  46%, 100% { opacity: 0.45; }
 }
 
 /* how far a download is (setup.js): a hard-edged green bar with her violet copy, filling on twos */
@@ -556,6 +566,7 @@ html[data-motion='reduced'] .panel__bar {
 /* her welcome / help panel: the explanation is read whole, and it has buttons */
 .panel.is-guide .panel__quote {
   display: block;
+  line-clamp: unset;
   -webkit-line-clamp: unset;
   overflow: visible;
   white-space: pre-line; /* one idea per line */
@@ -909,6 +920,7 @@ html[data-motion='reduced'] .panel__bar {
   padding-left: 0;
   border-left: 0;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .panel.is-chat:not(.is-guide) .panel__quote::before {

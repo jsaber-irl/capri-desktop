@@ -21,6 +21,7 @@ const IN_LANGUAGE = {
 };
 const STAY_MS = 10 * 60 * 1000; // no wandering off mid-conversation
 const LOADING_AFTER_MS = 5000;
+const SATELLITE_AFTER_MS = 15000;
 const CLOSE_TAG = /\[\[\s*close\s*:?\s*([^\]]*)\]\]/i; // [[close: AM Music]] at the end of her answer
 // "close", "shut down", "ferme", "quitte", "cierra", "fecha", "закрой"... in any of her languages
 const CLOSE_ASK = /\b(close|shut|quit|kill|exit)|ferm|quitt|coupe|arr[êe]t|cierr|cerra|fech|закр|выключ/i;
@@ -83,6 +84,8 @@ export class Chat {
     this.open = false;
     this.turn = 0;     // id of the answer coming in, if any
     this.answer = '';
+    this.satelliteTimer = null;
+    this.satelliteActive = false;
     this.ringtone = new Audio(new URL('../../../assets/songs/phone-call.mp3', import.meta.url));
     this.ringtone.loop = true;
     this.ringtone.preload = 'auto';
@@ -241,6 +244,13 @@ export class Chat {
   close() {
     if (!this.open) return;
     this.open = false;
+    clearTimeout(this.satelliteTimer);
+    this.satelliteTimer = null;
+    clearTimeout(this.demoSatelliteStart);
+    clearTimeout(this.demoSatelliteTimer);
+    this.demoSatelliteStart = null;
+    this.demoSatelliteTimer = null;
+    this.finishSatellite();
     if (this.calling) {
       this.calling = false;
       this.recognition?.stop();
@@ -299,13 +309,28 @@ export class Chat {
     const slow = wait && setTimeout(() => {
       if (this.turn === id && !this.answer) this.panel.stream(wait);
     }, LOADING_AFTER_MS);
+    const shouldCallSatellite = asked?.kind !== 'open';
+    this.satelliteTimer = shouldCallSatellite ? setTimeout(() => {
+      if (this.turn !== id || this.answer || this.satelliteActive) return;
+      this.satelliteActive = this.capri.gaze({ big: true, hold: true });
+      if (this.satelliteActive) {
+        this.panel.setFace('aside');
+        this.panel.setLine(this.t.networkLost);
+        this.panel.setQuote(this.t.satelliteConnecting);
+        this.panel.setSatelliteLoading(true);
+      }
+    }, SATELLITE_AFTER_MS) : null;
     const res = await this.host.chatSend({ id, messages });
     clearTimeout(slow);
+    clearTimeout(this.satelliteTimer);
+    this.satelliteTimer = null;
+    this.finishSatellite();
     if (this.turn !== id) {
       // closed meanwhile: your message goes too, or the next answer would answer it as well
       if (this.history.at(-1)?.content === text) this.history.pop();
       return;
     }
+
     this.turn = 0;
     if (!res.ok) {
       this.history.pop();
@@ -327,6 +352,80 @@ export class Chat {
     }
     if (!this.agent) this.after(res.text, answer, asked, early, text);
     this.listApps(); // fresh for the next message
+  }
+
+  async demoSatellite() {
+    console.log('[chat] demoSatellite appelé');
+    if (this.open) {
+      console.log('[chat] demoSatellite ignoré : le chat est déjà ouvert');
+      return;
+    }
+    if (this.capri.stowed) {
+      this.host.setConfig({ visible: true });
+      await this.capri.unstow();
+    }
+    this.capri.wake();
+    this.host.focusOverlay(true);
+    const shown = this.panel.say({
+      kind: 'chat',
+      face: 'look',
+      badge: this.t.badge,
+      tag: 'DEMO',
+      line: this.t.demoRequest,
+      chat: {
+        placeholder: this.t.placeholder,
+        send: this.t.send,
+        close: this.t.close,
+        noteTag: this.t.noteTag,
+        note: this.t.note,
+      },
+      onSend: () => {},
+      onLeave: () => this.close(),
+      hold: null,
+    });
+    if (!shown) {
+      console.log('[chat] demoSatellite ignoré : le panneau n’a pas pu être affiché');
+      this.host.focusOverlay(false);
+      return;
+    }
+    console.log('[chat] test satellite démarré, déclenchement dans 15 secondes');
+    this.open = true;
+    this.capri.perform('hop');
+    const id = Date.now();
+    this.turn = id;
+    this.answer = '';
+    this.panel.setChatBusy(true);
+    this.panel.chatTurn({ quote: this.t.demoRequest, face: 'aside' });
+    await new Promise((resolve) => {
+      this.demoSatelliteTimer = setTimeout(resolve, SATELLITE_AFTER_MS + 5000);
+      this.demoSatelliteStart = setTimeout(() => {
+        if (this.turn !== id || this.answer) return;
+        this.satelliteActive = this.capri.gaze({ big: true, hold: true });
+        if (this.satelliteActive) {
+          console.log('[chat] animation satellite démarrée');
+          this.panel.setFace('aside');
+          this.panel.setLine(this.t.networkLost);
+          this.panel.setQuote(this.t.satelliteConnecting);
+          this.panel.setSatelliteLoading(true);
+        }
+      }, SATELLITE_AFTER_MS);
+    });
+    clearTimeout(this.demoSatelliteStart);
+    clearTimeout(this.demoSatelliteTimer);
+    this.demoSatelliteStart = null;
+    this.demoSatelliteTimer = null;
+    if (this.turn !== id) return;
+    this.finishSatellite();
+    console.log('[chat] test satellite terminé, réponse de démonstration affichée');
+    this.turn = 0;
+    this.panel.stream(this.t.demoResponse, { done: true });
+    this.panel.setChatBusy(false);
+  }
+
+  finishSatellite() {
+    if (this.satelliteActive) this.capri.clearSky();
+    this.satelliteActive = false;
+    this.panel.setSatelliteLoading(false);
   }
 
   // an answer of hers, kept with your message before it

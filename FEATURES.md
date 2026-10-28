@@ -210,6 +210,7 @@ Checked boxes indicate features currently present in the code. Features that dep
 ## 13. Additional Features
 
 - [x] Add a movable, freely resizable cyberpunk-style Capri terminal while expanded, collapsible to its command line and expandable again, with fake commands (`/open`, `/download`, `/help`, `/network status`, `/get arasaka data`, etc.) and command/result history.
+- [x] When a chat request takes more than 15 seconds (except application launches), show Capri's Night City network warning, start the satellite animation, and display satellite connection progress until the response arrives.
 - [ ] Open selected files.
 - [ ] Read and edit files.
 - [ ] Control YouTube.

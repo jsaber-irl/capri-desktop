@@ -74,7 +74,7 @@ module.exports = function demoSteps(lang = 'en') {
     [700, base('Notification', { notification_type: 'permission_prompt', title: 'Permission needed', message: 'Claude needs your permission to use Bash' })],
     [5200, done('Bash', { command: 'npm test -- gigs' }, 3100)],
     [1500, base('Stop', { last_assistant_message: t.reply })],
-    // not a Claude event: starts the showcase once the done panel has been read
     [9000, base('CapriShowcase')],
+    [45000, base('CapriSatelliteTest')],
   ];
 };

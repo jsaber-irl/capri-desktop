@@ -27,6 +27,9 @@ function post(evt) {
   for (const [delay, evt] of steps) {
     await sleep(delay);
     process.stdout.write(`→ ${evt.hook_event_name}${evt.tool_name ? ' ' + evt.tool_name : ''}\n`);
+    if (evt.hook_event_name === 'CapriSatelliteTest') {
+      console.log('[demo] CapriSatelliteTest envoyé');
+    }
     try {
       await post(evt);
     } catch {

@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const {
   app, BrowserWindow, Tray, Menu, ipcMain, screen, protocol, net, shell, globalShortcut, nativeImage,
-  clipboard, ClipboardItem, dialog, powerMonitor,
+  clipboard, ClipboardItem, dialog, powerMonitor, systemPreferences,
 } = require('electron');
 
 const config = require('./config');
@@ -268,6 +268,38 @@ function updateConfig(patch) {
   return cfg;
 }
 
+function macPermissionStatus(type) {
+  if (process.platform !== 'darwin') return 'not-applicable';
+  if (type === 'accessibility') return systemPreferences.isTrustedAccessibilityClient(false) ? 'granted' : 'missing';
+  return systemPreferences.getMediaAccessStatus(type);
+}
+
+function openMacPrivacySettings(anchor = 'Privacy') {
+  const suffix = anchor === 'Accessibility' ? 'Privacy_Accessibility'
+    : anchor === 'ScreenCapture' ? 'Privacy_ScreenCapture'
+      : 'Privacy';
+  shell.openExternal(`x-apple.systempreferences:com.apple.preference.security?${suffix}`);
+}
+
+async function requestMacMicrophone() {
+  if (process.platform !== 'darwin') return;
+  const status = macPermissionStatus('microphone');
+  if (status === 'not-determined') await systemPreferences.askForMediaAccess('microphone');
+  if (macPermissionStatus('microphone') !== 'granted') openMacPrivacySettings();
+  rebuildTray();
+}
+
+function requestMacAccessibility() {
+  if (process.platform !== 'darwin') return;
+  if (!systemPreferences.isTrustedAccessibilityClient(true)) openMacPrivacySettings('Accessibility');
+  rebuildTray();
+}
+
+function openMacScreenSettings() {
+  if (process.platform !== 'darwin') return;
+  openMacPrivacySettings('ScreenCapture');
+}
+
 function rebuildTray() {
   if (!tray) return;
   const cfg = config.load();
@@ -292,6 +324,25 @@ function rebuildTray() {
     { label: t.terminal, click: () => sendCommand('terminal') },
     { label: t.call, click: () => sendCommand('call') },
     { label: t.custom, click: () => sendCommand('customize') },
+    ...(process.platform === 'darwin' ? [{
+      label: t.macPermissions,
+      submenu: [
+        {
+          label: `${t.macMicrophone}: ${macPermissionStatus('microphone')}`,
+          click: requestMacMicrophone,
+        },
+        {
+          label: `${t.macAccessibility}: ${macPermissionStatus('accessibility')}`,
+          click: requestMacAccessibility,
+        },
+        {
+          label: `${t.macScreen}: ${macPermissionStatus('screen')}`,
+          click: openMacScreenSettings,
+        },
+        { type: 'separator' },
+        { label: t.macOpenSettings, click: () => openMacPrivacySettings() },
+      ],
+    }] : []),
     { label: cfg.visible ? t.hide : t.show, accelerator: cfg.shortcuts?.toggle || undefined, click: () => toggleVisible() },
     { type: 'separator' },
     {
@@ -828,7 +879,14 @@ function main() {
     createBridge({
       port: PORT,
       // her own Claude Code chat's hooks would cover its answer with theirs
-      onEvent: (evt) => !llm.isChatSession(evt.session_id) && overlay?.webContents.send('claude:event', evt),
+      onEvent: (evt) => {
+        if (evt.demo && evt.hook_event_name === 'CapriSatelliteTest') {
+          console.log('[capri] CapriSatelliteTest reçu, lancement de demoSatellite');
+          overlay?.webContents.send('capri:command', { name: 'demoSatellite' });
+          return;
+        }
+        if (!llm.isChatSession(evt.session_id)) overlay?.webContents.send('claude:event', evt);
+      },
       onDebug: DEV ? debugHandler : null,
     });
     registerShortcuts();

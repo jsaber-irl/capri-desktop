@@ -175,6 +175,18 @@ export class Panel {
     this.place();
   }
 
+  setLine(text) {
+    if (!this.current) return;
+    this.current.line = text;
+    this.line.textContent = text || '';
+    this.line.classList.remove('is-streaming');
+    this.place();
+  }
+
+  setSatelliteLoading(active) {
+    this.el.classList.toggle('is-satellite-loading', Boolean(active));
+  }
+
   // Change her expression; the swap glitches across a couple of drawings.
   setFace(name) {
     const src = FACE_DIR + (FACES[name] || FACES.grin);
