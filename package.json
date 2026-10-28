@@ -1,0 +1,147 @@
+{
+  "name": "capri-desktop",
+  "version": "0.5.1",
+  "description": "Capri, the Project Capricorn construct, living on your desktop and narrating what Claude Code is doing.",
+  "author": "mochiiwuff",
+  "repository": "github:mochiiwuff/capri-desktop",
+  "main": "src/main/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "demo": "node scripts/demo.js",
+    "hooks:install": "node scripts/install-hooks.js",
+    "hooks:uninstall": "node scripts/install-hooks.js --uninstall",
+    "hooks:codex:install": "node scripts/install-codex-hooks.js",
+    "hooks:codex:uninstall": "node scripts/install-codex-hooks.js --uninstall",
+    "hooks:agy:install": "node scripts/install-hooks-agy.js",
+    "hooks:agy:uninstall": "node scripts/install-hooks-agy.js --uninstall",
+    "check:llm": "node scripts/check-llm.js",
+    "voices:demo": "node scripts/voice-demo.js",
+    "test:hooks": "node --test tests/hooks.test.js",
+    "dist": "electron-builder --win --x64",
+    "dist:mac": "electron-builder --mac",
+    "dist:32": "electron-builder --win --ia32 -c.electronVersion=43.8.3",
+    "dist:all": "npm run dist && npm run dist:32",
+    "test:character": "node --test tests/character.test.js",
+    "test:senses": "node --test tests/senses.test.js",
+    "test:bond": "node --test tests/bond.test.js",
+    "test:ring": "node --test tests/ring.test.js",
+    "test:claude": "node --test tests/anthropic.test.js",
+    "test:config": "node --test tests/config.test.js",
+    "test:chat": "node --test tests/chat.test.js",
+    "test:claudecode": "node --test tests/claudecode.test.js",
+    "test:release": "node --test tests/release.test.js",
+    "test:chatterbox": "node --test tests/chatterbox.test.js",
+    "test:ollama": "node --test tests/ollama-host.test.js",
+    "test:provision": "node --test tests/provision.test.js",
+    "test:prepare": "node --test tests/prepare.e2e.test.js",
+    "test:hardware": "node --test tests/hardware.test.js",
+    "test:profiles": "node --test tests/profiles.test.js",
+    "test:piper": "node --test tests/piper.test.js",
+    "test:hub": "node --test tests/hub.test.js",
+    "test:labels": "node --test tests/labels.test.js",
+    "test:incoming-call": "node --test tests/incoming-call.test.js",
+    "test:satellite-wait": "node --test tests/satellite-wait.test.js",
+    "test:openai": "node --test tests/openai.test.js",
+    "test:ledges": "node --test tests/ledges.test.js",
+    "test:heart": "node --test tests/heart.test.js",
+    "test:acting": "node --test tests/acting.test.js",
+    "test:cleanup": "node --test tests/cleanup.test.js",
+    "test:possession": "node --test tests/possession.test.js",
+    "test:mover": "node --test tests/mover.test.js",
+    "test:node": "node --test tests/node-check.test.js",
+    "test:stacking": "node --test tests/stacking.test.js",
+    "test:tune": "node --test tests/tune.test.js",
+    "test:voice-demo": "node --test tests/voice-demo.test.js",
+    "test:voice-sample": "node --test tests/voice-sample.test.js",
+    "test:terminal": "node --test tests/terminal.test.js",
+    "test:mac-permissions": "node --test tests/mac-permissions.test.js",
+    "test:launch-resolver": "node --test tests/launch-resolver.test.js",
+    "test:music-control": "node --test tests/music-control.test.js tests/terminal.test.js tests/chat.test.js",
+    "test:screen-capture": "node --test tests/screen-capture.test.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "keywords": [
+    "claude-code",
+    "desktop-pet",
+    "electron",
+    "cyberpunk",
+    "edgerunners"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "electron": "^44.9.3",
+    "electron-builder": "^26.18.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0"
+  },
+  "build": {
+    "appId": "capri.desktop",
+    "productName": "Capri",
+    "files": [
+      "src/**",
+      "assets/**",
+      "!assets/voice-default/**",
+      "hooks/**",
+      "scripts/**",
+      "package.json",
+      "LICENSE",
+      "!**/*.map",
+      "!node_modules/@anthropic-ai/sdk/{src,bin}/**",
+      "!node_modules/@anthropic-ai/sdk/**/*.{mjs,d.ts,d.mts,d.cts,md}"
+    ],
+    "extraResources": [
+      {
+        "from": "src/main/chatterbox-server.py",
+        "to": "chatterbox-server.py"
+      },
+      {
+        "from": "assets/voice-default",
+        "to": "voice-default",
+        "filter": [
+          "capri.*"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "hooks/**",
+      "src/main/windows.ps1",
+      "src/main/mover.ps1",
+      "src/main/media.ps1",
+      "src/main/media-control.ps1"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icons/capri.ico"
+    },
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": ["dmg"],
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Capri uses the microphone only when you start a voice feature, such as push-to-talk or a voice conversation.",
+        "NSAppleEventsUsageDescription": "Capri sends Apple Events only when you request supported application and window controls.",
+        "NSAudioCaptureUsageDescription": "Capri captures system audio only when you enable its audio listening feature."
+      }
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "include": "build/installer.nsh",
+      "createDesktopShortcut": true,
+      "shortcutName": "Capri",
+      "artifactName": "Capri-Setup-${version}-${arch}.${ext}"
+    },
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US",
+      "ru",
+      "fr"
+    ]
+  }
+}

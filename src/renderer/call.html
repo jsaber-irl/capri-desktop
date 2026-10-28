@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capri</title>
+  <link rel="stylesheet" href="./call.css">
+</head>
+<body>
+  <main class="call-card" id="call-card" data-state="incoming">
+    <div class="signal" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="portrait-wrap"><img id="portrait" src="capri://app/assets/capri-calling-image.png" alt="Capri"/><span class="fallback" id="fallback">C</span></div>
+    <h1>Capri</h1>
+    <p id="status" aria-live="polite">Appel entrant…</p>
+    <p class="detail" id="detail" hidden></p>
+    <audio id="ringtone" src="capri://app/assets/songs/phone-call.mp3" loop preload="auto"></audio>
+    <section class="buttons" id="incoming-buttons">
+      <button class="round decline" id="decline" aria-label="Refuser"><span>✕</span></button>
+      <button class="round accept" id="accept" aria-label="Accepter"><span>☎</span></button>
+      <small><span>Refuser</span><span>Accepter</span></small>
+    </section>
+    <section class="buttons active-buttons" id="active-buttons" hidden>
+      <button class="round decline" id="hangup" aria-label="Raccrocher"><span>☎</span></button>
+      <small><span>Raccrocher</span></small>
+    </section>
+    <button class="enable-sound" id="enable-sound" hidden>Activer la sonnerie</button>
+  </main>
+  <script src="./call-ui.js"></script>
+</body>
+</html>

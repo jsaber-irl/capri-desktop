@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capri // Terminal</title>
+  <link rel="stylesheet" href="styles/terminal.css">
+</head>
+<body data-compact="false">
+  <main class="terminal" id="terminal">
+    <!-- Header / Title bar with drag handle -->
+    <header class="terminal__bar" id="dragbar">
+      <div class="terminal__brand">
+        <span class="terminal__status-dot" title="Terminal actif"></span>
+        <span class="terminal__title">CAPRI // NETRUNNER CONSOLE</span>
+        <span class="terminal__badge">SYS:ONLINE</span>
+      </div>
+      <div class="terminal__actions">
+        <button id="compact" type="button" aria-label="Réduire en barre compacte" title="Réduire en barre compacte">_</button>
+        <button id="close" type="button" aria-label="Fermer le terminal" title="Fermer le terminal">×</button>
+      </div>
+    </header>
+
+    <!-- Terminal body with input area and history below -->
+    <section class="terminal__body" id="body">
+      <!-- Input zone at the top of the body -->
+      <form id="form" class="terminal__form">
+        <!-- Compact drag handle (visible only in compact mode) -->
+        <div class="terminal__compact-handle" id="compactHandle" title="Glisser pour déplacer le terminal">
+          <span class="terminal__status-dot"></span>
+          <span class="terminal__compact-icon">::</span>
+        </div>
+
+        <span class="terminal__prompt">capri@night-city:~$</span>
+        <input id="input" autocomplete="off" spellcheck="false" aria-label="Commande terminal" placeholder="Entrez une commande (/help)...">
+
+        <!-- Active terminal indicator in input bar -->
+        <div class="terminal__active-led" title="Terminal actif"></div>
+
+        <!-- Compact actions (visible only in compact mode) -->
+        <div class="terminal__compact-actions" id="compactActions">
+          <button id="expand" type="button" aria-label="Développer le terminal" title="Développer le terminal">▲</button>
+          <button id="compactClose" type="button" aria-label="Fermer le terminal" title="Fermer le terminal">×</button>
+        </div>
+      </form>
+
+      <!-- History output container below the input zone -->
+      <div id="output" class="terminal__output" aria-live="polite"></div>
+    </section>
+  </main>
+  <script src="js/terminal.js"></script>
+</body>
+</html>

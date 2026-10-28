@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capri // MacOS Permissions</title>
+  <link rel="stylesheet" href="styles/mac-permissions.css">
+</head>
+<body>
+  <div class="perm-window">
+    <!-- Title bar with drag handle -->
+    <header class="perm-bar" id="dragbar">
+      <div class="perm-brand">
+        <span class="perm-status-led" id="topLed"></span>
+        <span class="perm-title">CAPRI // MACOS PERMISSIONS</span>
+        <span class="perm-tag">TCC MONITOR</span>
+      </div>
+      <div class="perm-bar-actions">
+        <button id="closeBtn" type="button" class="perm-btn-close" aria-label="Fermer" title="Fermer">×</button>
+      </div>
+    </header>
+
+    <!-- Scrollable content area -->
+    <main class="perm-content">
+      <!-- Global Summary Card -->
+      <section class="card card--summary">
+        <div class="summary-header">
+          <div>
+            <h1 class="summary-title" id="summaryTitle">État des autorisations système</h1>
+            <p class="summary-sub" id="summarySub">Vérification de l’accès aux API macOS pour les fenêtres, le son et l’écran.</p>
+          </div>
+          <div class="summary-badge-box">
+            <span class="badge" id="globalBadge">ANALYSE...</span>
+            <span class="summary-count" id="summaryCount">0 / 4 autorisations</span>
+          </div>
+        </div>
+
+        <div class="summary-actions">
+          <button id="refreshAllBtn" type="button" class="btn btn--primary">
+            <span class="btn-icon">↻</span> <span id="refreshLabel">Vérifier toutes les permissions</span>
+          </button>
+          <span class="summary-hint" id="summaryHint">Si une autorisation vient d’être modifiée dans macOS, un redémarrage de Capri peut être nécessaire.</span>
+        </div>
+      </section>
+
+      <!-- Section 1: Accessibility -->
+      <section class="card perm-card" id="card-accessibility" data-perm="accessibility">
+        <div class="perm-head">
+          <div class="perm-meta">
+            <span class="perm-sec-badge">Section 1</span>
+            <h2 class="perm-name" id="name-accessibility">Accessibilité (Accessibility)</h2>
+          </div>
+          <span class="badge badge--pending" id="badge-accessibility">VÉRIFICATION...</span>
+        </div>
+
+        <p class="perm-desc" id="desc-accessibility">
+          Permet à Capri d’interagir avec l’interface macOS, de détecter et manipuler les fenêtres, et d’exécuter des actions d’accessibilité.
+        </p>
+
+        <div class="perm-features">
+          <h3 class="perm-features-title">Fonctionnalités Capri concernées :</h3>
+          <ul class="perm-features-list" id="features-accessibility"></ul>
+        </div>
+
+        <div class="perm-instructions" id="inst-box-accessibility">
+          <span class="inst-label">Instructions macOS :</span>
+          <p class="inst-text" id="instructions-accessibility"></p>
+        </div>
+
+        <div class="perm-actions">
+          <button type="button" class="btn btn--action" id="btn-request-accessibility">
+            Demander l’autorisation
+          </button>
+          <button type="button" class="btn btn--secondary" id="btn-settings-accessibility">
+            Ouvrir Réglages Système
+          </button>
+        </div>
+      </section>
+
+      <!-- Section 5: Microphone -->
+      <section class="card perm-card" id="card-microphone" data-perm="microphone">
+        <div class="perm-head">
+          <div class="perm-meta">
+            <span class="perm-sec-badge">Section 5</span>
+            <h2 class="perm-name" id="name-microphone">Microphone (Audio)</h2>
+          </div>
+          <span class="badge badge--pending" id="badge-microphone">VÉRIFICATION...</span>
+        </div>
+
+        <p class="perm-desc" id="desc-microphone">
+          Permet aux fonctionnalités vocales de Capri d’écouter votre voix lors des conversations et des requêtes audio.
+        </p>
+
+        <div class="perm-features">
+          <h3 class="perm-features-title">Fonctionnalités Capri concernées :</h3>
+          <ul class="perm-features-list" id="features-microphone"></ul>
+        </div>
+
+        <div class="perm-instructions" id="inst-box-microphone">
+          <span class="inst-label">Instructions macOS :</span>
+          <p class="inst-text" id="instructions-microphone"></p>
+        </div>
+
+        <div class="perm-actions">
+          <button type="button" class="btn btn--action" id="btn-request-microphone">
+            Demander l’autorisation
+          </button>
+          <button type="button" class="btn btn--secondary" id="btn-settings-microphone">
+            Ouvrir Réglages Système
+          </button>
+        </div>
+      </section>
+
+      <!-- Section 8: Screen Recording -->
+      <section class="card perm-card" id="card-screen" data-perm="screen">
+        <div class="perm-head">
+          <div class="perm-meta">
+            <span class="perm-sec-badge">Section 8 · Capture</span>
+            <h2 class="perm-name" id="name-screen">Enregistrement de l’écran (Screen Recording)</h2>
+          </div>
+          <span class="badge badge--pending" id="badge-screen">VÉRIFICATION...</span>
+        </div>
+
+        <p class="perm-desc" id="desc-screen">
+          Permet à Capri d’observer le contenu de l’écran pour alimenter le modèle d’IA visuelle et identifier le contexte de vos fenêtres.
+        </p>
+
+        <div class="perm-features">
+          <h3 class="perm-features-title">Fonctionnalités Capri concernées :</h3>
+          <ul class="perm-features-list" id="features-screen"></ul>
+        </div>
+
+        <div class="perm-instructions" id="inst-box-screen">
+          <span class="inst-label">Instructions macOS :</span>
+          <p class="inst-text" id="instructions-screen"></p>
+        </div>
+
+        <div class="perm-actions">
+          <button type="button" class="btn btn--secondary" id="btn-settings-screen">
+            Ouvrir Réglages Système
+          </button>
+        </div>
+      </section>
+
+      <!-- Section 13: Automation & Apple Events -->
+      <section class="card perm-card" id="card-automation" data-perm="automation">
+        <div class="perm-head">
+          <div class="perm-meta">
+            <span class="perm-sec-badge">Section 13 · Par application</span>
+            <h2 class="perm-name" id="name-automation">Automatisation & Contrôle d’applications</h2>
+          </div>
+          <span class="badge badge--pending" id="badge-automation">VÉRIFICATION...</span>
+        </div>
+
+        <p class="perm-desc" id="desc-automation">
+          Permet à Capri d’envoyer des commandes Apple Events pour ouvrir, fermer ou interagir avec les applications compatibles.
+        </p>
+
+        <div class="perm-features">
+          <h3 class="perm-features-title">Fonctionnalités Capri concernées :</h3>
+          <ul class="perm-features-list" id="features-automation"></ul>
+        </div>
+
+        <div class="perm-instructions" id="inst-box-automation">
+          <span class="inst-label">Instructions macOS :</span>
+          <p class="inst-text" id="instructions-automation"></p>
+        </div>
+
+        <div class="perm-actions">
+          <button type="button" class="btn btn--action" id="btn-request-automation">
+            Tester l’accès
+          </button>
+          <button type="button" class="btn btn--secondary" id="btn-settings-automation">
+            Ouvrir Réglages Système
+          </button>
+        </div>
+      </section>
+
+      <!-- Window Management & Diagnostics Section -->
+      <section class="card card--diagnostics">
+        <div class="diag-header">
+          <div>
+            <h2 class="diag-title">Gestion des fenêtres & Navigation macOS</h2>
+            <p class="diag-sub">Test de détection et manipulation des fenêtres actives via l’API Accessibilité.</p>
+          </div>
+          <button id="testWindowsBtn" type="button" class="btn btn--small">
+            Lister les fenêtres ouvertes
+          </button>
+        </div>
+
+        <div id="windowsResult" class="windows-box" aria-live="polite">
+          <p class="empty-hint">Cliquez sur « Lister les fenêtres ouvertes » pour tester la détection en direct.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/mac-permissions.js"></script>
+</body>
+</html>
+
