@@ -28,8 +28,8 @@ Checked boxes indicate features currently present in the code. Features that dep
 - [x] Visual glitch effects.
 - [x] Sleep and reboot animations.
 - [x] Move the mascot with the mouse.
-- [ ] Position on windows, icons, or the bottom edge of the screen.
-- [ ] Move between open windows.
+- [x] Position on windows and the bottom edge of the screen.
+- [x] Move between open windows.
 - [x] Snap to a specific position or to the mouse.
 
 ## 2. Integration with Coding Assistants
@@ -79,15 +79,15 @@ Checked boxes indicate features currently present in the code. Features that dep
 
 - [x] Floating mascot that stays in the foreground.
 - [x] Drag-and-drop movement.
-- [ ] Ability to sit on the top edge of a window.
-- [ ] Move along with a window when it is moved.
-- [ ] Fall when a window disappears, is minimized, or is covered.
-- [ ] Ability to land on the edge of another window.
+- [x] Ability to sit on the top edge of a window.
+- [x] Move along with a window when it is moved.
+- [x] Fall when a window disappears, is minimized, or is covered.
+- [x] Ability to land on the edge of another window.
 - [x] Partially appear at the edges of the screen.
 - [x] Move when the mouse approaches.
-- [ ] Window-possession effect with animated eyes and a smile.
+- [x] Window-possession effect with animated eyes and a smile.
 - [x] Disable window possession from the menu.
-- [ ] Track open windows on Windows.
+- [x] Track open windows on Windows and macOS (with Accessibility permission on macOS).
 - [x] Retreat into the biochip with Ctrl + Alt + C.
 - [x] Reappear by clicking the mask or using the same shortcut.
 

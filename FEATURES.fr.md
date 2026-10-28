@@ -1,8 +1,8 @@
 # État d'implémentation
 
 Les cases cochées correspondent aux fonctionnalités présentes dans le code actuel. Les fonctionnalités
-dépendant d'une API native non disponible dans Electron restent décochées plutôt que simulées. Le suivi
-et la possession des fenêtres restent Windows uniquement ; l'overlay, les animations, le chat, les
+dépendant d'une API native non disponible dans Electron restent décochées plutôt que simulées. La possession des fenêtres reste principalement Windows ; le suivi des fenêtres fonctionne sous Windows et
+macOS avec les permissions nécessaires ; l'overlay, les animations, le chat, les
 assistants, les sons et les actions d'applications sont disponibles sur Windows, macOS et Linux.
 
 1. Mascotte et animations
@@ -30,8 +30,8 @@ assistants, les sons et les actions d'applications sont disponibles sur Windows,
 - [x] Effets visuels de glitch.
 - [x] Animation de sommeil et de redémarrage.
 - [x] Déplacement de la mascotte à la souris.
-- [ ] Positionnement sur les fenêtres, les icônes ou le bas de l'écran.
-- [ ] Déplacement entre les fenêtres ouvertes.
+- [x] Positionnement sur les fenêtres et le bas de l'écran.
+- [x] Déplacement entre les fenêtres ouvertes.
 - [x] Accrochage à une position précise ou à la souris.
 - [x] Menu « MacOS Permissions » pour autoriser l'accès nécessaire aux interactions avec les fenêtres sur macOS.
 
@@ -79,15 +79,15 @@ assistants, les sons et les actions d'applications sont disponibles sur Windows,
 5. Positionnement et interactions avec les fenêtres
 - [x] Mascotte flottante au premier plan.
 - [x] Déplacement par glisser-déposer.
-- [ ] Possibilité de s'asseoir sur le bord supérieur d'une fenêtre.
-- [ ] Déplacement avec la fenêtre lorsque celle-ci est déplacée.
-- [ ] Chute lorsque la fenêtre disparaît, est minimisée ou recouverte.
-- [ ] Possibilité de tomber sur le rebord d'une autre fenêtre.
+- [x] Possibilité de s'asseoir sur le bord supérieur d'une fenêtre.
+- [x] Déplacement avec la fenêtre lorsque celle-ci est déplacée.
+- [x] Chute lorsque la fenêtre disparaît, est minimisée ou recouverte.
+- [x] Possibilité de tomber sur le rebord d'une autre fenêtre.
 - [x] Apparition partielle sur les bords de l'écran.
 - [x] Déplacement lorsqu'on approche la souris d'elle.
-- [ ] Effet de possession d'une fenêtre avec des yeux et un sourire animés.
+- [x] Effet de possession d'une fenêtre avec des yeux et un sourire animés.
 - [x] Désactivation de la possession des fenêtres depuis le menu.
-- [ ] Suivi des fenêtres ouvertes sous Windows.
+- [x] Suivi des fenêtres ouvertes sous Windows et macOS (avec l'autorisation Accessibilité sur macOS).
 - [x] Accès aux réglages macOS d'accessibilité et d'enregistrement de l'écran pour les interactions avec les fenêtres.
 - [x] Mise en retrait dans le biochip avec Ctrl + Alt + C.
 - [x] Réapparition par clic sur le masque ou avec le même raccourci.
@@ -131,6 +131,7 @@ Modèles et fournisseurs d'IA compatibles avec le chat
 
 8. Actions sur l'ordinateur
 - [x] Ouvrir des applications.
+- [x] Reconnaître des noms traduits d'applications système, comme « météo » pour l'application Weather.
 - [x] Fermer des applications.
 - [ ] Lire de la musique (recherche Spotify disponible, lecture directe non implémentée).
 - [x] Mettre la musique en pause.

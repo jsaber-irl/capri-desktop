@@ -16,7 +16,23 @@ const MAC = process.platform === 'darwin';
 const SKIP = /uninstall|désinstaller|desinstalar|deinstall|readme|documentation|release notes|support center|website|manual/i;
 const STEAM_SKIP = /redistributable|dedicated server|steamworks/i;
 // words that don't tell apps apart ("Roblox Player" is "roblox")
-const FILLER = new Set(['player', 'launcher', 'app', 'the', 'for', 'windows', 'desktop', 'client', 'x64', 'x86', 'beta']);
+const FILLER = new Set([
+  'player', 'launcher', 'app', 'application', 'applications', 'the', 'for', 'windows', 'desktop', 'client',
+  'ouvre', 'ouvrir', 'open', 'lance', 'lancer', 'start', 'démarre', 'demarre', 'démarrer', 'demarrer',
+  'x64', 'x86', 'beta',
+]);
+const APP_ALIASES = new Map([
+  ['weather', ['meteo', 'weather']],
+  ['calculator', ['calculatrice', 'calculadora', 'calcolatrice', 'calculator']],
+  ['calendar', ['calendrier', 'calendario', 'calendário', 'calendar']],
+  ['maps', ['plans', 'cartes', 'mapas', 'mappe', 'maps']],
+  ['notes', ['notes', 'notas', 'notizen']],
+  ['mail', ['courrier', 'correo', 'email', 'e-mail', 'mail']],
+  ['photos', ['photos', 'fotos', 'bilder']],
+  ['music', ['musique', 'música', 'musica', 'music']],
+  ['settings', ['réglages', 'reglages', 'paramètres', 'parametres', 'ajustes', 'settings']],
+  ['clock', ['horloge', 'reloj', 'relógio', 'orologio', 'clock']],
+]);
 const CACHE_MS = 10 * 60 * 1000; // installed apps hardly change
 
 let cache = null; // { at, items }
@@ -211,10 +227,16 @@ function match(items, text) {
   let best = null;
   for (const item of items) {
     const key = words(item.name).filter((w) => !FILLER.has(w));
-    if (!key.length) continue;
-    const hits = key.filter((w) => said.has(w) || (w.length >= 5 && joined.includes(w)));
+    const aliases = [
+      ...[...APP_ALIASES.entries()]
+        .filter(([canonical]) => key.includes(canonical) || plain(item.name) === canonical)
+        .flatMap(([, values]) => values),
+      ...key,
+    ];
+    if (!aliases.length) continue;
+    const hits = aliases.filter((w) => said.has(w) || (w.length >= 5 && joined.includes(w)));
     if (!hits.some((w) => w.length >= 3) || hits.length / key.length < 0.5) continue;
-    const rank = (hits.length / key.length) * 10 + hits.join('').length / 10;
+    const rank = (hits.length / aliases.length) * 10 + hits.join('').length / 10;
     if (!best || rank > best.rank) best = { item, rank };
   }
   return best?.item || null;

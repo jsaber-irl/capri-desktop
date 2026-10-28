@@ -154,6 +154,10 @@ conversations** efface ce qu'elle a retenu de vos discussions.
 **C'est une IA.** Ses réponses sont écrites par le modèle, pas par les scénaristes de la série : c'est une version
 fan d'elle, et le panneau du chat le dit à chaque fois.
 
+Dans le menu Capri, **Écran** sert à choisir le moniteur utilisé par l'overlay lorsqu'il y en a plusieurs.
+Cette option ne permet pas de lire le contenu de l'écran. Pour ouvrir une application, Capri comprend aussi
+les noms traduits des applications système : par exemple, « ouvre l'application météo » peut ouvrir **Weather**.
+
 ### Les commandes du terminal Capri
 
 Dans le terminal Capri, tape `/help` pour afficher toutes les commandes. Les raccourcis principaux sont :
