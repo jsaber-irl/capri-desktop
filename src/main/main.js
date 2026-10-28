@@ -3,20 +3,42 @@
 const path = require('node:path');
 const os = require('node:os');
 const fs = require('node:fs');
+const { spawn: spawnProgram } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 const {
   app, BrowserWindow, Tray, Menu, ipcMain, screen, protocol, net, shell, globalShortcut, nativeImage,
-  clipboard, ClipboardItem, dialog, powerMonitor, systemPreferences,
+  desktopCapturer, session,
+  clipboard, ClipboardItem, dialog, powerMonitor,
 } = require('electron');
 
 const config = require('./config');
 const { TRAY, LANGS } = require('./labels');
 const { createBridge } = require('./bridge');
 const { startWindowWatch } = require('./windows');
+const { createMover } = require('./mover');
 const llm = require('./llm');
 const setup = require('./setup');
 const apps = require('./apps');
 const launch = require('./launch');
+const tts = require('./tts');
+const { Chatterbox } = require('./chatterbox');
+const { Piper } = require('./piper');
+const hardware = require('./hardware');
+const { needsRaise } = require('./stacking');
+const { OllamaHost } = require('./ollama-host');
+const ollama = require('./ollama');
+const tuner = require('./tune');
+const { createSample } = require('./voice-sample');
+const { Provision } = require('./provision');
+const { createInstalled } = require('./installed');
+const { Cleanup } = require('./cleanup');
+const nodeCheck = require('./node-check');
+const { createPrepare } = require('./prepare');
+const { createHub } = require('./hub');
+const stt = require('./stt');
+const vision = require('./screen');
+const control = require('./control');
+const { startMediaWatch } = require('./media');
 const { ASSISTANTS, assistant } = require('./assistants');
 const activeAssistant = () => assistant(config.load().assistant); // Claude Code or Codex
 const activeHooks = () => activeAssistant().hooks;
@@ -28,22 +50,119 @@ const PORT = Number(process.env.CAPRI_PORT) || 47823;
 const SOUND_EXT = /\.(mp3|wav|ogg|m4a)$/i;
 
 const OLLAMA_SITE = 'https://ollama.com';
+// her colours (renderer themes.js), in the order of her menu
+const THEMES = ['classic', 'netrunner', 'toxic', 'violet', 'gold', 'sakura', 'ghost', 'mood'];
+// which saved key each voice engine uses (OpenAI's is the same one as her chat's)
+const TTS_KEYS = { openai: 'openai', elevenlabs: 'elevenlabs', custom: 'tts' };
+// her voice (Chatterbox) and her mind (Ollama), models on this PC: she finds their folders next to her, starts
+// them, keeps them, and gets them ready when something is missing (provision.js, shown by prepare.js)
+const placesNextToHer = () => {
+  // next to her first (her folder, the one she was started from), then the places a folder gets put
+  const place = (name) => { try { return app.getPath(name); } catch { return ''; } };
+  return [path.dirname(process.execPath), ROOT, path.resolve(ROOT, '..'), process.env.PORTABLE_EXECUTABLE_DIR, process.cwd(), place('desktop'), place('downloads'), place('documents'), place('home')]
+    .filter(Boolean).filter((p, i, all) => all.indexOf(p) === i);
+};
+let overlay = null; // her window
+// (a message to the overlay once its window is gone, while she is quitting, would throw)
+const toOverlay = (channel, payload) => { if (overlay && !overlay.isDestroyed()) overlay.webContents.send(channel, payload); };
+// the recording she was given as her voice, if any (voice-sample.js): in her own data folder
+const voiceSample = createSample({ dir: () => path.join(app.getPath('userData'), 'voices') });
+const chatterbox = new Chatterbox({ roots: placesNextToHer, voices: () => [voiceSample.dir()] });
+chatterbox.on('change', (status) => toOverlay('chatterbox:status', status));
+const ollamaHost = new OllamaHost({ roots: placesNextToHer });
+ollamaHost.on('change', (status) => toOverlay('ollama:status', status));
+const piper = new Piper({
+  roots: placesNextToHer,
+  defaultDir: () => path.join(app.getPath('userData'), 'piper'),
+  is64: hardware.systemIs64(),
+});
+piper.on('change', (status) => toOverlay('piper:status', status));
+// A look at this PC (hardware.js). It is kept for two weeks (PowerShell takes a second or two, and this PC does
+// not change), unless she is asked to look again; the free space of the disk is measured every time.
+const LOOK_KEEPS = 14 * 24 * 3600 * 1000;
+async function lookAtPc({ force = false } = {}) {
+  const dir = app.getPath('userData');
+  const fingerprint = `v1|${os.totalmem()}|${process.arch}|${os.release()}`; // (v: the shape of what is kept)
+  const kept = config.load().hardwareCache;
+  if (!force && kept && kept.key === fingerprint && Date.now() - kept.at < LOOK_KEEPS && kept.hw?.os) return { ...kept.hw, disk: hardware.diskOf(dir) };
+  const hw = await hardware.scan({ dir });
+  config.save({ hardwareCache: { at: Date.now(), key: fingerprint, hw: { ...hw, disk: undefined } } });
+  return hw;
+}
+// what she put on this PC, written down as she does it, so that she can take exactly that off again (cleanup.js)
+const installed = createInstalled({ file: () => path.join(app.getPath('userData'), 'installed.json') });
+const provision = new Provision({
+  record: (kind, value) => installed.record(kind, value),
+  cfg: () => config.load(),
+  save: (patch) => updateConfig(patch),
+  lang: () => resolveLang(config.load().lang),
+  ollamaHost,
+  chatterbox,
+  piper,
+  ollamaApi: { models: () => ollama.models(), pull: (name, onProgress, signal) => ollama.pull(name, onProgress, signal) },
+  installOllama: process.platform === 'win32' ? setup.installOllama : null,
+  downloadOllama: process.platform === 'win32' ? setup.downloadOllama : null,
+  downloadOllamaZip: process.platform === 'win32' ? (onLine, signal) => setup.downloadOllamaZip(path.join(app.getPath('userData'), 'ollama'), onLine, signal) : null,
+  installPython: process.platform === 'win32' ? (onLine) => setup.installPython(onLine, placesNextToHer()) : null,
+  roots: placesNextToHer,
+  defaultDir: () => path.join(app.getPath('userData'), 'chatterbox'),
+  nodeDir: () => path.join(app.getPath('userData'), 'node'),
+  hardware: lookAtPc,
+  // what the profile of this PC says about how she asks Ollama, and how Ollama is started
+  tune: (tuning, profileId) => setProfileTuning(tuning, profileId),
+  onModelsChanged: () => refreshModels(),
+});
+// Taking off what she put on this PC (cleanup.js), made once the app is ready
+let cleanupTool = null;
+const theCleanup = () => (cleanupTool ||= new Cleanup({
+  userData: app.getPath('userData'),
+  home: app.getPath('home'),
+  cfg: () => config.load(),
+  save: (patch) => updateConfig(patch),
+  installed,
+  ollamaApi: { list: () => ollama.list(), remove: (name) => ollama.remove(name) },
+  ollamaHost,
+  chatterbox,
+  piper,
+  nodeTools: nodeCheck,
+  provision,
+  onModelsChanged: () => refreshModels(),
+}));
+let prepare = null; // her preparation window (prepare.js), made once the app is ready
+let hub = null; // her main menu (hub.js), the same
+provision.on('change', (snapshot) => toOverlay('provision:status', snapshot));
+provision.on('finish', async ({ ok, plan, attention, profile }) => {
+  await refreshModels();
+  rebuildTray();
+  if (ok) tuneSoon(); // the set-up is done: how the model really does here is measured, once
+  // a PC that cannot carry a local mind: the first time, she opens the tab where a cloud one is picked
+  if (ok && plan.adopt && profile === 'cloud' && (config.load().provider || 'ollama') === 'ollama') sendCommand('ring', { tab: 'ai' });
+  // she says so, the first time and after anything long: a line in her own voice is the proof it all works
+  if (ok && (attention || plan.adopt)) sendCommand('testVoice');
+});
+const STT_KEYS = { groq: 'groq', openai: 'openai', custom: 'stt' };
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'capri', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
 ]);
 
-let overlay = null;
 let tray = null;
 let trayMenu = null; // also what she opens when you right-click her
 let demoTimer = null;
 let windowWatch = null;
+let mover = null; // moves the window she has taken over (mover.js)
 // the watcher only speaks when something changes: the overlay asks for this when it (re)loads
 let lastWindows = null;
 let chatModels = null; // the provider's models, as last seen (null: not reached)
 let chatError = null;  // why not, when the provider said
 let chatErrorCode = null; // 'nokey' or 'nourl': what her setup should ask for
 const chats = new Map(); // id -> AbortController of an answer being streamed
+let moodState = null;   // how she feels (the overlay says), for her menu's top line
+let mediaWatch = null;  // what's playing (media.js), while she's allowed to know
+let presenceTimer = null;
+let senseState = {};    // which senses are live right now (the overlay says): { eyes, ears, listening }
+let pttKey = null;      // the push-to-talk shortcut currently registered
+let restLevel = 'awake'; // how deeply she rests (rest()): 'awake', 'sleep' or 'deep'
 
 const userSoundsDir = () => path.join(app.getPath('userData'), 'sounds');
 
@@ -63,6 +182,25 @@ function saveMemory(patch) {
     console.error('[capri] could not save her memory:', err.message);
   }
 }
+// What she's learned about you (bond.js): kept on this PC only, next to her memory.
+const bondFile = () => path.join(app.getPath('userData'), 'bond.json');
+function readBond() {
+  try {
+    return JSON.parse(fs.readFileSync(bondFile(), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+function saveBond(data) {
+  try {
+    const tmp = `${bondFile()}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(data)); // whole or not at all: a crash mid-write never leaves half a file
+    fs.renameSync(tmp, bondFile());
+  } catch (err) {
+    console.error('[capri] could not save what she learned:', err.message);
+  }
+}
+
 function forgetChats() {
   llm.resetClaude();
   saveMemory({ history: [], claude: null });
@@ -118,12 +256,17 @@ function rearmOverlay() {
   console.log('[capri] mouse hook set up again');
 }
 
-// Back on top of everything, the taskbar included (it comes up over her when it's clicked). Twice:
-// the taskbar can come up again a moment later, as its menus and previews open.
-function raiseOverlay() {
+// Back on top of everything, the taskbar included (it comes up over her when it's clicked, and when a window
+// opens or is switched to: stacking.js). Twice: the taskbar can come up again a moment later, as its menus
+// and previews open. `hard`: lowered and raised again, which puts her on top for certain.
+let lastRaise = 0;
+function raiseOverlay({ hard = false } = {}) {
+  if (Date.now() - lastRaise < 60) return; // (the watcher looks every 40 ms: once is enough)
+  lastRaise = Date.now();
   for (const wait of [0, 400]) {
     setTimeout(() => {
       if (!overlay || overlay.isDestroyed()) return;
+      if (hard && wait === 0) overlay.setAlwaysOnTop(false);
       overlay.setAlwaysOnTop(true, 'screen-saver');
       overlay.moveTop();
     }, wait);
@@ -190,19 +333,6 @@ function toggleVisible(force) {
   rebuildTray();
 }
 
-function registerShortcuts() {
-  globalShortcut.unregisterAll();
-  const shortcuts = config.load().shortcuts || {};
-  const toggle = shortcuts.toggle;
-  const chat = shortcuts.chat;
-  if (toggle && !globalShortcut.register(toggle, () => toggleVisible())) {
-    console.error(`[capri] shortcut unavailable: ${toggle}`);
-  }
-  if (chat && !globalShortcut.register(chat, () => sendCommand('chat'))) {
-    console.error(`[capri] shortcut unavailable: ${chat}`);
-  }
-}
-
 function playDemo() {
   clearTimeout(demoTimer);
   const steps = demoSteps(resolveLang(config.load().lang)); // in her language
@@ -256,54 +386,89 @@ function resolveLang(setting) {
 // What the overlay gets: `lang` is the resolved one, `langSetting` what the user picked.
 function rendererConfig() {
   const { apiKeys, ...cfg } = config.load(); // the keys stay here: the overlay only learns which ones are set
-  return { ...cfg, keys: Object.keys(apiKeys || {}), assistant: activeAssistant().id, lang: resolveLang(cfg.lang), langSetting: cfg.lang, floorGap: overlayArea().gap };
+  return { ...cfg, keys: Object.keys(apiKeys || {}), assistant: activeAssistant().id, lang: resolveLang(cfg.lang), langSetting: LANGS.includes(cfg.lang) ? cfg.lang : 'auto', floorGap: overlayArea().gap };
 }
 
+// A setting changed (her menus, her ring, her setup). Only what really changed is acted on: the same
+// value again costs nothing (no file, no message to the overlay, no menu to build).
 function updateConfig(patch) {
-  config.save(patch);
-  if ('rest' in patch) fitOverlay(); // the taskbar in her window or not
+  const changed = config.save(patch);
+  if (!changed.length) return rendererConfig();
+  const did = (...keys) => keys.some((k) => changed.includes(k));
+  if (did('rest')) {
+    fitOverlay(); // the taskbar in her window or not
+    if (config.load().rest === 'taskbar') raiseOverlay(); // and her legs over it
+  }
+  if (did('musicAware')) watchMedia();
+  if (did('ears', 'pushToTalk')) registerPushToTalk();
+  if (did('ttsEngine', 'chatterboxDir', 'chatterboxUrl', 'chatterboxAuto', 'chatterboxDevice', 'hfEndpoint')) chatterbox.sync(config.load()).catch(() => {});
+  if (did('chatModel', 'provider')) { applyTuning(); tuneSoon(); } // (another model: another measurement)
+  if (did('ollamaDir')) ollamaHost.stop(false);
+  if (did('piperDir')) piper.stop(false);
+  // picking Ollama, Chatterbox or Piper (here, in her menu or in her ring), or a language that needs another Piper voice,
+  // gets what they need ready, by herself
+  const voice = config.load().ttsEngine;
+  if (config.load().autoSetup !== false && ((did('provider') && config.load().provider === 'ollama') || (did('ttsEngine') && ['chatterbox', 'piper'].includes(voice)) || (did('lang') && voice === 'piper'))) provision.run();
   const cfg = rendererConfig();
   overlay?.webContents.send('capri:config', cfg);
   rebuildTray();
   return cfg;
 }
 
-function macPermissionStatus(type) {
-  if (process.platform !== 'darwin') return 'not-applicable';
-  if (type === 'accessibility') return systemPreferences.isTrustedAccessibilityClient(false) ? 'granted' : 'missing';
-  return systemPreferences.getMediaAccessStatus(type);
+// Who answers her chat, with its key or address if it needs one: saved, tried, and undone if it fails (the
+// wizard in her overlay and her main menu both connect a service this way).
+async function useProvider({ provider, key, url } = {}) {
+  if (!llm.PROVIDERS[provider]) return { ok: false, error: 'unknown provider' };
+  const before = config.load();
+  const patch = { provider };
+  if (provider === 'ollama') patch.autoMind = true; // (choosing it again here: it is looked after at start-up again)
+  if (key) patch.apiKeys = { ...before.apiKeys, [provider]: setup.sealKey(String(key).trim()) };
+  if (url) patch.customUrl = String(url).trim();
+  updateConfig(patch);
+  const models = await refreshModels();
+  if (models?.length) return { ok: true, model: pickModel() };
+  const error = models ? 'no model' : chatError || 'offline';
+  updateConfig({ provider: before.provider, apiKeys: before.apiKeys, customUrl: before.customUrl });
+  await refreshModels();
+  return { ok: false, error };
 }
 
-function openMacPrivacySettings(anchor = 'Privacy') {
-  const suffix = anchor === 'Accessibility' ? 'Privacy_Accessibility'
-    : anchor === 'ScreenCapture' ? 'Privacy_ScreenCapture'
-      : 'Privacy';
-  shell.openExternal(`x-apple.systempreferences:com.apple.preference.security?${suffix}`);
+// A voice service's key (or address, or voice) pasted in her panel or her main menu: the key kept encrypted.
+function ttsSetup({ engine, key, url, voice } = {}) {
+  const before = config.load();
+  const patch = {};
+  if (engine && tts.ENGINES[engine]) patch.ttsEngine = engine;
+  const slot = TTS_KEYS[patch.ttsEngine || before.ttsEngine];
+  if (key && slot) patch.apiKeys = { ...before.apiKeys, [slot]: setup.sealKey(String(key).trim()) };
+  if (typeof url === 'string' && url.trim()) patch.ttsUrl = url.trim();
+  if (typeof voice === 'string' && voice.trim()) patch.ttsVoice = voice.trim().slice(0, 80);
+  return updateConfig(patch);
 }
 
-async function requestMacMicrophone() {
-  if (process.platform !== 'darwin') return;
-  const status = macPermissionStatus('microphone');
-  if (status === 'not-determined') await systemPreferences.askForMediaAccess('microphone');
-  if (macPermissionStatus('microphone') !== 'granted') openMacPrivacySettings();
-  rebuildTray();
-}
-
-function requestMacAccessibility() {
-  if (process.platform !== 'darwin') return;
-  if (!systemPreferences.isTrustedAccessibilityClient(true)) openMacPrivacySettings('Accessibility');
-  rebuildTray();
-}
-
-function openMacScreenSettings() {
-  if (process.platform !== 'darwin') return;
-  openMacPrivacySettings('ScreenCapture');
-}
-
+// The tray menu is rebuilt from scratch (a hundred items), so asks for it are gathered: a slider
+// dragged in her ring is dozens of changes a second, the menu follows once, a moment after.
+let trayTimer = 0;
 function rebuildTray() {
+  if (!tray || trayTimer) return;
+  trayTimer = setTimeout(() => {
+    trayTimer = 0;
+    buildTray();
+  }, 120);
+}
+
+// Whether her hooks are in (a read of the assistant's settings file): looked at again after a few
+// seconds, or right away after she installed or removed them herself.
+let hookCache = { at: 0, id: '', value: null };
+function hooksNow(fresh = false) {
+  const id = activeAssistant().id;
+  if (fresh || hookCache.id !== id || Date.now() - hookCache.at > 5000) hookCache = { at: Date.now(), id, value: activeHooks().status() };
+  return hookCache.value;
+}
+
+function buildTray() {
   if (!tray) return;
   const cfg = config.load();
-  const hookState = activeHooks().status();
+  const hookState = hooksNow();
   const watched = activeAssistant();
   const t = Object.fromEntries(Object.entries(TRAY[resolveLang(cfg.lang)]).map(([key, value]) =>
     [key, typeof value === 'string' && watched.id !== 'claude' ? value.replaceAll('Claude Code', watched.name) : value]));
@@ -312,44 +477,97 @@ function rebuildTray() {
   const current = targetDisplay().id;
 
   const menu = Menu.buildFromTemplate([
-    { label: `Capri ${app.getVersion()}`, click: () => sendCommand('version') },
     { label: t.online(PORT), enabled: false },
+    ...(moodState && cfg.emotions !== false ? [{ label: t.mood(t.moods[moodState.mood] || moodState.mood), enabled: false }] : []),
     { type: 'separator' },
     { label: t.teleport, click: () => sendCommand('teleport') },
     { label: t.satellite, click: () => sendCommand('satellite') },
     { label: t.demo, click: playDemo },
     { label: t.help, click: () => sendCommand('welcome') },
+    { label: t.hub, click: () => hub?.show() },
+    { label: t.prepare, click: () => { prepare?.show({ manual: true }); provision.run(); } },
     ...(cfg.claude ? [{ label: t.report, click: () => sendCommand('report') }] : []),
     { label: t.talk, click: () => sendCommand('chat') },
-    { label: t.terminal, click: () => sendCommand('terminal') },
-    { label: t.call, click: () => sendCommand('call') },
+    { label: t.ring, click: () => sendCommand('ring') },
     { label: t.custom, click: () => sendCommand('customize') },
-    ...(process.platform === 'darwin' ? [{
-      label: t.macPermissions,
-      submenu: [
-        {
-          label: `${t.macMicrophone}: ${macPermissionStatus('microphone')}`,
-          click: requestMacMicrophone,
-        },
-        {
-          label: `${t.macAccessibility}: ${macPermissionStatus('accessibility')}`,
-          click: requestMacAccessibility,
-        },
-        {
-          label: `${t.macScreen}: ${macPermissionStatus('screen')}`,
-          click: openMacScreenSettings,
-        },
-        { type: 'separator' },
-        { label: t.macOpenSettings, click: () => openMacPrivacySettings() },
-      ],
-    }] : []),
-    { label: cfg.visible ? t.hide : t.show, accelerator: cfg.shortcuts?.toggle || undefined, click: () => toggleVisible() },
+    { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     { type: 'separator' },
     {
       label: t.size,
       submenu: [[t.small, 0.45], [t.medium, 0.6], [t.large, 0.8]].map(([label, scale]) => ({
         label, type: 'radio', checked: Math.abs(cfg.scale - scale) < 0.01, click: () => updateConfig({ scale }),
       })),
+    },
+    {
+      label: t.colors,
+      submenu: THEMES.map((theme) => ({
+        label: t.themes[theme], type: 'radio', checked: (cfg.theme || 'classic') === theme, click: () => updateConfig({ theme }),
+      })),
+    },
+    {
+      label: t.voice,
+      submenu: [
+        ...[['off', t.voiceOff], ['chat', t.voiceChat], ['all', t.voiceAll]].map(([voiceMode, label]) => ({
+          label, type: 'radio', checked: cfg.voiceMode === voiceMode, click: () => updateConfig({ voiceMode }),
+        })),
+        { type: 'separator' },
+        {
+          label: t.voiceEngine,
+          submenu: Object.keys(tts.ENGINES).map((ttsEngine) => ({
+            label: t.engines[ttsEngine], type: 'radio', checked: cfg.ttsEngine === ttsEngine,
+            click: () => {
+              updateConfig({ ttsEngine });
+              const key = TTS_KEYS[ttsEngine];
+              const missing = (key && !config.load().apiKeys?.[key] && !(ttsEngine === 'openai' && process.env.OPENAI_API_KEY))
+                || (ttsEngine === 'custom' && !config.load().ttsUrl);
+              if (missing) sendCommand('setupVoice');
+            },
+          })),
+        },
+        { label: t.voiceFx, type: 'checkbox', checked: cfg.ttsFx !== false, click: (item) => updateConfig({ ttsFx: item.checked }) },
+        { label: t.voiceSetup, click: () => sendCommand('setupVoice') },
+        { label: t.voiceTest, click: () => sendCommand('testVoice') },
+      ],
+    },
+    {
+      label: t.character,
+      submenu: [
+        { label: t.emotions, type: 'checkbox', checked: cfg.emotions !== false, click: (item) => updateConfig({ emotions: item.checked }) },
+        { label: t.life, type: 'checkbox', checked: cfg.life !== false, click: (item) => updateConfig({ life: item.checked }) },
+        { label: t.musicAware, type: 'checkbox', checked: cfg.musicAware !== false, enabled: process.platform === 'win32', click: (item) => updateConfig({ musicAware: item.checked }) },
+        { label: t.dj, type: 'checkbox', checked: cfg.dj !== false, enabled: process.platform === 'win32' && cfg.musicAware !== false, click: (item) => updateConfig({ dj: item.checked }) },
+        { type: 'separator' },
+        // she gets to know you and adapts (bond.js); what she learned, and a button to wipe it
+        { label: t.learn, type: 'checkbox', checked: cfg.learn !== false, click: (item) => updateConfig({ learn: item.checked }) },
+        { label: t.bond, click: () => sendCommand('bond') },
+      ],
+    },
+    // her senses: she can see your screen, move to your music, and listen to your voice. All off
+    // until you turn them on here, and each one is a live use of your screen, sound or microphone.
+    {
+      label: t.senses,
+      submenu: [
+        { label: t.vision, type: 'checkbox', checked: cfg.vision === true, click: (item) => updateConfig({ vision: item.checked }) },
+        { label: t.lookNow, enabled: cfg.vision === true, click: () => sendCommand('lookNow') },
+        { type: 'separator' },
+        { label: t.rhythm, type: 'checkbox', checked: cfg.rhythm === true, click: (item) => updateConfig({ rhythm: item.checked }) },
+        { type: 'separator' },
+        { label: t.ears, type: 'checkbox', checked: cfg.ears === true, click: (item) => updateConfig({ ears: item.checked }) },
+        { label: t.converse, type: 'checkbox', checked: cfg.converse === true, enabled: cfg.ears === true, click: (item) => updateConfig({ converse: item.checked }) },
+        { label: `${t.pushToTalk}: ${prettyKey(cfg.pushToTalk)}`, enabled: false },
+        { type: 'separator' },
+        { label: t.visionSetup, click: () => sendCommand('setupVision') },
+        { label: t.earsSetup, click: () => sendCommand('setupEars') },
+      ],
+    },
+    // her hands: she can arrange your windows and type messages for you, only when you ask and,
+    // for anything she types, only after you say yes. Windows only.
+    {
+      label: t.hands,
+      submenu: [
+        { label: t.handsOn, type: 'checkbox', checked: cfg.hands === true, enabled: process.platform === 'win32', click: (item) => updateConfig({ hands: item.checked }) },
+        { label: t.handsType, type: 'checkbox', checked: cfg.handsType !== false, enabled: process.platform === 'win32' && cfg.hands === true, click: (item) => updateConfig({ handsType: item.checked }) },
+      ],
     },
     {
       label: t.sound,
@@ -386,7 +604,7 @@ function rebuildTray() {
         { type: 'separator' },
         ...(chatModels?.length
           ? chatModels.map((name) => ({
-            label: name, type: 'radio', checked: name === pickModel(cfg), click: () => updateConfig({ chatModel: name }),
+            label: llm.modelLabel(cfg.provider, name), type: 'radio', checked: name === pickModel(cfg), click: () => updateConfig({ chatModel: name }),
           }))
           : [{ label: (chatError || t.noOllama).slice(0, 80), enabled: false }]),
         { type: 'separator' },
@@ -406,6 +624,7 @@ function rebuildTray() {
     },
     { label: t.wander, type: 'checkbox', checked: cfg.wander, click: (item) => updateConfig({ wander: item.checked }) },
     { label: t.possess, type: 'checkbox', checked: cfg.possess, click: (item) => updateConfig({ possess: item.checked }) },
+    { label: t.possessMove, type: 'checkbox', checked: cfg.possess && cfg.possessMove !== false, enabled: cfg.possess, click: (item) => updateConfig({ possessMove: item.checked }) },
     {
       label: t.rest,
       submenu: [['corner', t.restCorner], ['taskbar', t.restTaskbar]].map(([rest, label]) => ({
@@ -443,6 +662,7 @@ function rebuildTray() {
         click: () => {
           if (cfg.render === render) return;
           config.save({ render });
+          config.flush(); // (app.exit() doesn't wait for the file)
           app.relaunch();
           app.exit(0);
         },
@@ -451,39 +671,8 @@ function rebuildTray() {
     {
       label: t.lang,
       submenu: [[t.auto, 'auto'], ...LANGS.map((lang) => [TRAY[lang].name, lang])].map(([label, lang]) => ({
-        label, type: 'radio', checked: cfg.lang === lang, click: () => updateConfig({ lang }),
+        label, type: 'radio', checked: (LANGS.includes(cfg.lang) ? cfg.lang : 'auto') === lang, click: () => updateConfig({ lang }),
       })),
-    },
-    {
-      label: 'Keyboard shortcuts',
-      submenu: [
-        {
-          label: 'Show / hide Capri',
-          submenu: [
-            ['CommandOrControl+Alt+C', 'Ctrl/Command + Alt + C'],
-            ['', 'Disabled'],
-          ].map(([value, label]) => ({
-            label, type: 'radio', checked: (cfg.shortcuts?.toggle || '') === value,
-            click: () => {
-              updateConfig({ shortcuts: { ...(cfg.shortcuts || {}), toggle: value } });
-              registerShortcuts();
-            },
-          })),
-        },
-        {
-          label: 'Open chat',
-          submenu: [
-            ['CommandOrControl+Alt+V', 'Ctrl/Command + Alt + V'],
-            ['', 'Disabled'],
-          ].map(([value, label]) => ({
-            label, type: 'radio', checked: (cfg.shortcuts?.chat || '') === value,
-            click: () => {
-              updateConfig({ shortcuts: { ...(cfg.shortcuts || {}), chat: value } });
-              registerShortcuts();
-            },
-          })),
-        },
-      ],
     },
     {
       label: t.startup,
@@ -522,6 +711,7 @@ function runHooks(action, { quiet = false } = {}) {
     outcome = { action, ok: false, error: err.message };
   }
   if (!quiet) sendCommand('hooks', outcome);
+  hooksNow(true); // (she changed them: look again)
   rebuildTray();
   return outcome;
 }
@@ -532,8 +722,106 @@ function pickModel(cfg = config.load()) {
   return chatModels.includes(cfg.chatModel) ? cfg.chatModel : chatModels[0];
 }
 
-async function refreshModels() {
+// The recording that came with her (resources/voice-default, put there by whoever made the installer), taken as her voice
+// once when she has none: a note in the config keeps it from coming back after you took it away.
+function adoptBundledVoice() {
+  if (config.load().voiceBundledTaken) return;
+  for (const folder of [process.resourcesPath && path.join(process.resourcesPath, 'voice-default'), path.join(ROOT, 'assets', 'voice-default')]) {
+    if (folder && voiceSample.useBundled(folder)) {
+      updateConfig({ voiceBundledTaken: true });
+      return;
+    }
+  }
+}
+
+// ---- her mind, fitted to this PC (tune.js) ----
+// The profile of the PC gives the start (the memory of the talk, how long the model stays loaded); a short run after the
+// set-up says how fast the model really is here and whether it sits on the card, and she asks accordingly. Both are kept
+// in the config (mindTune), so the next start asks the same way from the first message.
+let tuneJob = null; // the measurement under way
+let tuneTimer = null;
+
+function setProfileTuning(tuning, profileId) {
+  const base = { numCtx: tuning.numCtx, maxCtx: tuning.maxCtx, keepAlive: tuning.keepAlive };
+  const old = config.load().mindTune || {};
+  // (a measurement made for another kind of PC says nothing about this one)
+  updateConfig({ mindTune: { ...(old.profile === profileId ? old : {}), profile: profileId, base } });
+  ollamaHost.setEnv(tuning.ollamaEnv);
+  applyTuning();
+}
+
+function applyTuning() {
+  const t = config.load().mindTune;
+  if (!t?.base) return;
+  ollama.tune(tuner.settle(t.base, tuner.stillGood(t, { model: pickModel(), profile: t.profile }) ? t : null));
+}
+
+// Measures the model she talks with (once per model and kind of PC; `force`: again, as asked in her menu).
+// Returns the record, or null when it could not be done now (nothing to measure, a chat is going on, it failed).
+async function tuneMind({ force = false } = {}) {
   const cfg = config.load();
+  const t = cfg.mindTune;
+  const model = pickModel(cfg);
+  if (cfg.provider !== 'ollama' || !model || !t?.base || tuneJob) return null;
+  if (!force && tuner.stillGood(t, { model, profile: t.profile })) return t;
+  if (!force && t.failedAt && Date.now() - t.failedAt < 86400000) return null; // (it failed lately: not on every start)
+  if (chats.size || !(await ollama.version())) return null;
+  const job = { abort: new AbortController() };
+  tuneJob = job;
+  hub?.tuneChanged();
+  try {
+    const sample = await ollama.measure(model, AbortSignal.any([job.abort.signal, AbortSignal.timeout(120000)]));
+    const verdict = tuner.judge(sample);
+    // (her look at the PC may have changed the profile meanwhile: what was measured is then for another kind of PC)
+    const now = config.load().mindTune;
+    if (now?.profile === t.profile) {
+      const keep = { profile: now.profile, base: now.base };
+      updateConfig({ mindTune: verdict ? { ...keep, model, ...verdict, at: Date.now() } : { ...keep, failedAt: Date.now() } });
+      applyTuning();
+    }
+  } catch {
+    // stopped for a chat that began, or too slow to tell: tried again on another day
+    if (!job.abort.signal.aborted) updateConfig({ mindTune: { ...config.load().mindTune, failedAt: Date.now() } });
+  } finally {
+    if (tuneJob === job) tuneJob = null;
+    hub?.tuneChanged();
+  }
+  return config.load().mindTune;
+}
+
+// How her mind stands, for her main menu: the model, what was measured, the memory she asks with, and what she asks for in each task
+function tuneStatus() {
+  const cfg = config.load();
+  const t = cfg.mindTune || {};
+  const model = pickModel(cfg);
+  const now = ollama.current();
+  const measured = Boolean(model) && tuner.stillGood(t, { model, profile: t.profile });
+  const asks = (task) => tuner.ask(task, { model: model || '', lang: resolveLang(cfg.lang), answerCap: now.answerCap }).options;
+  return {
+    provider: cfg.provider, model: model || '', running: Boolean(tuneJob), measured,
+    tps: measured ? t.tps : null, speed: measured ? t.speed : '', onCard: measured ? t.onCard ?? null : null, at: measured ? t.at : 0,
+    numCtx: now.numCtx, maxCtx: now.maxCtx, keepAlive: now.keepAlive, size: tuner.sizeClass(model),
+    chat: asks('chat'), note: asks('note'),
+  };
+}
+
+// a moment after something changed (the chat or her menus use the model first)
+function tuneSoon(ms = 6000) {
+  clearTimeout(tuneTimer);
+  tuneTimer = setTimeout(() => tuneMind().catch(() => {}), ms);
+  tuneTimer.unref?.();
+}
+
+// The models of whoever answers her, asked of them. `cached`: a list from the last minute is good
+// enough (opening her chat asks every time; for a service on the internet, or Claude Code's version
+// check, that's a round trip each). Anything that changes who answers, or their key, asks again.
+let modelsSeen = { who: '', at: 0 };
+async function refreshModels({ cached = false } = {}) {
+  const cfg = config.load();
+  const who = `${cfg.provider}|${cfg.customUrl}|${cfg.apiKeys?.[cfg.provider] || ''}`;
+  if (cached && chatModels?.length && !llm.isLocal(cfg.provider, cfg) && modelsSeen.who === who && Date.now() - modelsSeen.at < 60000) {
+    return chatModels;
+  }
   chatError = null;
   chatErrorCode = null;
   chatModels = await llm.models(cfg.provider, llmConfig(cfg)).catch((err) => {
@@ -541,6 +829,8 @@ async function refreshModels() {
     chatErrorCode = err.code || null;
     return null;
   });
+  modelsSeen = { who: chatModels ? who : '', at: Date.now() };
+  applyTuning(); // (the measurement is for a model: which one is picked is known now)
   rebuildTray();
   return chatModels;
 }
@@ -554,7 +844,7 @@ async function chatWithFallback(cfg, messages, send, signal, streamed) {
   let busy = 0;
   for (;;) {
     try {
-      const text = await llm.chat(cfg.provider, llmConfig(cfg), { model, messages }, send, signal);
+      const text = await llm.chat(cfg.provider, llmConfig(cfg), { model, messages, task: 'chat', lang: resolveLang(cfg.lang) }, send, signal);
       if (model !== pickModel(cfg)) updateConfig({ chatModel: model });
       return text;
     } catch (err) {
@@ -591,12 +881,130 @@ async function pickClaudeFolder() {
   updateConfig({ claudeCwd: filePaths[0] });
 }
 
+// What's playing (media.js), while her menu lets her know it.
+function watchMedia() {
+  const on = config.load().musicAware !== false && restLevel !== 'deep';
+  if (on && !mediaWatch) {
+    mediaWatch = startMediaWatch({ onUpdate: (now) => overlay?.webContents.send('media:now', now) });
+  } else if (!on && mediaWatch) {
+    mediaWatch.stop();
+    mediaWatch = null;
+    overlay?.webContents.send('media:now', {});
+  }
+}
+
+// An accelerator as a person reads it (Control+Alt+Space -> Ctrl+Alt+Space).
+function prettyKey(key) {
+  return String(key || 'Control+Alt+Space').replace(/\bControl\b/g, 'Ctrl').replace(/\bCommandOrControl\b/g, 'Ctrl');
+}
+
+// Her window out of the shot while she looks at your screen, so she isn't seeing her own reflection.
+// Returns a function that brings her back. On a system that won't fade a transparent window cleanly
+// it's a no-op, so she might see a faint copy of herself; harmless.
+async function hideOverlayForShot() {
+  if (!overlay || overlay.isDestroyed()) return () => {};
+  try {
+    overlay.setOpacity(0);
+  } catch {
+    return () => {};
+  }
+  await new Promise((r) => setTimeout(r, 120));
+  return () => {
+    try {
+      overlay?.setOpacity(1);
+    } catch {
+      // comes back on the next draw regardless
+    }
+  };
+}
+
+// So she can hear the system's sound (rhythm.js) without a screen-share picker: when the overlay
+// asks for display media, hand it a screen source with the audio set to loopback.
+function allowLoopbackAudio() {
+  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
+      callback({ video: sources[0], audio: 'loopback' });
+    }).catch(() => callback({}));
+  }, { useSystemPicker: false });
+}
+
+// Hold-to-talk (her menu, Senses): the shortcut tells the overlay to listen (ears.js).
+function registerPushToTalk() {
+  if (pttKey) {
+    globalShortcut.unregister(pttKey);
+    pttKey = null;
+  }
+  const cfg = config.load();
+  if (!cfg.ears) return;
+  const key = cfg.pushToTalk || 'Control+Alt+Space';
+  try {
+    if (globalShortcut.register(key, () => sendCommand('pushToTalk'))) pttKey = key;
+  } catch (err) {
+    console.error('[capri] could not set push-to-talk:', err.message);
+  }
+}
+
+// How long since the keyboard or the mouse were last touched: she notices you're away, and back.
+function watchPresence() {
+  clearInterval(presenceTimer);
+  presenceTimer = setInterval(() => {
+    if (!overlay || overlay.isDestroyed()) return;
+    overlay.webContents.send('presence', { idle: powerMonitor.getSystemIdleTime() });
+  }, restLevel === 'deep' ? 15000 : 5000);
+}
+
+// Where the other windows are (windows.js), so she can sit on them. Restartable: it stops while
+// she rests deeply (rest()).
+function watchWindows() {
+  if (windowWatch) return;
+  windowWatch = startWindowWatch({
+    overlay,
+    onUpdate: (data) => {
+      // the taskbar comes up over her (a click on it, a window opened, a program switched to): sitting on it,
+      // her legs would vanish behind it
+      const raise = needsRaise(data, lastWindows, config.load().rest);
+      if (raise) raiseOverlay({ hard: raise === 'hard' });
+      lastWindows = data;
+      overlay?.webContents.send('windows:update', data);
+    },
+  });
+}
+
+// How deeply she rests (the overlay says, rest:level): 'awake', 'sleep' (dozing, still drawn), or
+// 'deep' (down to her mask, or put away in her chip). Resting deeply, the helpers that watch your
+// windows and your music stop altogether (two PowerShell processes polling, gone), and she checks
+// whether you're there less often. Anything that wakes her (a click, Claude, her menu, the
+// shortcut) brings them back a moment later.
+function rest(level) {
+  if (!['awake', 'sleep', 'deep'].includes(level) || level === restLevel) return;
+  const was = restLevel;
+  restLevel = level;
+  if (DEV) console.log(`[capri] rest: ${was} -> ${level}`);
+  if (level === 'deep') {
+    windowWatch?.stop();
+    windowWatch = null;
+    lastWindows = null;
+    mediaWatch?.stop();
+    mediaWatch = null;
+  } else if (was === 'deep') {
+    watchWindows();
+    watchMedia();
+  }
+  watchPresence();
+}
+
+// The tooltip of her icon by the clock: her name, and which senses are live right now.
+function trayTip() {
+  const live = [senseState.eyes && '◉ screen', senseState.ears && (senseState.listening ? '● mic (open)' : '● mic')].filter(Boolean);
+  return live.length ? `Capri · ${live.join(' · ')}` : 'Capri';
+}
+
 function createTray() {
   const icon = nativeImage.createFromPath(path.join(ROOT, 'assets', 'icons', 'tray.png'));
   tray = new Tray(icon);
-  tray.setToolTip('Capri');
+  tray.setToolTip(trayTip());
   tray.on('click', () => sendCommand('status'));
-  rebuildTray();
+  buildTray();
 }
 
 function registerIpc() {
@@ -610,49 +1018,109 @@ function registerIpc() {
     return { x: p.x - b.x, y: p.y - b.y, inside: p.x >= b.x && p.y >= b.y && p.x < b.x + b.width && p.y < b.y + b.height };
   });
   ipcMain.handle('config:get', () => rendererConfig());
-  ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('hooks:status', () => activeHooks().status());
-  ipcMain.handle('config:set', (_e, patch) => updateConfig(patch));
+  ipcMain.handle('config:set', (_e, patch) => {
+    if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return rendererConfig();
+    const { apiKeys: _keys, ...safe } = patch; // (her keys only go in through setup:use and the voice and ears setups, sealed)
+    return updateConfig(safe);
+  });
   ipcMain.handle('demo:window', (_e, open) => demoWindow(open));
   // right-clicking her: the same menu as the tray icon (which Windows often hides behind the ^ by the clock)
   ipcMain.on('menu:open', () => trayMenu?.popup({ window: overlay }));
   // her welcome panel's buttons
   ipcMain.handle('hooks:install', () => runHooks('install', { quiet: true }));
-  ipcMain.handle('claude:found', () => fs.existsSync(path.dirname(activeHooks().status().file))); // Claude Code keeps its settings there
+  ipcMain.handle('claude:found', () => fs.existsSync(path.dirname(hooksNow().file))); // Claude Code keeps its settings there
   ipcMain.on('claude:help', () => shell.openExternal(activeAssistant().help));
   ipcMain.handle('windows:get', () => lastWindows);
+  // the window she has taken over (possession.js): hold it, move it, let go; it goes back where it was
+  ipcMain.handle('window:grab', (_e, id) => (Number.isSafeInteger(id) && mover ? mover.grab(id) : { ok: false, why: 'unknown' }));
+  ipcMain.on('window:move', (_e, m) => { if (mover && Number.isSafeInteger(m?.id)) mover.move(m.id, Number(m.x), Number(m.y)); });
+  ipcMain.on('window:release', (_e, m) => { if (mover && Number.isSafeInteger(m?.id)) mover.release(m.id, { restore: m.restore !== false }); });
   // talking to her (chat.js): is Ollama there, with a model to talk with
   ipcMain.handle('chat:status', async () => {
     const cfg = config.load(true); // keys may have been edited by hand
     const { provider } = cfg;
-    const models = await refreshModels();
+    // her mind is being got ready (the preparation window): not "Ollama is missing"
+    if (provision.running && provider === 'ollama' && provision.step('ollama-model').state !== 'done') return { ok: false, error: 'preparing', code: 'preparing', provider };
+    const models = await refreshModels({ cached: true });
     if (!models) return { ok: false, error: chatError || 'offline', code: chatErrorCode, provider };
     if (!models.length) return { ok: false, error: 'nomodel', provider };
     llm.warm(provider, pickModel()); // loading while you type your first message
     return { ok: true, provider, model: pickModel(), agent: provider === 'claude', local: llm.isLocal(provider, cfg), warmup: provider === 'ollama' };
   });
+  // Can her chat answer? 'ready', 'none' (nothing to answer with: she says so, with a button to her main menu),
+  // or 'busy' (it is being got ready, or her main menu is open: not the time to nag). The look chat:status takes,
+  // but without loading the model, so it can be asked now and then.
+  ipcMain.handle('chat:ready', async () => {
+    const cfg = config.load(true);
+    if (hub?.isOpen() || (provision.running && cfg.provider === 'ollama' && provision.step('ollama-model').state !== 'done')) return 'busy';
+    const models = await refreshModels({ cached: true });
+    return models?.length ? 'ready' : 'none';
+  });
   // her answer, streamed to the overlay piece by piece as `chat:delta`
   ipcMain.handle('chat:send', async (_e, { id, messages }) => {
     const abort = new AbortController();
     chats.set(id, abort);
+    tuneJob?.abort.abort(); // (the measurement waits: your message is first)
+    // the pieces of her answer go over in groups of a frame or two, not one message per token
+    let streamed = false;
+    let queued = '';
+    let timer = 0;
+    const drain = () => {
+      clearTimeout(timer);
+      timer = 0;
+      if (queued) overlay?.webContents.send('chat:delta', { id, text: queued });
+      queued = '';
+    };
+    const send = (text) => {
+      streamed = true;
+      queued += text;
+      timer ||= setTimeout(drain, 33);
+    };
     try {
-      let streamed = false;
-      const send = (text) => {
-        streamed = true;
-        overlay?.webContents.send('chat:delta', { id, text });
-      };
       const cfg = config.load();
       const text = await chatWithFallback(cfg, messages, send, abort.signal, () => streamed);
+      drain();
       if (cfg.provider === 'claude') saveMemory({ claude: llm.claudeMemory() });
       return { ok: true, text };
     } catch (err) {
+      drain();
+      // the key was refused (or taken away): the list of models is asked for again next time
+      if (['badkey', 'nokey'].includes(err.code)) modelsSeen = { who: '', at: 0 };
       return { ok: false, error: abort.signal.aborted ? 'stopped' : err.message, code: err.code || null };
     } finally {
+      clearTimeout(timer);
       chats.delete(id);
     }
   });
   ipcMain.on('chat:stop', (_e, id) => chats.get(id)?.abort());
+  // her ring menu › AI: the models of whoever answers her now (as last seen), with their names
+  ipcMain.handle('chat:models', () => {
+    const cfg = config.load();
+    return {
+      provider: cfg.provider,
+      current: pickModel(cfg),
+      error: chatError,
+      code: chatErrorCode,
+      models: (chatModels || []).map((id) => ({ id, label: llm.modelLabel(cfg.provider, id) })),
+    };
+  });
   ipcMain.handle('chat:memory', () => readMemory().history || []);
+  // her bond with you (bond.js): load, save, and a line in her notebook from your last chats, written
+  // by your chat model in one quiet go (never Claude Code: it would be working in your project)
+  ipcMain.handle('bond:load', () => readBond());
+  ipcMain.on('bond:save', (_e, data) => data && typeof data === 'object' && saveBond(data));
+  ipcMain.handle('bond:reflect', async (_e, { messages } = {}) => {
+    const cfg = config.load();
+    if (cfg.provider === 'claude') return { ok: false, code: 'agent' };
+    if (!Array.isArray(messages) || !messages.length) return { ok: false, code: 'empty' };
+    try {
+      const text = await llm.chat(cfg.provider, llmConfig(cfg), { model: pickModel(cfg), messages, task: 'note', lang: resolveLang(cfg.lang) }, () => {}, AbortSignal.timeout(90000));
+      return { ok: true, text };
+    } catch (err) {
+      return { ok: false, error: err.message, code: err.code || null };
+    }
+  });
   ipcMain.on('chat:remember', (_e, history) => Array.isArray(history) && saveMemory({ history }));
   ipcMain.on('chat:ollama', () => shell.openExternal(OLLAMA_SITE));
   // setting her up with buttons (setup.js): Ollama and a model, or a key, or an address
@@ -673,7 +1141,7 @@ function registerIpc() {
     pulling = abort;
     try {
       await setup.pullModel(name, (p) => progress({ kind: 'pull', ...p }), abort.signal);
-      updateConfig({ provider: 'ollama' });
+      updateConfig({ provider: 'ollama', autoMind: true });
       await refreshModels();
       const model = chatModels?.find((m) => m === name || m.startsWith(`${name}:`));
       if (model) updateConfig({ chatModel: model });
@@ -686,20 +1154,7 @@ function registerIpc() {
   });
   ipcMain.on('setup:cancel', () => pulling?.abort());
   // who answers her chat, with its key or address if it needs one: saved, tried, and undone if it fails
-  ipcMain.handle('setup:use', async (_e, { provider, key, url }) => {
-    if (!llm.PROVIDERS[provider]) return { ok: false, error: 'unknown provider' };
-    const before = config.load();
-    const patch = { provider };
-    if (key) patch.apiKeys = { ...before.apiKeys, [provider]: setup.sealKey(String(key).trim()) };
-    if (url) patch.customUrl = String(url).trim();
-    updateConfig(patch);
-    const models = await refreshModels();
-    if (models?.length) return { ok: true, model: pickModel() };
-    const error = models ? 'no model' : chatError || 'offline';
-    updateConfig({ provider: before.provider, apiKeys: before.apiKeys, customUrl: before.customUrl });
-    await refreshModels();
-    return { ok: false, error };
-  });
+  ipcMain.handle('setup:use', (_e, payload) => useProvider(payload));
   ipcMain.on('setup:keyPage', (_e, provider) => setup.KEY_PAGES[provider] && shell.openExternal(setup.KEY_PAGES[provider]));
   ipcMain.handle('setup:launch', (_e, integration) => setup.launchThroughOllama(integration));
   // closing an app you asked her to close, once you've clicked to confirm (apps.js)
@@ -711,9 +1166,7 @@ function registerIpc() {
   ipcMain.handle('apps:findLaunch', (_e, text) => launch.find(String(text || '')).catch(() => null));
   ipcMain.handle('apps:launch', (_e, item) => launch.launch(item).then(() => ({ ok: true }), (err) => ({ ok: false, error: err.message })));
   ipcMain.handle('apps:media', (_e, action) => launch.media(action));
-  ipcMain.handle('apps:nowPlaying', () => launch.nowPlaying());
-  ipcMain.handle('apps:closeTab', () => launch.closeTab());
-  ipcMain.handle('apps:music', (_e, { query, provider } = {}) => launch.music(query, provider).catch(() => false));
+  ipcMain.handle('apps:music', (_e, query) => launch.music(query).catch(() => false));
   ipcMain.handle('apps:site', (_e, address) => launch.site(address).catch(() => false));
   // typing to her: the overlay takes the keyboard while the chat is open, and gives it back after
   ipcMain.on('overlay:focus', (_e, on) => {
@@ -748,6 +1201,114 @@ function registerIpc() {
     if (fs.existsSync(file)) shell.showItemInFolder(file);
     else shell.openPath(dir);
     return { found: true, dir, file: fs.existsSync(file), label: fs.existsSync(file) ? path.basename(file) : path.basename(dir) };
+  });
+  // her voice through a speech service (tts.js): the audio of what she says, back to the overlay
+  ipcMain.handle('tts:speak', async (_e, { text, mood, lang }) => {
+    const cfg = config.load();
+    try {
+      const base = cfg.ttsEngine === 'chatterbox' ? await chatterbox.ready(cfg) : '';
+      const sample = voiceSample.current();
+      const audio = await tts.speak(cfg, setup.openKeys(cfg.apiKeys), { text, mood, lang, base, piper, sample, sampleLang: sample ? voiceSample.lang() : '' });
+      return { ok: true, audio };
+    } catch (err) {
+      return { ok: false, error: err.message, code: err.code || null };
+    }
+  });
+  // her voice's key, address or voice, pasted in her panel (the key kept encrypted like her chat's)
+  ipcMain.handle('tts:setup', (_e, payload) => ttsSetup(payload));
+  ipcMain.on('tts:keyPage', (_e, engine) => tts.KEY_PAGES[engine] && shell.openExternal(tts.KEY_PAGES[engine]));
+  // Chatterbox: how it is doing, which folder it is, and starting it again
+  ipcMain.handle('chatterbox:status', () => chatterbox.status());
+  ipcMain.handle('piper:status', () => piper.status());
+  // the Piper voices she has on this PC (her Voice tab picks between them)
+  ipcMain.handle('piper:voices', () => {
+    const cfg = config.load();
+    const lang = resolveLang(cfg.lang);
+    return { voices: piper.voices(cfg).map((v) => v.key).filter((key) => key.toLowerCase().startsWith(`${lang}_`)).sort(), current: piper.voiceFor(cfg, lang)?.key || '' };
+  });
+  ipcMain.handle('ollama:status', async () => ({ ...ollamaHost.status(), model: pickModel(), models: chatModels || [] }));
+  ipcMain.handle('provision:status', () => provision.snapshot());
+  ipcMain.handle('chatterbox:choose', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({ title: 'Chatterbox', properties: ['openDirectory'], defaultPath: config.load().chatterboxDir || path.dirname(process.execPath) });
+    if (canceled || !filePaths[0]) return null;
+    updateConfig({ chatterboxDir: filePaths[0], ttsEngine: 'chatterbox' });
+    return filePaths[0];
+  });
+  // the recording she was given as her voice: how it stands, taking one (a file you pick), taking it away
+  ipcMain.handle('voice:sample', () => voiceSample.status());
+  ipcMain.handle('voice:sampleChoose', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: 'Capri', properties: ['openFile'], defaultPath: app.getPath('music'),
+      filters: [{ name: 'Audio', extensions: ['wav', 'mp3', 'flac', 'ogg'] }],
+    });
+    if (canceled || !filePaths[0]) return { ok: false, error: 'canceled', ...voiceSample.status() };
+    const res = voiceSample.use(filePaths[0]);
+    return res.ok ? res : { ...res, ...voiceSample.status() };
+  });
+  ipcMain.handle('voice:sampleRemove', () => voiceSample.remove());
+  ipcMain.handle('chatterbox:restart', async () => {
+    await chatterbox.restart(config.load());
+    return chatterbox.status();
+  });
+  // ---- her senses and her hands ----
+  // her eyes: a picture of your screen (screen.js), read by the vision model (llm.js)
+  ipcMain.handle('eyes:see', async (_e, { prompt }) => {
+    const cfg = config.load();
+    if (!cfg.vision) return { ok: false, error: 'off', code: 'off' };
+    try {
+      const image = await vision.grab({ displayId: cfg.displayId, hideOverlay: hideOverlayForShot });
+      if (!image) return { ok: false, error: 'no picture', code: 'nocapture' };
+      const text = await llm.see(cfg.provider, llmConfig(cfg), { image, prompt });
+      return { ok: true, text };
+    } catch (err) {
+      return { ok: false, error: err.message, code: err.code || null };
+    }
+  });
+  // her ears: your voice (ears.js) turned into text by the speech service (stt.js)
+  ipcMain.handle('stt:transcribe', async (_e, { audio, mime, lang }) => {
+    const cfg = config.load();
+    try {
+      const text = await stt.transcribe(cfg, setup.openKeys(cfg.apiKeys), { audio: Buffer.from(audio), mime, lang });
+      return { ok: true, text };
+    } catch (err) {
+      return { ok: false, error: err.message, code: err.code || null };
+    }
+  });
+  ipcMain.on('stt:keyPage', (_e, engine) => stt.KEY_PAGES[engine] && shell.openExternal(stt.KEY_PAGES[engine]));
+  // which speech-to-text service, and its key or address (the key kept encrypted, like her chat's)
+  ipcMain.handle('stt:setup', (_e, { engine, key, url }) => {
+    const before = config.load();
+    const patch = {};
+    if (engine && stt.ENGINES[engine]) patch.sttEngine = engine;
+    const slot = STT_KEYS[patch.sttEngine || before.sttEngine];
+    if (key && slot) patch.apiKeys = { ...before.apiKeys, [slot]: setup.sealKey(String(key).trim()) };
+    if (typeof url === 'string' && url.trim()) patch.sttUrl = url.trim();
+    return updateConfig(patch);
+  });
+  // her hands (control.js): all gated on the setting here too, so the overlay can't reach past it
+  const handsOn = () => config.load().hands === true;
+  ipcMain.handle('hands:window', (_e, { op, name }) => (handsOn() ? control.windowOp(op, name).then((n) => n, (err) => ({ error: { message: err.message, code: err.code } })) : { error: { code: 'off' } }));
+  ipcMain.handle('hands:desktop', () => (handsOn() ? control.showDesktop().then(() => true, () => false) : false));
+  ipcMain.handle('hands:type', (_e, { text, into }) => (handsOn() && config.load().handsType ? control.type(text, into).then(() => true, (err) => ({ error: { message: err.message, code: err.code } })) : { error: { code: 'off' } }));
+  ipcMain.handle('hands:prepare', async (_e, request) => {
+    if (!handsOn() || !config.load().handsType) throw Object.assign(new Error('off'), { code: 'off' });
+    return control.prepareMessage(request);
+  });
+  ipcMain.handle('hands:send', (_e, prepared) => (handsOn() && config.load().handsType
+    ? control.sendPrepared(prepared).then(() => true, (err) => ({ error: { message: err.message, code: err.code } }))
+    : { error: { code: 'off', message: 'off' } })); // turned off between typing it and your yes: not sent
+  // how deeply she rests: the helpers watching your windows and music stop while she's out
+  ipcMain.on('rest:level', (_e, level) => rest(String(level)));
+  // her senses' indicator by the clock (an eye, a mic, a note): only the tray line cares
+  ipcMain.on('sense:state', (_e, state) => {
+    senseState = state || {};
+    tray?.setToolTip(trayTip()); // a sense is never silently on: the icon by the clock says so too
+  });
+  // how she feels, for her menu's top line (only when the mood itself changes)
+  ipcMain.on('mood:state', (_e, state) => {
+    const changed = state?.mood !== moodState?.mood;
+    moodState = state && { mood: String(state.mood), level: Number(state.level) || 0 };
+    if (changed) rebuildTray();
   });
   ipcMain.handle('sounds:list', () => {
     try {
@@ -853,7 +1414,45 @@ function applyRender() {
   if (DEV) app.whenReady().then(() => setTimeout(() => console.log('[capri] display:', render, JSON.stringify(app.getGPUFeatureStatus())), 4000));
 }
 
+// Her own removal: all of what she put on this PC comes off, then (if she came from the installer) the installer's
+// uninstaller is started for herself, her settings and her memory, and she quits. Resolves what the page says.
+async function uninstallCapri() {
+  const res = await theCleanup().removeAll();
+  if (!res.ok) return { ok: false, error: res.error || '', failed: res.failed };
+  const dir = path.dirname(process.execPath);
+  const uninstaller = path.join(dir, `Uninstall ${app.name}.exe`);
+  if (!app.isPackaged || process.platform !== 'win32' || !fs.existsSync(uninstaller)) return { ok: true, manual: true, dir: app.isPackaged ? dir : ROOT, freed: res.freed };
+  // (the uninstaller waits for her to quit, then removes the program and, with this flag, her data folder too)
+  const child = spawnProgram(uninstaller, ['/S', '--delete-app-data'], { detached: true, stdio: 'ignore', windowsHide: true });
+  child.on('error', () => {});
+  child.unref();
+  setTimeout(() => app.quit(), 600);
+  return { ok: true, freed: res.freed };
+}
+
+// `Capri.exe --remove-everything`, started by the uninstaller when you say yes to "delete what she downloaded too":
+// no window, she takes off all she put on this PC and quits.
+function removeEverythingAndQuit() {
+  app.whenReady().then(async () => {
+    const cap = setTimeout(() => app.exit(0), 5 * 60 * 1000); // (never left hanging)
+    try {
+      await theCleanup().removeAll();
+    } catch (err) {
+      console.error('[capri] taking off what she installed:', err.message);
+    }
+    clearTimeout(cap);
+    for (const stop of [() => ollamaHost.stop(false), () => chatterbox.stop(), () => piper.stop(), () => config.flush()]) {
+      try { stop(); } catch { /* not running */ }
+    }
+    app.exit(0);
+  });
+}
+
 function main() {
+  if (process.argv.includes('--remove-everything')) {
+    removeEverythingAndQuit();
+    return;
+  }
   applyRender();
   if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -868,30 +1467,62 @@ function main() {
     registerIpc();
     createOverlay();
     createTray();
-    windowWatch = startWindowWatch({
-      overlay,
-      onUpdate: (data) => {
-        // a click on the taskbar brings it up over her: sitting on it, her legs would vanish behind it
-        if (data.taskbar && !lastWindows?.taskbar && config.load().rest === 'taskbar') raiseOverlay();
-        lastWindows = data;
-        overlay?.webContents.send('windows:update', data);
-      },
+    watchWindows();
+    mover = createMover({
+      screen,
+      bounds: () => overlay.getBounds(),
+      windows: () => lastWindows,
+      enabled: () => { const c = config.load(); return c.possess !== false && c.possessMove !== false; },
+      onLost: (id, why) => overlay?.webContents.send('window:lost', { id, why }),
     });
     createBridge({
       port: PORT,
       // her own Claude Code chat's hooks would cover its answer with theirs
-      onEvent: (evt) => {
-        if (evt.demo && evt.hook_event_name === 'CapriSatelliteTest') {
-          console.log('[capri] CapriSatelliteTest reçu, lancement de demoSatellite');
-          overlay?.webContents.send('capri:command', { name: 'demoSatellite' });
-          return;
-        }
-        if (!llm.isChatSession(evt.session_id)) overlay?.webContents.send('claude:event', evt);
-      },
+      onEvent: (evt) => !llm.isChatSession(evt.session_id) && overlay?.webContents.send('claude:event', evt),
       onDebug: DEV ? debugHandler : null,
     });
-    registerShortcuts();
+    globalShortcut.register('Control+Alt+C', () => toggleVisible());
     llm.restoreClaude(readMemory().claude);
+    watchMedia();
+    watchPresence();
+    allowLoopbackAudio();
+    registerPushToTalk();
+    prepare = createPrepare({
+      BrowserWindow, ipcMain, dialog, shell, clipboard, provision, config, updateConfig, ollamaHost, chatterbox, piper,
+      openAiTab: () => sendCommand('ring', { tab: 'ai' }),
+      isHubOpen: () => Boolean(hub?.isOpen()),
+      lang: () => resolveLang(config.load().lang),
+      protocolUrl: 'capri://app/src/renderer/prepare.html',
+    });
+    hub = createHub({
+      BrowserWindow, ipcMain, shell, clipboard, provision, config, updateConfig,
+      lang: () => resolveLang(config.load().lang),
+      connect: useProvider,
+      saveVoiceKey: ({ engine, key }) => {
+        if (!['openai', 'elevenlabs'].includes(engine) || !key) return { ok: false, error: 'no key' };
+        ttsSetup({ engine, key });
+        return { ok: true };
+      },
+      keyPages: setup.KEY_PAGES,
+      voiceKeyPages: tts.KEY_PAGES,
+      cleanup: theCleanup(),
+      uninstall: uninstallCapri,
+      mind: { status: tuneStatus, measure: () => tuneMind({ force: true }) },
+      protocolUrl: 'capri://app/src/renderer/hub.html',
+      onClosed: () => rebuildTray(),
+    });
+    // The first time (nothing chosen yet), her main menu opens and nothing is fetched until you press its button.
+    // After that, what she lives on is found, started, and made ready if something is missing (a window opens only
+    // if that takes long).
+    const firstTime = !config.load().hubDone && !config.load().provisioned;
+    if (firstTime && config.load().autoSetup !== false && !process.argv.includes('--no-hub')) setTimeout(() => hub.show(), 1500);
+    else if (config.load().autoSetup !== false) setTimeout(() => provision.run(), 1200);
+    else {
+      // (not getting things ready for you, but the ones that are in place are still started)
+      chatterbox.sync(config.load()).catch(() => {});
+      if ((config.load().provider || 'ollama') === 'ollama') ollamaHost.sync(config.load()).catch(() => {});
+    }
+    adoptBundledVoice();
     refreshModels(); // for her menu's model list
     setTimeout(() => launch.launchables().catch(() => {}), 20000); // what she can open, before you ask
     screen.on('display-metrics-changed', fitOverlay);
@@ -903,8 +1534,22 @@ function main() {
   });
 
   app.on('will-quit', () => {
+    config.flush(); // the last changes, written now
+    // what she started goes with her (each on its own: one failing must not leave the other running)
+    for (const stop of [() => provision.cancel(), () => chatterbox.stop(), () => piper.stop(), () => ollamaHost.stop()]) {
+      try { stop(); } catch (err) { console.error('[capri] stopping what she started:', err.message); }
+    }
+    clearTimeout(trayTimer);
     globalShortcut.unregisterAll();
     windowWatch?.stop();
+    mover?.stop(); // a window she is holding goes back where it was
+    mediaWatch?.stop();
+    clearInterval(presenceTimer);
+    try {
+      session.defaultSession.setDisplayMediaRequestHandler(null);
+    } catch {
+      // nothing to clear
+    }
   });
   app.on('window-all-closed', (e) => e.preventDefault());
 }

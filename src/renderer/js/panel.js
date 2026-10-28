@@ -7,7 +7,6 @@ const NOISE = '▚▞▙▟░▒#%&/\\<>01XZ';
 // Her faces, frames of her from the show (tools/build-cutins.py). A message can ask for one;
 // otherwise it goes with what kind of message it is.
 const FACE_DIR = '../../assets/capri/';
-const CALL_IMAGE = '../../assets/capri-calling-image.png';
 export const FACES = {
   calm: 'face-calm.png',   // watching, mouth shut
   aside: 'face-aside.png', // turned away: a sigh, thinking
@@ -22,6 +21,15 @@ const KIND_FACE = { alert: 'many', done: 'look', error: 'laugh', work: 'calm', i
 const PRIORITY = { info: 1, idle: 1, work: 2, done: 3, error: 3, report: 3, chat: 3, alert: 4 };
 const DECODE_STEP_MS = 28;
 const COUNT_MS = 700; // her report's numbers counting up
+
+// While her circular menu is open (ring.js): what still reaches you. A permission prompt, a chat you
+// asked for and a step of her guide are 'urgent' (the menu steps aside for them); Claude's news
+// ('later') would be drawn under the menu, so it waits and is shown once the menu is shut; her small
+// talk is dropped ('drop').
+export function whileMenuOpen(msg) {
+  if (msg.kind === 'alert' || msg.guide || msg.chat) return 'urgent';
+  return PRIORITY[msg.kind] < 3 ? 'drop' : 'later';
+}
 
 export class Panel {
   constructor({ panel, ticker, labels }) {
@@ -43,6 +51,7 @@ export class Panel {
     this.summary = panel.querySelector('.panel__summary');
     this.log = panel.querySelector('.panel__log');
     this.tag = panel.querySelector('.panel__tag');
+    this.moodEl = panel.querySelector('.panel__mood'); // how she feels (mood.js), when it's not calm
     this.state = panel.querySelector('.panel__state');
     this.tickerVerb = ticker.querySelector('.ticker__verb');
     this.tickerTarget = ticker.querySelector('.ticker__target');
@@ -58,6 +67,8 @@ export class Panel {
     this.tickerShownAt = 0;
     this.tickerTimer = null;
     this.missed = null; // a Claude message that came while you were chatting with her, shown after
+    this.held = null;   // the same, for while her circular menu was open (see `quiet`)
+    this.onUrgent = null; // () => void: something the menu has to step aside for
 
     // talking to her (chat.js): a line to type in, under her answer
     this.chatForm = panel.querySelector('.panel__chat');
@@ -91,6 +102,32 @@ export class Panel {
     return !this.el.hidden && !this.suspended && !this.leaving;
   }
 
+  // Her circular menu is about to open over what's showing (ring.js): a passing line goes, what Claude
+  // said ('done', an error, her report) waits and is shown once the menu is shut; a permission prompt, her
+  // chat and her guide stay where they are.
+  park() {
+    const cur = this.current;
+    if (!cur || !this.visible) return;
+    if (['info', 'idle', 'work'].includes(cur.kind) && !cur.chat && !cur.guide) this.hide();
+    else if (['done', 'error', 'report'].includes(cur.kind) && !cur.chat && !cur.guide) {
+      this.held = { ...cur, heldAt: performance.now() };
+      this.hide();
+    }
+  }
+
+  // Her circular menu is open (ring.js): see whileMenuOpen. Once it's shut, what Claude said meanwhile shows.
+  get quiet() {
+    return this.menuOpen === true;
+  }
+
+  set quiet(on) {
+    this.menuOpen = on;
+    if (on) return;
+    const held = this.held;
+    this.held = null;
+    if (held && performance.now() - held.heldAt < 120000) setTimeout(() => this.say(held), 400);
+  }
+
   // Message: { kind, line, tag, quote, reply, summary, log: [{verb, target, error}], actions, guide,
   //            hold (ms | null for sticky) }
   // reply: Claude's whole answer, in a block that scrolls
@@ -107,6 +144,16 @@ export class Panel {
   // onLeave: () => void, when this message goes (closed, timed out or replaced)
   say(msg) {
     const cur = this.current;
+    // her circular menu is open: it steps aside for what you asked for or must answer, and Claude's
+    // news waits for it to be shut (whileMenuOpen)
+    if (this.quiet) {
+      const gate = whileMenuOpen(msg);
+      if (gate === 'urgent') this.onUrgent?.();
+      else {
+        if (gate === 'later') this.held = { ...msg, heldAt: performance.now() };
+        return false;
+      }
+    }
     // don't step on something more important that just appeared (one step of her guide follows another)
     const steps = cur?.guide && msg.guide;
     if (cur && this.visible && !steps && cur.kind !== msg.kind && PRIORITY[cur.kind] > PRIORITY[msg.kind] && performance.now() - cur.at < 2600) {
@@ -129,7 +176,6 @@ export class Panel {
 
     this.el.dataset.kind = msg.kind;
     this.setFace(msg.face || KIND_FACE[msg.kind] || 'grin');
-    if (msg.call) this.portrait.src = CALL_IMAGE;
     this.tag.textContent = msg.tag || '';
     this.state.textContent = msg.badge || this.labels.state[msg.kind] || '';
     this.quote.textContent = msg.quote || '';
@@ -157,6 +203,7 @@ export class Panel {
     this.decode(msg.line || '', msg.kind);
 
     if (msg.hold) this.hideTimer = setTimeout(() => this.hide(), msg.hold);
+    if (msg.line && !msg.chat) this.onLine?.(msg);
     return true;
   }
 
@@ -175,16 +222,13 @@ export class Panel {
     this.place();
   }
 
-  setLine(text) {
-    if (!this.current) return;
-    this.current.line = text;
-    this.line.textContent = text || '';
-    this.line.classList.remove('is-streaming');
-    this.place();
-  }
-
-  setSatelliteLoading(active) {
-    this.el.classList.toggle('is-satellite-loading', Boolean(active));
+  // How she feels, on the panel: a chip by her name, and the panel's colours and her portrait
+  // following it (capri.css [data-mood]).
+  setMood(mood, label = '') {
+    this.el.dataset.mood = mood || 'calm';
+    if (!this.moodEl) return;
+    this.moodEl.textContent = label ? `◆ ${label}` : '';
+    this.moodEl.hidden = !label;
   }
 
   // Change her expression; the swap glitches across a couple of drawings.
@@ -290,7 +334,6 @@ export class Panel {
 
   renderChat(chat) {
     this.el.classList.toggle('is-chat', Boolean(chat));
-    this.el.classList.toggle('is-call', Boolean(this.current?.call));
     this.line.classList.remove('is-streaming');
     this.chatForm.hidden = !chat;
     this.note.hidden = !chat?.note;
@@ -307,25 +350,13 @@ export class Panel {
       tag.textContent = chat.noteTag || '';
       this.note.replaceChildren(...(chat.noteTag ? [tag, ' '] : []), chat.note);
     }
-
     requestAnimationFrame(() => this.chatInput.focus());
-  }
-
-  setCallState({ line, quote = '', actions = [] } = {}) {
-    if (!this.current?.call) return;
-    this.current.line = line;
-    this.current.quote = quote;
-    this.quote.textContent = quote;
-    this.quote.hidden = !quote;
-    this.renderActions(actions, this.current.onAction);
-    this.decode(line, 'chat');
-    this.place();
   }
 
   // A chat turn: what you said goes up top, her answer starts coming in under it (stream), without
   // announcing the panel all over again.
   chatTurn({ quote, face }) {
-    if (!this.current?.chat && !this.current?.call) return;
+    if (!this.current?.chat) return;
     clearInterval(this.decodeTimer);
     this.stopStream();
     this.setFace(face);
@@ -339,7 +370,7 @@ export class Panel {
   // Her answer so far (done: all of it). It decodes in through noise like her other lines, catching
   // up faster the further behind it is (Claude Code's answer comes in one piece), and glitches once done.
   stream(text, { done = false } = {}) {
-    if (!this.current?.chat && !this.current?.call) return;
+    if (!this.current?.chat) return;
     this.streamTo = [...text];
     this.streamDone = done;
     // an answer rewritten rather than added to (a reasoning block cut out, an error): from where they part

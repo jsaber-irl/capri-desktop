@@ -486,13 +486,14 @@ export class FxLayer {
   // every pupil on your pointer. rect() gives the window now (null once it's gone), covers() the
   // windows in front of it (nothing is drawn over those), look() the pointer.
   // Handle: leave() closes the eyes and ends it.
-  possess(rect, { covers = () => [], entry = 0, look = () => null } = {}) {
+  // style 'glitch': more of it knocked sideways, its colours pulled apart.
+  possess(rect, { covers = () => [], entry = 0, look = () => null, style = 'take' } = {}) {
     const extra = Array.from({ length: 7 }, (_, i) => {
       // around the face, not on it
       const a = (i / 7) * Math.PI * 2 + rand(-0.3, 0.3);
       return { u: 0.5 + Math.cos(a) * rand(0.28, 0.42), v: 0.46 + Math.sin(a) * rand(0.26, 0.4), size: rand(0.35, 0.65), at: 650 + i * 95 };
     });
-    const item = this.add({ type: 'possess', life: 60000, rect, covers, entry, look, extra, leaveAt: 0, off: null });
+    const item = this.add({ type: 'possess', life: 60000, rect, covers, entry, look, extra, style, leaveAt: 0, off: null });
     return { leave: () => { item.leaveAt ||= performance.now(); } };
   }
 
@@ -534,7 +535,9 @@ export class FxLayer {
     // the dive swings out a little toward the middle of the screen on its way down to her
     const ctrl = { x: lerp(at.x, to.x, 0.25) - (to.x - at.x) * 0.2, y: lerp(at.y, to.y, 0.15) };
     return new Promise((land) => {
-      this.add({ type: 'intro', smooth: true, life: FRAME_MS * (INTRO_T.end + 1), s, at, to, ctrl, label, caption, still, onCue, land, cued: -1 });
+      // done: on a slow PC the drawing where she lands can be skipped altogether (the intro ends
+      // between two frames): she lands anyway, or she'd never show up
+      this.add({ type: 'intro', smooth: true, life: FRAME_MS * (INTRO_T.end + 1), s, at, to, ctrl, label, caption, still, onCue, land, done: land, cued: -1 });
     });
   }
 
@@ -829,7 +832,7 @@ export class FxLayer {
     // slices of it knocked sideways, re-rolled every other drawing
     if (!it.slices || it.drawn !== frame >> 1) {
       it.drawn = frame >> 1;
-      it.slices = Array.from({ length: leaving >= 0 ? 2 : 6 }, () => ({
+      it.slices = Array.from({ length: leaving >= 0 ? 2 : it.style === 'glitch' ? 15 : 6 }, () => ({
         y: rand(0, r.h), h: rand(2, 9), x: rand(-0.1, 0.7), w: rand(0.2, 0.6),
         color: COLORS[pick(['red', 'red', 'green', 'violet', 'paper'])],
       }));
@@ -842,6 +845,15 @@ export class FxLayer {
     for (const s of it.slices) {
       ctx.fillStyle = s.color;
       ctx.fillRect(r.x + s.x * r.w, r.y + s.y, s.w * r.w, s.h);
+    }
+    if (it.style === 'glitch' && leaving < 0) {
+      // its colours pulled apart, a different way each drawing
+      const j = (frame % 3) - 1;
+      ctx.globalAlpha = 0.16;
+      ctx.fillStyle = COLORS.red;
+      ctx.fillRect(r.x + j * 6, r.y, r.w, r.h);
+      ctx.fillStyle = COLORS.green;
+      ctx.fillRect(r.x - j * 6, r.y, r.w, r.h);
     }
     ctx.restore();
 
@@ -1800,6 +1812,14 @@ export class FxLayer {
         ctx.restore();
         break;
       }
+      default:
+        // her moods' marks and the props of what she's busy with (fx-life.js) draw themselves
+        if (it.render) {
+          ctx.save();
+          it.render(ctx, t, now, this);
+          ctx.restore();
+        }
+        break;
     }
   }
 }

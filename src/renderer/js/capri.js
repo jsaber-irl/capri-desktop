@@ -6,12 +6,19 @@
 // ("peek"), and falling ("fall") when the window under her goes away or you drop her.
 
 import { SpriteRenderer, SPRITE } from './sprite.js';
-import { ACTS, NEUTRAL, Player } from './acting.js';
+import { ACTS, FIDGETS, NEUTRAL, Player } from './acting.js';
 import { sleep, rand, pick, clamp, lerp, ease, tween, reducedMotion, today } from './util.js';
+import * as marks from './fx-life.js';
+import { COLORS } from './fx.js';
+import * as ledges from './ledges.js';
+import * as moves from './possession.js';
+
+const COLORS_RED = () => COLORS.red; // her theme's main colour (themes.js changes it)
 
 const ON_TWOS = 1000 / 12;
 const ON_ONES = 1000 / 24;
 const ASLEEP = 1000 / 6;
+const HIDDEN_POLL = 1000; // hidden (her mask, her chip): a lazy safety check (every way back nudges her loop)
 const SLEEP_AFTER = 10 * 60 * 1000;
 const DOZE_AFTER = 20 * 1000; // asleep this long, she comes apart down to her mask
 const GRAVITY = 2600; // px/s²
@@ -22,6 +29,31 @@ const UPLINK_DAY = 'capri.uplinkDay'; // the last day she sent the red light up
 const GREEN = [0.21, 1, 0.48];
 const INK = [0.08, 0.06, 0.11];
 const RED = [1, 0.13, 0.32];
+
+// What floating looks like in each of her moods (acting.js), and the glow over her (sprite.js).
+const MOOD_STAND = { angry: 'standAngry', annoyed: 'standAnnoyed', sad: 'standSad', happy: 'standHappy', shy: 'standShy', bored: 'standBored' };
+// her misregistered copy takes the colour of strong feelings (otherwise her theme's)
+const MOOD_RIM = { angry: [1, 0.22, 0.08], sad: [0.22, 0.45, 1], shy: [1, 0.45, 0.8] };
+const MOOD_TINT = {
+  angry: { tint: [1, 0.1, 0.06], amt: (k) => 0.16 + 0.22 * k },
+  annoyed: { tint: [1, 0.32, 0.18], amt: () => 0.1 },
+  sad: { tint: [0.32, 0.48, 1], amt: (k) => 0.18 + 0.14 * k },
+  shy: { tint: [1, 0.42, 0.72], amt: (k) => 0.14 + 0.12 * k },
+  happy: { tint: [1, 0.86, 0.42], amt: () => 0.07 },
+  bored: { tint: [0.62, 0.62, 0.74], amt: () => 0.16 },
+};
+// a reaction (mood.js reactionTo, or her chat's answer) as an act, and which way it leans
+const REACTIONS = {
+  rage: 'rage', huff: 'huff', hurt: 'wince', pout: 'pout', forgive: 'forgive', shy: 'shy', giggle: 'giggle',
+  laugh: 'laughFit', care: 'care', startle: 'startle', surprised: 'startle', dizzy: 'dizzy', stretch: 'stretch',
+  smug: 'curious', happy: 'hop',
+};
+// the words of her marks, in her language
+const SAY = {
+  hmph: { ru: 'хмф', en: 'hmph' },
+  huh: { ru: '!?', en: '!?' },
+  yawn: { ru: 'ахх…', en: 'yawn…' },
+};
 
 export class Capri {
   constructor({ root, canvas, image, fx, voice }) {
@@ -37,6 +69,7 @@ export class Capri {
     this.facing = 1; // 1: as drawn (reaching left), -1: mirrored
     this.mode = 'idle'; // idle | work | alert | sleep
     this.stance = 'stand';
+    this.leftLedge = null; // the window she is hopping off (it is not where she lands)
     this.perch = null;    // { id, dx }: the window she sits on, and where along it
     this.peekSide = null; // left | right | top
     this.windows = { fg: 0, wins: [] };
@@ -46,7 +79,22 @@ export class Capri {
     this.dormant = false; // asleep, down to her mask
     this.wander = true;
     this.possessWindows = true; // tray: "Possess my windows"
+    this.moveWindows = true;    // ...and move them (tray: "Move the windows she has")
+    this.mover = null;          // app.js: { grab(id) -> Promise<{ ok }>, move(id, x, y), release(id, restore) }: the host moves the window
+    this.holding = null;        // the id of the window she is moving now
+    this.heldLost = false;      // ...which she cannot hold any more (you took it, it closed, the program said no)
+    this.lastPossession = '';
+    this.onPossessed = null;    // (kind) => void: she has been in a window (app.js: a word about it)
     this.restOn = 'corner'; // where she rests when nothing's going on: her corner, or 'taskbar' (her menu)
+    this.lang = 'en';
+    this.moodName = 'calm'; // how she feels (mood.js), and how strongly, 0..1
+    this.moodLevel = 0;
+    this.tintTo = { tint: [1, 1, 1], amt: 0 };
+    this.nextMoodBeat = 0;  // the next little sign of her mood (a vein, a blush, a sigh...)
+    this.activityAct = null; // what she floats like while busy with something of hers (life.js): 'tinker', 'read', 'bop'
+    this.dancing = false;    // moving to the real beat (rhythm.js)
+    this.danceLevel = 0;     // how loud the music is, 0..1
+    this.manePop = 0;        // a mane flare on a beat, decays each frame
     this.nextHome = 0;
     this.dragging = false;
 
@@ -55,6 +103,7 @@ export class Capri {
       smear: [0, 0], echo: [0, 0],
       glitch: 0, glitchSeed: 0, split: 0, collapse: 0, dissolve: 0, sparkle: 1, grade: 1,
       sil: INK, silAmount: 0, misreg: [-2.6, 2.2], alpha: 1,
+      hue: 0.968, hueMix: 0.6, maneSat: 1, maneVal: 1, rim: [0.48, 0.24, 1.0], tint: [1, 1, 1], tintAmt: 0,
     };
     this.bob = 0;
     this.tilt = 0;
@@ -70,6 +119,8 @@ export class Capri {
     this.nextMove = now + rand(40000, 80000);
     this.nextGaze = now + rand(40000, 90000);
     this.nextShed = now + rand(3000, 8000);
+    this.nextFidget = now + rand(8000, 16000);
+    this.lastFidget = '';
     this.nextNotice = 0;
     this.peekUntil = 0;
     this.lastGlyph = 0;
@@ -93,7 +144,9 @@ export class Capri {
     this.setScale(this.scale);
     this.bindPointer();
     this.loop = this.loop.bind(this);
-    requestAnimationFrame(this.loop);
+    this.loopRaf = 0;
+    this.loopTimer = 0;
+    this.frame();
   }
 
   // ---------- geometry ----------
@@ -236,53 +289,48 @@ export class Capri {
 
   setWindows(data) {
     this.windows = data;
-    if (this.stance !== 'sit' || this.busy || this.dragging) return;
-    const win = this.perchWin(this.perch.id);
-    const dx = win ? clamp(this.perch.dx, 50, win.w - 60) : 0;
-    if (!win || !this.canSit(win) || this.covered(win, win.x + dx)) {
+    this.syncPerch();
+  }
+
+  // Her seat on her ledge, from where that ledge is now: she rides along with the window, and falls when it
+  // is gone (closed, minimized, maximized) or covered. The watcher only speaks when something changes, so what
+  // happened while she was busy (a teleport, an act) is not told again: the loop asks here every drawing.
+  syncPerch() {
+    if (this.stance !== 'sit' || this.busy || this.dragging || !this.perch) return;
+    const next = ledges.follow(this.perch, this.windows.wins, this.view, this.scale);
+    if (next.fall) {
       this.fall(); // the ledge is gone (closed, minimized, maximized or covered)
       return;
     }
-    const to = this.seat(win, dx);
-    if (to.x !== this.pos.x || to.y !== this.pos.y) {
-      this.pos = to; // ride along with the window
+    if (next.pos.x !== this.pos.x || next.pos.y !== this.pos.y) {
+      this.pos = next.pos; // ride along with the window
       this.place();
     }
   }
 
   // Where her feet go so that her hips rest on the window's top edge.
   seat(win, dx) {
-    return { x: win.x + dx, y: win.y + 3 + (SPRITE.feet.y - SPRITE.hip) * this.scale };
+    return ledges.seat(win, dx, this.scale);
   }
 
   canSit(win) {
-    if (win.id === 'taskbar') return true;
-    const roomAbove = SPRITE.hip * this.scale + 12;
-    return !win.max && win.w > 260 && win.y > roomAbove && win.y < this.view.floor - 80;
+    return ledges.canSit(win, this.view, this.scale);
   }
 
   // Is her spot on that ledge hidden under a window that's above it?
   covered(win, x) {
-    if (win.id === 'taskbar') return false; // nothing goes over the taskbar
-    const half = 34 * this.scale;
-    const { wins } = this.windows;
-    for (const o of wins) {
-      if (o === win || o.id === win.id) return false; // reached it: everything after is below
-      if (o.x < x + half && o.x + o.w > x - half && o.y <= win.y && o.y + o.h >= win.y) return true;
-    }
-    return false; // window not in the list any more
+    return ledges.covered(win, x, this.windows.wins, this.scale);
   }
 
-  // A window she could sit on, the one in front first. Returns { win, dx } or null.
   // The top of the taskbar (the bottom of her screen), as a ledge to sit on like a window's: her
-  // legs hang down behind it.
+  // legs hang down over it.
   ledge() {
-    return { id: 'taskbar', x: 0, y: this.view.floor, w: this.view.w, h: this.view.h - this.view.floor, max: false };
+    return ledges.taskbar(this.view);
   }
 
   // What she's perched on, from its id: a window, or the taskbar.
   perchWin(id) {
-    return id === 'taskbar' ? this.ledge() : this.windows.wins.find((w) => w.id === id);
+    return ledges.find(id, this.windows.wins, this.view);
   }
 
   // Back to where she rests: her corner, or sitting on the taskbar below it.
@@ -314,12 +362,55 @@ export class Capri {
     return this.mode === 'sleep' ? ASLEEP : ON_TWOS;
   }
 
+  // Her clock. She's drawn on twos (12 a second), on ones for action, 6 a second asleep: instead of
+  // waking up on every screen refresh (60, 144 times a second) to find there's nothing to draw, the
+  // loop sleeps until her next drawing is due, and only rides the screen's frames while something
+  // moves continuously (a teleport, a fall, a drag). Hidden (her mask, her chip), it just runs a
+  // lazy check now and then (everything that brings her back nudges it awake).
   loop(now) {
-    requestAnimationFrame(this.loop);
-    if (this.hidden) return;
-    if (now - this.lastDraw < this.interval() - 1) return;
-    this.drawFrame(now);
-    this.behave(now);
+    this.loopRaf = 0;
+    if (this.hidden) {
+      this.schedule(HIDDEN_POLL);
+      return;
+    }
+    if (now - this.lastDraw >= this.interval() - 1) {
+      this.drawFrame(now);
+      this.behave(now);
+      this.syncPerch();
+    }
+    const smooth = this.busy || this.dragging || this.stance === 'fall' || this.act?.player.act.fps === 24;
+    if (smooth) this.frame();
+    else this.schedule(this.interval() - (performance.now() - this.lastDraw) - 6);
+  }
+
+  // Her loop on the next screen frame (one pending at a time: never two loops running side by side).
+  frame() {
+    clearTimeout(this.loopTimer);
+    this.loopTimer = 0;
+    if (!this.loopRaf) this.loopRaf = requestAnimationFrame(this.loop);
+  }
+
+  // Her loop in `ms`, then on the frame after that (so drawings stay frame-aligned).
+  schedule(ms) {
+    if (ms <= 4) {
+      this.frame();
+      return;
+    }
+    clearTimeout(this.loopTimer);
+    if (this.loopRaf) {
+      cancelAnimationFrame(this.loopRaf);
+      this.loopRaf = 0;
+    }
+    this.loopTimer = setTimeout(() => {
+      this.loopTimer = 0;
+      this.frame();
+    }, ms);
+  }
+
+  // Something wants her drawn now (back from her mask or her chip, a drag, an action on ones):
+  // don't wait out the timer.
+  nudge() {
+    if (!this.hidden) this.frame();
   }
 
   drawFrame(now = performance.now()) {
@@ -355,9 +446,32 @@ export class Capri {
       }
     }
     const pose = { ...NEUTRAL, ...base, ...act };
+    // dancing (rhythm.js): the beat pops her mane, and the louder the music the bigger her sway
+    if (this.dancing && !act) {
+      pose.mane = (pose.mane || 0) + this.manePop + this.danceLevel * 0.05;
+      const swell = 0.6 + this.danceLevel * 0.9;
+      pose.bob = (pose.bob || 0) * swell;
+      pose.tilt = (pose.tilt || 0) * swell;
+    }
+    this.manePop *= 0.6;
+    if (this.manePop < 0.01) this.manePop = 0;
     if (this.mode === 'sleep' && this.stance === 'sit' && !act) {
       Object.assign(pose, { head: 0.12, mane: -0.1, kickL: 0.03, kickR: 0.03, armL: -0.45, armR: -0.45 }); // dozing on the ledge
+    } else if (this.stance === 'sit' && !act) {
+      // her mood on a ledge too: bristling, drooping, ducking her head
+      const k = this.moodLevel;
+      if (this.moodName === 'angry') Object.assign(pose, { mane: pose.mane + 0.22 + (this.baseIndex % 2) * 0.06, head: pose.head - 0.05 });
+      else if (this.moodName === 'sad') Object.assign(pose, { mane: pose.mane - 0.15, head: pose.head + 0.1 * (0.5 + k) });
+      else if (this.moodName === 'shy') Object.assign(pose, { head: pose.head + 0.14, mane: pose.mane - 0.05 });
+      else if (this.moodName === 'happy') Object.assign(pose, { mane: pose.mane + 0.06 });
     }
+    // angry, her misregistered copy shakes loose: further off, a new offset every drawing
+    if (this.moodName === 'angry') p.misreg = [-3.2 - Math.random() * 2.4 * (0.5 + this.moodLevel), 2.6 + Math.random() * 2];
+    else if (p.misreg[0] !== -2.6) p.misreg = [-2.6, 2.2];
+    // her mood's glow comes and goes over a few drawings
+    p.tint = this.tintTo.tint;
+    p.tintAmt += (this.tintTo.amt - p.tintAmt) * 0.25;
+    if (Math.abs(this.tintTo.amt - p.tintAmt) < 0.004) p.tintAmt = this.tintTo.amt;
 
     p.head = pose.head;
     p.mane = pose.mane;
@@ -388,7 +502,7 @@ export class Capri {
     if (this.busy || this.dragging) return;
 
     if (now > this.nextTwitch) {
-      this.nextTwitch = now + rand(5000, 13000);
+      this.nextTwitch = now + (this.moodName === 'angry' ? rand(1800, 4500) : rand(5000, 13000));
       if (!reducedMotion.matches && this.mode !== 'sleep') this.twitch();
     }
 
@@ -396,6 +510,14 @@ export class Capri {
     if (now > this.nextShed) {
       this.nextShed = now + rand(4000, 11000) * (this.mode === 'sleep' ? 2.5 : 1);
       if (!reducedMotion.matches && this.stance !== 'peek') this.shed();
+    }
+
+    if (now > this.nextMoodBeat) this.moodBeat(now);
+
+    // a little something of her own, now and then: swinging her legs on a ledge, a wave, a shrug
+    if (now > this.nextFidget) {
+      this.nextFidget = now + (this.stance === 'sit' ? rand(6000, 14000) : rand(18000, 40000));
+      this.fidget();
     }
 
     if (this.mode === 'idle' && this.stance !== 'peek' && now > this.nextGaze) {
@@ -450,7 +572,7 @@ export class Capri {
       const r = Math.random();
       if (r < 0.3) this.flourish();
       else if (r < 0.5 && this.canPossess()) this.possess();
-      else if (r < 0.75) this.fall(); // just hops off the ledge
+      else if (r < 0.75) this.fall({ leave: true }); // just hops off the ledge
       else this.teleport(this.spot('random'));
       return;
     }
@@ -460,6 +582,20 @@ export class Capri {
     else if (r < 0.6) this.peek();
     else if (r < 0.85) this.teleport(this.spot('random'));
     else this.flourish();
+  }
+
+  // The small things she does with herself when nobody needs her (acting.js FIDGETS): sitting on a ledge, on a
+  // window or the taskbar, mostly her legs; floating, a wave, a shrug, her mane. By how she feels, never the
+  // same twice in a row. True if she started one.
+  fidget() {
+    const free = this.mode === 'idle' && !this.act && !this.busy && !this.dragging && !this.pointing && !this.dancing && !this.activityAct
+      && !this.hidden && !this.stowed && !this.dormant && !this.sky && !this.upside && !reducedMotion.matches;
+    if (!free || (this.stance !== 'sit' && this.stance !== 'stand')) return false;
+    const names = (FIDGETS[this.stance][this.moodName] || FIDGETS[this.stance].calm).filter((n) => n !== this.lastFidget);
+    if (!names.length) return false;
+    this.lastFidget = pick(names);
+    this.perform(this.lastFidget);
+    return true;
   }
 
   flourish() {
@@ -478,6 +614,7 @@ export class Capri {
       return Promise.resolve();
     }
     const next = new Player(name, { dir, reach });
+    this.nudge(); // an act starts on the next frame, not after the loop's nap
     if (this.act && this.act.player.priority > next.priority) return Promise.resolve();
     this.endAct(false);
     return new Promise((done) => {
@@ -513,7 +650,127 @@ export class Capri {
     if (this.stance === 'sit') return 'sit';
     if (this.stance === 'peek') return 'peek';
     if (this.stance === 'fall') return 'fall';
-    return this.mode === 'sleep' ? 'sleep' : 'stand';
+    if (this.mode === 'sleep') return 'sleep';
+    // busy with something of hers (life.js); the real beat (rhythm.js) beats her plain music bob
+    if (this.activityAct && !(this.dancing && this.activityAct === 'bop')) return this.activityAct;
+    if (this.dancing) return 'dance';
+    if (this.mode === 'idle') return MOOD_STAND[this.moodName] || 'stand';
+    return 'stand';
+  }
+
+  // ---------- her moods (mood.js) ----------
+
+  // How she feels: her float, her glow. Level 0..1.
+  setMood(mood, level = 0) {
+    const changed = mood !== this.moodName;
+    this.moodName = mood;
+    this.moodLevel = level;
+    const look = MOOD_TINT[mood];
+    this.tintTo = look ? { tint: look.tint, amt: look.amt(level) } : { tint: this.tintTo.tint, amt: 0 };
+    this.p.rim = MOOD_RIM[mood] || this.themeRim || this.p.rim;
+    if (changed && this.stance === 'stand' && !this.pointing) this.base = this.restBase();
+    if (changed) this.nextMoodBeat = performance.now() + rand(1500, 4000);
+  }
+
+  // Her colours (themes.js): the mane's hue and how hard it's pushed there, its saturation and
+  // brightness, and her violet misregistered copy.
+  setTheme({ hue, mix, sat, val, rim }) {
+    this.themeRim = rim;
+    Object.assign(this.p, { hue, hueMix: mix, maneSat: sat, maneVal: val, rim: MOOD_RIM[this.moodName] || rim });
+  }
+
+  // What she's busy with changes how she floats (null: back to her mood's float).
+  setActivity(act) {
+    this.activityAct = act;
+    if (this.stance === 'stand' && !this.pointing) this.base = this.restBase();
+  }
+
+  // She starts (or stops) dancing to the real beat (rhythm.js): her float becomes the groove.
+  setDancing(on) {
+    if (on === this.dancing) return;
+    this.dancing = on;
+    this.danceLevel = 0;
+    if (this.stance === 'stand' && !this.pointing) this.base = this.restBase();
+  }
+
+  // A beat landed (rhythm.js): if she's dancing, drop the groove's down-beat right on it and pop
+  // her mane; a strong one now and then gets a spin or a hop. No big moves while busy.
+  beat(strength = 0.5) {
+    if (!this.dancing || this.busy || this.act || this.stance !== 'stand' || reducedMotion.matches) return;
+    // restart the dance loop so its first (down-beat) drawing lands now
+    if (this.base?.name === 'dance') this.base.start = performance.now();
+    this.manePop = Math.min(0.5, 0.18 + strength * 0.4);
+    if (strength > 0.8 && performance.now() - (this.lastDanceMove || 0) > 4000 && Math.random() < 0.4) {
+      this.lastDanceMove = performance.now();
+      this.perform(pick(['spin', 'hop', 'split']), this.towardCenter());
+    } else if (strength > 0.55 && Math.random() < 0.3) {
+      const h = this.head();
+      this.fx.burst(h.x, h.y - 30 * this.scale, { count: 6, power: 0.4, spread: 60 * this.scale });
+    }
+  }
+
+  // A reaction, played as an act: 'rage', 'huff', 'hurt', 'pout', 'forgive', 'shy', 'giggle',
+  // 'laugh', 'care', 'startle', 'dizzy', 'stretch', 'smug', 'happy', 'dreamy'. Resolves when done.
+  react(name, dir = this.towardCenter()) {
+    if (this.hidden || this.stowed || this.dormant) return Promise.resolve();
+    if (this.mode === 'sleep') this.wake();
+    if (name === 'dreamy') {
+      if (this.gaze({ big: false })) return Promise.resolve();
+      return this.perform('curious', dir);
+    }
+    const act = REACTIONS[name];
+    if (!act) return Promise.resolve();
+    if (this.busy || this.stance === 'fall') return Promise.resolve();
+    // the jumpy ones would lift her off her ledge: sitting, she does them smaller
+    if (this.stance === 'sit' && ['rage', 'laughFit', 'startle', 'hop'].includes(act)) {
+      return this.perform(act === 'rage' ? 'huff' : act === 'laughFit' ? 'giggle' : 'curious', dir);
+    }
+    if (this.stance === 'peek' && act !== 'giggle') return this.unpeek({ shy: name === 'shy' });
+    return this.perform(act, dir);
+  }
+
+  // Where her marks go: the top of her head, on the open side, and her face.
+  markAt(side = this.towardCenter()) {
+    const s = this.scale;
+    const h = this.head();
+    return { x: h.x + side * 78 * s, y: h.top + 18 * s };
+  }
+
+  faceAt() {
+    return () => {
+      const h = this.head();
+      return { x: h.x, y: h.y + 4 * this.scale };
+    };
+  }
+
+  // A little sign of her mood now and then, between everything else.
+  moodBeat(now) {
+    const k = this.moodLevel;
+    const mood = this.moodName;
+    this.nextMoodBeat = now + (mood === 'angry' ? rand(5000, 9000) : rand(9000, 18000));
+    if (this.busy || this.hidden || this.act || this.sky || reducedMotion.matches || this.mode === 'sleep') return;
+    if (this.stance === 'peek' || this.stance === 'fall') return;
+    const s = this.scale;
+    if (mood === 'angry') {
+      marks.vein(this.fx, () => this.markAt(), { size: 0.8 + 0.5 * k, life: 1300 });
+      if (Math.random() < 0.6) marks.steam(this.fx, this.markAt(-this.towardCenter()), { scale: s * 1.4 });
+      if (Math.random() < 0.5) this.spark();
+      this.voice.play('growl', { soft: true });
+    } else if (mood === 'annoyed') {
+      if (Math.random() < 0.5) marks.vein(this.fx, () => this.markAt(), { size: 0.7, life: 1000 });
+      else this.perform('huff', this.towardCenter());
+    } else if (mood === 'sad') {
+      marks.drops(this.fx, this.faceAt(), { count: 2, scale: s * 1.4 });
+      if (Math.random() < 0.4) this.voice.play('sigh');
+    } else if (mood === 'shy') {
+      marks.blush(this.fx, this.faceAt(), { scale: s * 1.5, life: 2000 });
+    } else if (mood === 'happy') {
+      if (this.stance === 'stand' && Math.random() < 0.35) this.perform(pick(['hop', 'spin']), this.towardCenter());
+      else this.twitch();
+    } else if (mood === 'bored') {
+      if (this.stance === 'stand' && Math.random() < 0.4) this.perform('stretch');
+      else marks.word(this.fx, this.markAt().x, this.markAt().y, '…', { size: 22, life: 1400, rise: 20 });
+    }
   }
 
   setMode(mode) {
@@ -624,7 +881,7 @@ export class Capri {
   // follows it. Mostly she just looks at it ("gaze"). She sends the red light up to it
   // ("uplink") only when it means something: the first time of the day, and a little while
   // after Claude finishes a long job (earnUplink). The cues in onCue do the sky.
-  gaze({ big, hold = false } = {}) {
+  gaze({ big } = {}) {
     if (this.busy || this.hidden || this.act || this.stance === 'peek' || this.stance === 'fall') return false;
     big ??= this.uplinkDue || this.lastUplinkDay() !== today();
     if (reducedMotion.matches) big = false; // no strobing bolt
@@ -656,7 +913,6 @@ export class Capri {
     this.sky = { sat, road, dir, side, motes: null, surge: null, head: null };
     if (!big) this.onGaze?.('start');
     this.perform(big ? 'uplink' : 'gaze', dir, { reach }).then(() => {
-      if (hold) return;
       this.clearSky();
       if (big) this.onGaze?.('end');
     });
@@ -847,6 +1103,103 @@ export class Capri {
         break;
       case 'snap':
         this.twitch();
+        this.voice.play('tick');
+        break;
+      // her moods (acting.js)
+      case 'seethe':
+        if (Math.random() < 0.3) marks.steam(this.fx, this.markAt(), { count: 2, scale: s * 1.3 });
+        break;
+      case 'tsk':
+        if (Math.random() < 0.4) marks.vein(this.fx, () => this.markAt(), { size: 0.6, life: 800 });
+        break;
+      case 'growl':
+        this.voice.play('growl');
+        break;
+      case 'rage': {
+        const top = this.markAt();
+        marks.vein(this.fx, () => this.markAt(), { size: 1.5, life: 2200 });
+        marks.steam(this.fx, top, { count: 4, scale: s * 1.6 });
+        this.fx.burst(mane.x, mane.y, { count: 26, power: 1.1, spread: 140 * s });
+        this.fx.ring(mane.x, mane.y, { size: 0.5 });
+        this.fx.lines(mane.x, mane.y, { inner: 120 * s + 30, life: 420 });
+        this.flash([RED, INK, RED]);
+        this.p.glitchSeed = Math.random() * 100;
+        this.p.glitch = 0.5;
+        this.p.split = 6;
+        tween(this.p, { glitch: 0, split: 0 }, 600, ease.out);
+        this.voice.play('rage');
+        break;
+      }
+      case 'huff':
+        marks.vein(this.fx, () => this.markAt(), { size: 1, life: 1200 });
+        marks.steam(this.fx, this.markAt(-this.towardCenter()), { count: 2, scale: s * 1.3 });
+        this.voice.play('huff');
+        break;
+      case 'sting':
+        this.twitch();
+        marks.drops(this.fx, this.faceAt(), { count: 3, scale: s * 1.4 });
+        this.voice.play('sting');
+        break;
+      case 'pout': {
+        const m = this.markAt(-this.towardCenter());
+        marks.word(this.fx, m.x, m.y, SAY.hmph[this.lang] || SAY.hmph.en, { size: 18, life: 1200, rise: 26, color: COLORS_RED() });
+        this.voice.play('huff');
+        break;
+      }
+      case 'sigh':
+        this.voice.play('sigh');
+        break;
+      case 'softGlow':
+        tween(this.p, { sparkle: 1.6 }, 300, ease.out).then(() => tween(this.p, { sparkle: this.mode === 'sleep' ? 0.35 : 1 }, 600, ease.inOut));
+        break;
+      case 'blush':
+        marks.blush(this.fx, this.faceAt(), { scale: s * 1.5, life: 2600 });
+        marks.heart(this.fx, this.markAt().x, this.markAt().y, { scale: s * 1.4 });
+        this.voice.play('shy');
+        break;
+      case 'blushPeek':
+        if (Math.random() < 0.5) marks.blush(this.fx, this.faceAt(), { scale: s * 1.5, life: 1200 });
+        break;
+      case 'giggle':
+        marks.haha(this.fx, this.head(), { lang: this.lang, count: 1 });
+        this.voice.play('giggle');
+        break;
+      case 'haha':
+        if (Math.random() < 0.45) marks.haha(this.fx, this.head(), { lang: this.lang, count: 1 });
+        if (this.act?.index === 2) this.voice.play('laugh');
+        break;
+      case 'soft':
+        tween(this.p, { sparkle: 1.5 }, 400, ease.out).then(() => tween(this.p, { sparkle: 1 }, 700, ease.inOut));
+        break;
+      case 'startle': {
+        const m = this.markAt();
+        marks.word(this.fx, m.x, m.y, SAY.huh[this.lang] || '!?', { size: 24, life: 900, rise: 30, color: COLORS_RED() });
+        this.fx.ring(h.x, h.y, { size: 0.35 });
+        this.voice.play('startle');
+        break;
+      }
+      case 'dizzy':
+        marks.dizzy(this.fx, () => this.head(), { scale: s * 1.4, life: 2200 });
+        this.voice.play('dizzy');
+        break;
+      case 'yawn': {
+        const m = this.markAt();
+        marks.word(this.fx, m.x, m.y, SAY.yawn[this.lang] || SAY.yawn.en, { size: 15, life: 1400, rise: 24 });
+        this.voice.play('yawn');
+        break;
+      }
+      case 'note': { // humming
+        const m = this.markAt(pick([-1, 1]));
+        marks.word(this.fx, m.x, m.y, pick(['♪', '♫']), { size: 20, life: 1500, rise: 46, drift: rand(-16, 16), wobble: 3, color: pick([COLORS_RED(), '#fff4f6']) });
+        break;
+      }
+      case 'beat':
+        if (Math.random() < 0.22) {
+          const m = this.markAt(pick([-1, 1]));
+          marks.word(this.fx, m.x, m.y, pick(['♪', '♫', '♬']), { size: 20, life: 1300, rise: 50, drift: rand(-20, 20), color: pick([COLORS_RED(), '#36ff7a', '#fff4f6']) });
+        }
+        break;
+      case 'page':
         this.voice.play('tick');
         break;
       default:
@@ -1047,6 +1400,7 @@ export class Capri {
     }
     this.busy = true;
     this.wake();
+    this.nudge();
     this.onTeleport?.('start');
     const fromHead = await this.vanish();
     await sleep(70);
@@ -1153,6 +1507,7 @@ export class Capri {
     this.onDoze?.('end');
     this.hidden = false;
     this.root.hidden = false;
+    this.nudge();
     Object.assign(this.p, { alpha: 0, collapse: 0.6, dissolve: 0.5, glitch: 0, split: 0, sparkle: 1 });
     const win = this.dozedOn && this.perchWin(this.dozedOn.id);
     if (win && this.canSit(win) && !this.covered(win, win.x + this.dozedOn.dx)) {
@@ -1173,6 +1528,7 @@ export class Capri {
     this.onUnstow?.();
     this.hidden = false;
     this.root.hidden = false;
+    this.nudge();
     if (this.mode === 'sleep') this.setMode('idle');
     this.lastActivity = performance.now();
     Object.assign(this.p, { alpha: 0, collapse: 1, dissolve: 0.5, glitch: 0, split: 0 });
@@ -1198,15 +1554,26 @@ export class Capri {
       && this.windows.wins.some((w) => w.id === this.perch?.id);
   }
 
+  // How she takes the window she sits on: moving it, if she may and it has room for it (possession.js), or
+  // just getting in ('take') or making it glitch ('glitch'). Not the way she did last time.
+  pickPossession(win) {
+    const may = this.mover && this.moveWindows && !win.max;
+    const names = [...(may ? moves.available(moves.roomFor(win, this.view)) : []), 'take', 'glitch'];
+    return pick(names.filter((n) => n !== this.lastPossession));
+  }
+
   // Like in the show, she gets into things: she dives into the window she sits on and takes it
-  // over (fx.possess: its frame crackles, it glitches, it looks at you with her eyes), then comes
-  // out of another window, or further along this one if there's no other.
-  async possess() {
+  // over (fx.possess: its frame crackles, it glitches, it looks at you with her eyes), sometimes shakes it, carries
+  // it about the screen or makes it dance (and puts it back), then comes out of another window, or further along
+  // this one if there's no other. `kind`: one of those, else she picks.
+  async possess(kind) {
     if (!this.canPossess()) return false;
     const s = this.scale;
     const id = this.perch.id;
     const win = this.windows.wins.find((w) => w.id === id);
     const entry = this.pos.x - win.x;
+    kind ||= this.pickPossession(win);
+    this.lastPossession = kind;
     this.busy = true;
     this.wake();
     this.onTeleport?.('start');
@@ -1214,7 +1581,12 @@ export class Capri {
     const head = await this.vanish({ beam: false });
     this.fx.streak(head.x, head.y, this.pos.x, win.y + 40 * s);
 
-    const rect = () => this.windows.wins.find((w) => w.id === id) || null;
+    // the window as it is drawn on: where she has put it (the watcher is a moment behind), else where it is
+    let shift = null;
+    const rect = () => {
+      const now = this.windows.wins.find((w) => w.id === id) || null;
+      return now && shift ? { ...now, x: win.x + shift.dx, y: win.y + shift.dy } : now;
+    };
     const covers = () => {
       const front = [];
       for (const o of this.windows.wins) {
@@ -1223,11 +1595,18 @@ export class Capri {
       }
       return front;
     };
-    const taken = this.fx.possess(rect, { covers, entry, look: () => this.mouse });
+    const taken = this.fx.possess(rect, { covers, entry, look: () => this.mouse, style: kind === 'glitch' ? 'glitch' : 'take' });
     this.voice.play('bolt');
     await sleep(300);
     this.voice.play('possess');
-    await sleep(1600);
+    const move = this.mover && this.moveWindows ? moves.make(kind, moves.roomFor(win, this.view)) : null;
+    let did = kind; // (what she really did: a window she could not hold was just taken over)
+    if (move) {
+      if (!(await this.carry(id, win, move, (o) => { shift = o; }))) did = 'take';
+    } else {
+      if (!['take', 'glitch'].includes(kind)) did = 'take';
+      await sleep(kind === 'glitch' ? 2300 : 1600);
+    }
     taken.leave();
     await sleep(260);
 
@@ -1247,7 +1626,45 @@ export class Capri {
     if (seat) this.fx.slit(to.x, toHead.top, seat.win.y, { width: 56 * s + 10 }); // the void she climbs out of
     await this.arrive(to, seat ? { stance: 'sit', perch: { id: seat.win.id, dx: seat.dx }, beam: false } : {});
     await this.settle();
+    this.onPossessed?.(did);
     return true;
+  }
+
+  // Moves a window along `move` (possession.js), frame by frame, and puts it back where it was. `onShift(o)`: where
+  // it is now, for drawing. Ends early if she cannot hold it (the host says no, it closes, you take hold of it:
+  // then she leaves it where you put it). Resolves whether she moved it.
+  async carry(id, win, move, onShift) {
+    const grab = await this.mover.grab(id).catch(() => null);
+    if (!grab?.ok) {
+      await sleep(1600); // nothing to move: she just has it for a while
+      return false;
+    }
+    this.holding = id;
+    this.heldLost = false;
+    this.voice.play('rise');
+    const t0 = performance.now();
+    try {
+      for (let t = 0; t < move.ms; t = performance.now() - t0) {
+        if (this.heldLost || !this.windows.wins.some((w) => w.id === id)) break;
+        const o = move.at(t);
+        onShift(o);
+        this.mover.move(id, win.x + o.dx, win.y + o.dy);
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+    } finally {
+      const kept = !this.heldLost;
+      this.holding = null;
+      onShift(null);
+      if (kept) this.mover.move(id, win.x, win.y);
+      this.mover.release(id, kept);
+    }
+    if (!this.heldLost) this.voice.play('land');
+    return !this.heldLost;
+  }
+
+  // The host says the window she was moving is not hers to move any more.
+  moverLost(id) {
+    if (this.holding === id) this.heldLost = true;
   }
 
   // Lean in from an edge of the screen: vanish, then slide in on twos, three drawings.
@@ -1339,35 +1756,28 @@ export class Capri {
     this.onTeleport?.('end');
   }
 
-  // Where she'd end up falling straight down from here: a free ledge under her, or the floor.
-  landing() {
-    const hip = this.pos.y - (SPRITE.feet.y - SPRITE.hip) * this.scale;
-    let best = null;
-    for (const win of this.windows.wins) {
-      if (!this.canSit(win) || win.y < hip - 4) continue;
-      if (this.pos.x < win.x + 40 || this.pos.x > win.x + win.w - 40) continue;
-      if (this.covered(win, this.pos.x)) continue;
-      if (!best || win.y < best.y) best = win;
-    }
-    if (best) {
-      const dx = this.pos.x - best.x;
-      return { y: this.seat(best, dx).y, stance: 'sit', perch: { id: best.id, dx } };
-    }
-    return { y: this.floor, stance: 'stand', perch: null };
+  // Where she'd end up falling straight down from here: a free ledge under her, or the floor. `except`: the
+  // ledge she just hopped off.
+  landing(except = null) {
+    return ledges.landing(this.pos, this.windows.wins, this.view, this.scale, except);
   }
 
-  fall() {
+  // `leave`: she hops off her ledge on purpose, so it is not where she lands.
+  fall({ leave = false } = {}) {
     if (this.stance === 'fall') return;
     if (this.sky) this.endAct(false);
-    this.landingSpot = this.landing();
+    this.leftLedge = leave && this.perch ? this.perch.id : null;
+    this.landingSpot = this.landing(this.leftLedge);
     this.setStance('fall');
     this.vy = 0;
     this.lastFall = performance.now();
+    this.nudge(); // falling is smooth motion: frame by frame from now
     if (reducedMotion.matches) this.updateFall(this.lastFall + 10000);
   }
 
   updateFall(now) {
-    const target = this.landingSpot;
+    // (the windows move while she falls: where she lands is looked at again every drawing)
+    const target = this.landingSpot = this.landing(this.leftLedge);
     const dt = Math.min(0.05, (now - this.lastFall) / 1000);
     this.lastFall = now;
     this.vy = Math.min(this.vy + GRAVITY * dt, 1900);
@@ -1377,6 +1787,7 @@ export class Capri {
       return;
     }
     this.pos.y = target.y;
+    this.leftLedge = null;
     this.setStance(target.stance, { perch: target.perch });
     const s = this.scale;
     if (target.stance === 'sit') {
@@ -1550,6 +1961,7 @@ export class Capri {
   setHidden(hidden) {
     this.hidden = hidden;
     this.root.hidden = hidden;
+    if (!hidden) this.nudge();
   }
 
   // ---------- pointer ----------
@@ -1562,7 +1974,7 @@ export class Capri {
     });
     this.canvas.addEventListener('mousedown', (e) => {
       if (e.button !== 0 || this.busy || !this.hit(e.clientX, e.clientY)) return;
-      down = { x: e.clientX, y: e.clientY, pos: { ...this.pos } };
+      down = { x: e.clientX, y: e.clientY, pos: { ...this.pos }, at: performance.now() };
     });
     window.addEventListener('mousemove', (e) => {
       this.mouse = { x: e.clientX, y: e.clientY }; // a window she's in watches it
@@ -1570,6 +1982,7 @@ export class Capri {
         const dx = e.clientX - down.x, dy = e.clientY - down.y;
         if (!this.dragging && Math.hypot(dx, dy) > 5 && !this.busy) {
           this.dragging = true;
+          this.nudge();
           if (this.upside) {
             // flip back upright under the pointer
             down.pos = { x: down.pos.x, y: down.y + (SPRITE.feet.y - SPRITE.head.y) * this.scale };
@@ -1592,37 +2005,52 @@ export class Capri {
       }
       this.notice(e.clientX, e.clientY);
     });
-    window.addEventListener('mouseup', () => {
+    window.addEventListener('mouseup', (e) => {
       if (!down) return;
       const wasDragging = this.dragging;
+      const { at } = down;
       down = null;
       this.dragging = false;
       if (wasDragging) {
         tween(this.p, { glitch: 0, split: 0 }, 200, ease.out);
         this.onTeleport?.('end');
-        this.drop();
+        const where = this.drop();
+        this.onDrop?.({ ms: performance.now() - at, where }); // dragged around too often, she gets dizzy; put down, a word about it (heart.js)
       } else {
-        this.onClick?.();
+        this.onClick?.({ zone: this.zone(e.clientX, e.clientY) });
       }
     });
   }
 
-  // Let go of her: onto a ledge if her hips are right at one, otherwise she falls.
+  // Let go of her: onto a ledge if her hips are right at one, otherwise she falls. Says where she ended up:
+  // 'window' (on one, not the taskbar) or 'floor'.
   drop() {
-    const s = this.scale;
-    const hip = this.pos.y - (SPRITE.feet.y - SPRITE.hip) * s;
-    for (const win of this.windows.wins) {
-      if (!this.canSit(win) || Math.abs(hip - win.y) > 26) continue;
-      if (this.pos.x < win.x + 40 || this.pos.x > win.x + win.w - 40 || this.covered(win, this.pos.x)) continue;
-      const dx = this.pos.x - win.x;
-      this.pos = this.seat(win, dx);
-      this.setStance('sit', { perch: { id: win.id, dx } });
+    const onto = ledges.dropOnto(this.pos, this.windows.wins, this.view, this.scale);
+    if (onto) {
+      this.pos = onto.pos;
+      this.setStance('sit', { perch: onto.perch });
       this.perform('plop');
       this.voice.play('land');
-      return;
+      return onto.perch?.id === 'taskbar' ? 'floor' : 'window';
     }
     if (this.pos.y < this.floor - 2) this.fall();
     else this.perform('land');
+    return 'floor';
+  }
+
+  // Where on her a point of the screen is: 'head', 'legs' (below the hips) or 'body'. A click means different
+  // things (heart.js clickLine).
+  zone(x, y) {
+    const s = this.scale;
+    const fy = this.pos.y + this.bob;
+    if (this.upside) {
+      x = 2 * this.pos.x - x;
+      y = 2 * fy - y;
+    }
+    const sx = SPRITE.feet.x + ((x - this.pos.x) / s) * this.facing;
+    const sy = SPRITE.feet.y - (fy - y) / s;
+    if (Math.hypot(sx - SPRITE.head.x, sy - (SPRITE.head.y - 34)) < 62) return 'head';
+    return sy > SPRITE.hip ? 'legs' : 'body';
   }
 
   // When the pointer comes close she turns around to face it and cocks her head;

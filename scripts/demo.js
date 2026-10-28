@@ -3,7 +3,7 @@
 
 // Plays the demo session against a running Capri, through the same HTTP bridge the hooks use.
 //   npm run demo           (in English)
-//   npm run demo -- fr     (or es, pt, ru)
+//   npm run demo -- ru
 
 const http = require('node:http');
 const steps = require('./demo-sequence')(process.argv[2]);
@@ -27,9 +27,6 @@ function post(evt) {
   for (const [delay, evt] of steps) {
     await sleep(delay);
     process.stdout.write(`→ ${evt.hook_event_name}${evt.tool_name ? ' ' + evt.tool_name : ''}\n`);
-    if (evt.hook_event_name === 'CapriSatelliteTest') {
-      console.log('[demo] CapriSatelliteTest envoyé');
-    }
     try {
       await post(evt);
     } catch {
