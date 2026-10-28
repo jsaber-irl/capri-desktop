@@ -97,6 +97,201 @@ body {
   display: none !important;
 }
 
+/* ---------- fake command terminal ---------- */
+
+.terminal {
+  position: fixed;
+  z-index: 8;
+  left: 50%;
+  top: 50%;
+  width: min(720px, calc(100vw - 32px));
+  height: min(560px, calc(100vh - 32px));
+  min-width: 360px;
+  min-height: 260px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 20px 14px;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  resize: both;
+  color: var(--paper);
+  background: var(--ink);
+  border: 2px solid var(--green);
+  box-shadow: 8px 8px 0 var(--violet), inset 0 0 0 1px oklch(0.88 0.24 148 / 0.2);
+  clip-path: polygon(0 14px, 14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+}
+
+.terminal.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.terminal.is-collapsed {
+  height: auto;
+  min-height: 0;
+  resize: none;
+}
+
+.terminal.is-collapsed .terminal__screen,
+.terminal.is-collapsed .terminal__hint {
+  display: none;
+}
+
+.terminal__toggle {
+  appearance: none;
+  border: 0;
+  margin-left: auto;
+  padding: 4px 9px;
+  color: var(--ink);
+  background: var(--green);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.terminal__toggle:focus-visible {
+  outline: 2px solid var(--paper);
+  outline-offset: 2px;
+}
+
+.terminal::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  pointer-events: none;
+  border: 1px solid oklch(0.88 0.24 148 / 0.18);
+}
+
+.terminal__header,
+.terminal__form {
+  position: relative;
+  z-index: 1;
+}
+
+.terminal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid oklch(0.88 0.24 148 / 0.28);
+  cursor: grab;
+}
+
+.terminal__eyebrow,
+.terminal__hint {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+.terminal__title {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3vw, 34px);
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 3px 3px 0 var(--violet);
+}
+
+.terminal__close {
+  appearance: none;
+  border: 0;
+  padding: 4px 8px;
+  color: var(--ink);
+  background: var(--red);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  cursor: pointer;
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+
+.terminal__close:focus-visible,
+.terminal__input:focus-visible {
+  outline: 2px solid var(--paper);
+  outline-offset: 2px;
+}
+
+.terminal__screen {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  margin: 14px 0;
+  padding: 12px;
+  overflow-y: auto;
+  background: oklch(0.12 0.03 300);
+  border-left: 2px solid var(--violet);
+  scrollbar-color: var(--violet) transparent;
+}
+
+.terminal__entry {
+  margin: 0 0 7px;
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 1.1vw, 13px);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.terminal__entry--command {
+  color: var(--green);
+}
+
+.terminal__entry--system {
+  color: var(--paper-2);
+}
+
+.terminal__entry--error {
+  color: var(--red);
+}
+
+.terminal__form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--ink-2);
+  border-top: 2px solid var(--green);
+}
+
+.terminal__prompt {
+  flex: none;
+  color: var(--green);
+  font-family: var(--font-mono);
+  font-size: var(--text-data);
+  font-weight: 600;
+}
+
+.terminal__input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  color: var(--paper);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--text-data);
+}
+
+.terminal__input::placeholder {
+  color: var(--paper-3);
+}
+
+.terminal__hint {
+  position: relative;
+  z-index: 1;
+  margin: 10px 0 0;
+  font-size: 9px;
+  color: var(--paper-3);
+}
+
 /* ---------- Capri ---------- */
 
 .capri {

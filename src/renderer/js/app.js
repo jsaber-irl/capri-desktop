@@ -9,6 +9,7 @@ import { Mission } from './mission.js';
 import { Chat } from './chat.js';
 import { Setup } from './setup.js';
 import { Custom } from './custom.js';
+import { Terminal } from './terminal.js';
 import { linesFor } from './lines.js';
 import { pick, fmt, reducedMotion } from './util.js';
 
@@ -73,6 +74,11 @@ async function boot() {
     ticker: document.getElementById('ticker'),
     labels: linesFor(config.lang, config.assistant),
   });
+  const terminal = new Terminal({
+    element: document.getElementById('terminal'),
+    host,
+    lang: config.lang,
+  });
 
   const capri = new Capri({
     root: document.getElementById('capri'),
@@ -104,8 +110,11 @@ async function boot() {
     if (!mouse) return setInteractive(false);
     const r = panel.rect();
     const onPanel = r && mouse.x >= r.left && mouse.x <= r.right && mouse.y >= r.top && mouse.y <= r.bottom;
+    const terminalRect = terminal.visible ? terminal.element.getBoundingClientRect() : null;
+    const onTerminal = terminalRect && mouse.x >= terminalRect.left && mouse.x <= terminalRect.right
+      && mouse.y >= terminalRect.top && mouse.y <= terminalRect.bottom;
     document.body.style.cursor = onChip() ? 'pointer' : '';
-    return setInteractive(Boolean(onPanel || capri.hit(mouse.x, mouse.y) || onChip()));
+    return setInteractive(Boolean(onPanel || onTerminal || capri.hit(mouse.x, mouse.y) || onChip()));
   };
   // Her biochip: her eyes on it follow the pointer over it, and she comes out when you click it
   // (only then, so the pointer passing through that corner doesn't call her back).
@@ -356,6 +365,7 @@ async function boot() {
       brain.lang = cfg.lang;
       panel.labels = linesFor(cfg.lang, cfg.assistant);
       document.documentElement.lang = cfg.lang;
+      terminal.setLang(cfg.lang);
     }
   });
 
@@ -413,6 +423,10 @@ async function boot() {
         break;
       case 'chat': // "Talk to her" in her menu
         chat.start();
+        break;
+      case 'terminal':
+        terminal.open();
+        refreshHit();
         break;
       case 'version': {
         const version = await host.getVersion();

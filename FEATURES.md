@@ -1,119 +1,125 @@
-# État d'implémentation
+# Implementation Status
 
-Les cases cochées correspondent aux fonctionnalités présentes dans le code actuel. Les fonctionnalités
-dépendant d'une API native non disponible dans Electron restent décochées plutôt que simulées. Le suivi
-et la possession des fenêtres restent Windows uniquement ; l'overlay, les animations, le chat, les
-assistants, les sons et les actions d'applications sont disponibles sur Windows, macOS et Linux.
+Checked boxes indicate features currently present in the code. Features that depend on a native API unavailable in Electron remain unchecked rather than being simulated. Window tracking and window possession remain Windows-only; the overlay, animations, chat, assistants, sounds, and application actions are available on Windows, macOS, and Linux.
 
-1. Mascotte et animations
-- [x] Apparition animée au démarrage avec présentation de Capri.
-- [x] Personnage flottant qui se déplace entre les coins de l'écran.
-- [x] Clignements des yeux, mouvements de tête et expressions faciales.
-- [x] Huit expressions faciales différentes dans les messages.
-- [x] Téléportation animée d'un endroit à un autre.
-- [x] Effets de glitch, décalage RGB et distorsions visuelles.
-- [x] Éclairs rouges, fragments et particules lumineuses.
-- [x] Animations de rotation, de saut et de chute.
-- [x] Réactions amusantes à la proximité du curseur.
-- [x] Possibilité de faire apparaître des copies rouge et verte du personnage.
-- [x] Animation spéciale avec un satellite.
-- [x] Animation de victoire lorsque l'assistant termine son travail.
-- [x] Animation d'erreur lorsqu'une commande échoue.
-- [x] Animation de sommeil après 10 minutes d'inactivité.
-- [x] Réveil automatique lorsque la souris s'approche ou que Claude reprend son activité.
-- [x] Réduction de la mascotte à son masque dans le coin inférieur gauche.
-- [x] Mode démonstration pour tester les animations sans assistant de programmation.
-- [x] Mascotte virtuelle toujours présente sur le bureau.
-- [x] Animation d'attente et clignement des yeux.
-- [x] Animation lorsqu'elle parle.
-- [x] Animation lorsqu'on la déplace ou la secoue.
-- [x] Effets visuels de glitch.
-- [x] Animation de sommeil et de redémarrage.
-- [x] Déplacement de la mascotte à la souris.
-- [ ] Positionnement sur les fenêtres, les icônes ou le bas de l'écran.
-- [ ] Déplacement entre les fenêtres ouvertes (Windows uniquement).
-- [x] Accrochage à une position précise ou à la souris.
+## 1. Mascot and Animations
 
-2. Intégration avec les assistants de programmation
-- [x] Intégration avec Claude Code.
-- [x] Intégration avec OpenAI Codex.
-- [x] Intégration avec Google Antigravity.
-- [x] Installation des hooks depuis le menu de Capri.
-- [x] Installation et désinstallation des hooks en ligne de commande.
-- [x] Détection des actions réalisées par l'assistant.
-- [x] Affichage de l'outil utilisé, du fichier concerné et de la commande exécutée.
-- [x] Affichage des recherches de code et des opérations de lecture ou d'écriture.
-- [x] Affichage des commandes lancées et des tests exécutés.
-- [x] Indicateur de progression au-dessus de la mascotte.
-- [x] Affichage du temps passé en réflexion après 15 secondes d'attente.
-- [x] Commentaires sur les longues périodes de réflexion.
-- [x] Alerte lorsque l'assistant attend une autorisation ou une réponse.
-- [x] Téléportation vers le curseur ou la fenêtre de l'assistant lorsqu'une intervention est nécessaire.
-- [x] Affichage des erreurs importantes en cas d'échec.
-- [x] Séquence de victoire lorsque la tâche est terminée.
-- [x] Affichage du résumé de la tâche : nombre d'actions, fichiers modifiés et durée.
-- [x] Affichage de la dernière réponse de l'assistant.
-- [x] Panneau permettant de lire la réponse complète lorsque tu travailles dans une autre fenêtre.
-- [x] Possibilité de désactiver la surveillance des assistants pour utiliser Capri uniquement comme mascotte.
+- [x] Animated appearance at startup with an introduction to Capri.
+- [x] Floating character that moves between the corners of the screen.
+- [x] Eye blinking, head movements, and facial expressions.
+- [x] Eight different facial expressions in messages.
+- [x] Animated teleportation from one place to another.
+- [x] Glitch effects, RGB shifting, and visual distortions.
+- [x] Red lightning bolts, fragments, and glowing particles.
+- [x] Spinning, jumping, and falling animations.
+- [x] Playful reactions when the cursor gets close.
+- [x] Ability to spawn red and green copies of the character.
+- [x] Special animation featuring a satellite.
+- [x] Victory animation when the assistant finishes its work.
+- [x] Error animation when a command fails.
+- [x] Sleep animation after 10 minutes of inactivity.
+- [x] Automatic wake-up when the mouse approaches or Claude becomes active again.
+- [x] Mascot can shrink down to its mask in the bottom-left corner.
+- [x] Demo mode to test animations without a coding assistant.
+- [x] Virtual mascot that stays on the desktop.
+- [x] Idle animation and eye blinking.
+- [x] Animation while speaking.
+- [x] Animation when moved or shaken.
+- [x] Visual glitch effects.
+- [x] Sleep and reboot animations.
+- [x] Move the mascot with the mouse.
+- [ ] Position on windows, icons, or the bottom edge of the screen.
+- [ ] Move between open windows.
+- [x] Snap to a specific position or to the mouse.
 
-3. Intelligence artificielle et conversations
-- [x] Discussion par messages écrits.
-- [x] Réponses générées par une IA.
-- [x] Configuration du modèle d'IA depuis le Mainframe.
-- [x] Utilisation d'une IA locale sur l'ordinateur.
-- [x] Utilisation d'une IA distante via une clé API.
-- [x] Possibilité d'utiliser une clé NVIDIA gratuite, selon les quotas disponibles.
-- [x] Ajout la possibilité d’”appel” avec Capri dans le style Cyberpunk 2077 avec la sonnerie, la transcription et la réponse directement (API vocale du navigateur).
+## 2. Integration with Coding Assistants
 
-4. Fonctionnalités vocales
-- [ ] Synthèse vocale pour faire parler la mascotte (les sons synthétisés sont disponibles, pas la parole).
-- [ ] Conversation vocale interactive.
-- [ ] Reconnaissance vocale via NVIDIA Parakeet.
-- [ ] Voix locale gratuite avec Kokoro.
-- [ ] Voix ElevenLabs avec une clé API.
-- [ ] Activation et arrêt de la conversation vocale par raccourci clavier.
-- [ ] Coupure et réactivation du microphone.
+- [x] Integration with Claude Code.
+- [x] Integration with OpenAI Codex.
+- [x] Integration with Google Antigravity.
+- [x] Install hooks from the Capri menu.
+- [x] Install and uninstall hooks from the command line.
+- [x] Detect actions performed by the assistant.
+- [x] Display the tool being used, the relevant file, and the command being run.
+- [x] Display code searches and read/write operations.
+- [x] Display commands launched and tests run.
+- [x] Progress indicator above the mascot.
+- [x] Display time spent thinking after 15 seconds of waiting.
+- [x] Commentary during long periods of thinking.
+- [x] Alert when the assistant is waiting for permission or a response.
+- [x] Teleport to the cursor or the assistant's window when intervention is needed.
+- [x] Display important errors when something fails.
+- [x] Victory sequence when a task is completed.
+- [x] Display a task summary: number of actions, files changed, and duration.
+- [x] Display the assistant's latest response.
+- [x] Panel for reading the full response while working in another window.
+- [x] Option to disable assistant monitoring and use Capri only as a mascot.
 
-5. Positionnement et interactions avec les fenêtres
-- [x] Mascotte flottante au premier plan.
-- [x] Déplacement par glisser-déposer.
-- [ ] Possibilité de s'asseoir sur le bord supérieur d'une fenêtre.
-- [ ] Déplacement avec la fenêtre lorsque celle-ci est déplacée.
-- [ ] Chute lorsque la fenêtre disparaît, est minimisée ou recouverte.
-- [ ] Possibilité de tomber sur le rebord d'une autre fenêtre.
-- [x] Apparition partielle sur les bords de l'écran.
-- [x] Déplacement lorsqu'on approche la souris d'elle.
-- [ ] Effet de possession d'une fenêtre avec des yeux et un sourire animés.
-- [x] Désactivation de la possession des fenêtres depuis le menu.
-- [ ] Suivi des fenêtres ouvertes sous Windows.
-- [x] Mise en retrait dans le biochip avec Ctrl + Alt + C.
-- [x] Réapparition par clic sur le masque ou avec le même raccourci.
+## 3. Artificial Intelligence and Conversations
 
-6. Interface et paramètres
-- [x] Mainframe central de configuration.
-- [x] Configuration du modèle d'IA.
-- [x] Configuration de la voix.
-- [x] Activation de l'observation de l'écran.
-- [x] Accès à l'aide.
-- [x] Menu contextuel par clic droit sur la mascotte.
-- [x] Accès aux paramètres depuis l'icône de la zone de notification.
-- [x] Personnalisation des raccourcis clavier depuis le menu Capri (profils afficher/masquer, chat ou désactivation).
+- [x] Text-based messaging.
+- [x] AI-generated responses.
+- [x] Configure the AI model from the Mainframe.
+- [x] Use a local AI running on the computer.
+- [x] Use a remote AI with an API key.
+- [x] Option to use a free NVIDIA API key, subject to available quotas.
+- [x] Add a Cyberpunk 2077-style “call” with Capri, including a ringtone, transcription, and direct response (using the browser's voice API).
 
-7. Conversation avec Capri
-- [x] Ouvrir un panneau de discussion depuis le menu.
-- [x] Envoyer des messages en appuyant sur Entrée.
-- [x] Fermer le panneau avec Échap.
-- [x] Recevoir des réponses formulées dans le personnage de Capri.
-- [x] Utiliser les informations sur l'activité de Claude et les tâches réalisées pendant la journée.
-- [x] Personnaliser la façon dont Capri s'exprime.
-- [x] Définir des phrases personnalisées qu'elle peut prononcer.
-- [x] Lui faire mémoriser certaines informations personnelles.
-- [x] Choisir le nom qu'elle utilise pour s'adresser à toi.
-- [x] Effacer les conversations mémorisées.
-- [x] Choisir la langue de l'interface et des dialogues.
-Modèles et fournisseurs d'IA compatibles avec le chat
-- [x] Ollama avec un modèle local.
-- [x] Pollinations pour une utilisation en ligne sans compte.
+## 4. Voice Features
+
+- [ ] Text-to-speech to make the mascot speak (synthesized sounds are available, but speech is not).
+- [ ] Interactive voice conversation.
+- [ ] Speech recognition via NVIDIA Parakeet.
+- [ ] Free local voice using Kokoro.
+- [ ] ElevenLabs voice using an API key.
+- [ ] Start and stop voice conversation with a keyboard shortcut.
+- [ ] Mute and unmute the microphone.
+
+## 5. Positioning and Window Interactions
+
+- [x] Floating mascot that stays in the foreground.
+- [x] Drag-and-drop movement.
+- [ ] Ability to sit on the top edge of a window.
+- [ ] Move along with a window when it is moved.
+- [ ] Fall when a window disappears, is minimized, or is covered.
+- [ ] Ability to land on the edge of another window.
+- [x] Partially appear at the edges of the screen.
+- [x] Move when the mouse approaches.
+- [ ] Window-possession effect with animated eyes and a smile.
+- [x] Disable window possession from the menu.
+- [ ] Track open windows on Windows.
+- [x] Retreat into the biochip with Ctrl + Alt + C.
+- [x] Reappear by clicking the mask or using the same shortcut.
+
+## 6. Interface and Settings
+
+- [x] Central configuration Mainframe.
+- [x] Configure the AI model.
+- [x] Configure the voice.
+- [x] Enable screen observation.
+- [x] Access help.
+- [x] Context menu opened by right-clicking the mascot.
+- [x] Access settings from the system tray icon.
+- [x] Customize keyboard shortcuts from the Capri menu (show/hide profiles, chat, or disable).
+
+## 7. Chatting with Capri
+
+- [x] Open a chat panel from the menu.
+- [x] Send messages by pressing Enter.
+- [x] Close the panel with Esc.
+- [x] Receive responses written in Capri's character.
+- [x] Use information about Claude's activity and tasks completed during the day.
+- [x] Customize the way Capri speaks.
+- [x] Define custom phrases for Capri to say.
+- [x] Have Capri remember certain personal information.
+- [x] Choose the name Capri uses to address you.
+- [x] Clear remembered conversations.
+- [x] Choose the language of the interface and dialogue.
+
+### AI Models and Providers Compatible with Chat
+
+- [x] Ollama with a local model.
+- [x] Pollinations for online use without an account.
 - [x] Groq.
 - [x] Google Gemini.
 - [x] OpenRouter.
@@ -123,94 +129,102 @@ Modèles et fournisseurs d'IA compatibles avec le chat
 - [x] LM Studio.
 - [x] llama.cpp.
 - [x] vLLM.
-- [x] Tout serveur compatible avec l'API OpenAI.
-- [x] Claude Code en mode ligne de commande, dans un dossier choisi.
+- [x] Any server compatible with the OpenAI API.
+- [x] Claude Code in command-line mode, in a selected directory.
 
-8. Actions sur l'ordinateur
-- [x] Ouvrir des applications.
-- [x] Fermer des applications.
-- [ ] Lire de la musique (recherche Spotify disponible, lecture directe non implémentée).
-- [x] Mettre la musique en pause.
-- [ ] Demander quelle musique est en cours de lecture.
-- [x] Fermer un onglet après confirmation.
-- [ ] Observer l'écran pendant les jeux.
-- [ ] Commenter ce qui se passe pendant une partie.
-- [ ] Ouvrir les applications du menu Démarrer.
-- [ ] Lancer des applications du Microsoft Store, comme Spotify.
-- [x] Lancer des jeux installés via Steam et Epic Games.
-- [x] Contrôler la lecture multimédia : pause, piste suivante, volume et silence.
-- [x] Rechercher un artiste ou un morceau sur Spotify.
-- [x] Ouvrir un site web après confirmation via un bouton.
-- [x] Fermer une application après confirmation.
-- [x] Proposer une fermeture forcée si l'application reste dans la zone de notification.
-- [ ] Conserver la possibilité pour l'application de demander d'enregistrer les modifications avant de se fermer.
+## 8. Computer Actions
 
-9. Guide interactif
-- [x] Expliquer le fonctionnement de Capri directement depuis son menu.
-- [x] Indiquer où se trouve son icône dans la zone de notification.
-- [x] Montrer où se trouve la fenêtre de Claude Code.
-- [x] Ouvrir le dossier ~/.claude.
-- [x] Sélectionner settings.json pour expliquer la configuration des hooks.
-- [x] Installer les hooks de Claude Code en un clic.
-- [x] Proposer le lancement de Claude Code ou Codex avec Ollama.
-- [x] Pointer visuellement les éléments de l'interface.
-- [x] Afficher un réticule, des éclairs et un effet de zoom pendant les explications.
+- [x] Open applications.
+- [x] Close applications.
+- [ ] Play music (Spotify search is available; direct playback has not been implemented).
+- [x] Pause music.
+- [ ] Ask which track is currently playing.
+- [x] Close a browser tab after confirmation.
+- [ ] Observe the screen while gaming.
+- [ ] Comment on what is happening during gameplay.
+- [ ] Open applications from the Start menu.
+- [ ] Launch Microsoft Store apps, such as Spotify.
+- [x] Launch games installed through Steam and Epic Games.
+- [x] Control media playback: pause, next track, volume, and mute.
+- [x] Search for an artist or track on Spotify.
+- [x] Open a website after confirmation via a button.
+- [x] Close an application after confirmation.
+- [x] Offer to force-quit an application if it remains in the system tray.
+- [ ] Preserve the application's ability to ask the user to save changes before closing.
 
-10. Rapport quotidien de mission
-- [x] Générer une carte récapitulative du travail de la journée.
-- [x] Afficher le nombre de tâches terminées.
-- [x] Afficher le nombre d'actions réalisées.
-- [x] Afficher les fichiers modifiés.
-- [x] Afficher les erreurs rencontrées.
-- [x] Indiquer la mission la plus longue et le projet concerné.
-- [x] Récapituler les prompts, autorisations et projets.
-- [x] Animer les compteurs du rapport.
-- [x] Copier l'image du rapport dans le presse-papiers.
-- [x] Afficher automatiquement le rapport le soir après au moins trois tâches réalisées.
-- [x] Conserver le journal des missions localement, avec un historique journalier.
+## 9. Interactive Guide
 
-11. Sons et personnalisation
-- [x] Génération des effets sonores en temps réel.
-- [x] Son de téléportation.
-- [x] Son de fin de tâche.
-- [x] Son d'alerte lorsqu'une autorisation est nécessaire.
-- [x] Son d'erreur.
-- [x] Son de démarrage de session.
-- [x] Son de chute et de montée.
-- [x] Son des éclairs et de la possession des fenêtres.
-- [x] Sons de parole et rappels discrets.
-- [x] Remplacement des sons par des fichiers personnels .mp3, .wav, .ogg ou .m4a.
-- [x] Réglage du son, de la taille et des animations.
-- [x] Démarrage automatique avec le système.
-- [x] Choix de la langue : français, anglais, espagnol, portugais brésilien ou russe.
-- [x] Personnalisation du comportement et des phrases de Capri.
+- [x] Explain how Capri works directly from its menu.
+- [x] Show where its icon is in the system tray.
+- [x] Show where the Claude Code window is.
+- [x] Open the `~/.claude` folder.
+- [x] Select `settings.json` to explain hook configuration.
+- [x] Install Claude Code hooks with one click.
+- [x] Offer to launch Claude Code or Codex with Ollama.
+- [x] Visually point out interface elements.
+- [x] Display a crosshair, lightning effects, and a zoom effect during explanations.
 
-12. Sécurité et fonctionnement technique
-- [x] Fonctionnement de la mascotte sans Claude Code.
-- [x] Communication locale avec Claude Code via 127.0.0.1.
-- [x] Hooks asynchrones qui ne bloquent pas les opérations de Claude.
-- [x] Sauvegarde de la configuration avant modification des hooks.
-- [x] Désinstallation des hooks sans supprimer les autres hooks existants.
-- [x] Stockage local du journal des missions et des paramètres.
-- [x] Chiffrement de la clé API avec le stockage sécurisé du système.
-- [ ] Possibilité de désinstaller l'application depuis les paramètres Windows (dépend du package installé).
-- [x] Mode développement avec outils de débogage et fenêtres de test.
+## 10. Daily Mission Report
 
-13. Fonctionnalités supplémentaires
-- [ ] Ouvrir les fichiers sélectionnés.
-- [ ] Lire et modifier des fichiers.
-- [ ] Contrôler YouTube.
-- [ ] Passer à la vidéo suivante.
-- [ ] Activer le plein écran.
-- [ ] Cliquer sur des éléments de l'interface.
-- [ ] Saisir du texte et faire défiler des pages.
-- [ ] Développer une voix locale gratuite.
-- [ ] Mémoriser des informations sur l'utilisateur.
-- [ ] Effectuer des recherches sur Internet.
-- [ ] Disposer d'un curseur autonome.
-- [ ] Ajouter des interactions comme les caresses sur la tête.
-- [x] Ajouter un mode espiègle avec des glitches et des effets de faux piratage.
-- [x] Étendre les commandes d'applications et le mode vocal navigateur à macOS et Linux.
+- [x] Generate a summary card of the day's work.
+- [x] Display the number of completed tasks.
+- [x] Display the number of actions performed.
+- [x] Display modified files.
+- [x] Display errors encountered.
+- [x] Identify the longest mission and the project involved.
+- [x] Summarize prompts, permissions, and projects.
+- [x] Animate the report counters.
+- [x] Copy the report image to the clipboard.
+- [x] Automatically display the report in the evening after at least three tasks have been completed.
+- [x] Store the mission log locally, with a daily history.
 
-14. Informations sur l'application
-- [x] Afficher la version actuelle de Capri depuis le menu et le chat.
+## 11. Sounds and Customization
+
+- [x] Generate sound effects in real time.
+- [x] Teleportation sound.
+- [x] Task-completion sound.
+- [x] Alert sound when permission is required.
+- [x] Error sound.
+- [x] Session startup sound.
+- [x] Falling and rising sounds.
+- [x] Lightning and window-possession sounds.
+- [x] Speaking sounds and subtle reminders.
+- [x] Replace sounds with personal `.mp3`, `.wav`, `.ogg`, or `.m4a` files.
+- [x] Adjust sound, size, and animations.
+- [x] Launch automatically at system startup.
+- [x] Choose the language: French, English, Spanish, Brazilian Portuguese, or Russian.
+- [x] Customize Capri's behavior and phrases.
+
+## 12. Security and Technical Operation
+
+- [x] Mascot works without Claude Code.
+- [x] Local communication with Claude Code via `127.0.0.1`.
+- [x] Asynchronous hooks that do not block Claude's operations.
+- [x] Back up the configuration before modifying hooks.
+- [x] Uninstall hooks without deleting other existing hooks.
+- [x] Store the mission log and settings locally.
+- [x] Encrypt the API key using the system's secure storage.
+- [ ] Ability to uninstall the application from Windows Settings (depends on the installed package).
+- [x] Development mode with debugging tools and test windows.
+
+## 13. Additional Features
+
+- [x] Add a movable, freely resizable cyberpunk-style Capri terminal while expanded, collapsible to its command line and expandable again, with fake commands (`/open`, `/download`, `/help`, `/network status`, `/get arasaka data`, etc.) and command/result history.
+- [ ] Open selected files.
+- [ ] Read and edit files.
+- [ ] Control YouTube.
+- [ ] Skip to the next video.
+- [ ] Enable fullscreen.
+- [ ] Click interface elements.
+- [ ] Type text and scroll through pages.
+- [ ] Develop a free local voice.
+- [ ] Remember information about the user.
+- [ ] Search the Internet.
+- [ ] Have an autonomous cursor.
+- [ ] Add interactions such as head pats.
+- [x] Add a mischievous mode with glitches and fake hacking effects.
+- [x] Extend application commands and browser voice mode to macOS and Linux.
+
+## 14. Application Information
+
+- [x] Display the current version of Capri from the menu and chat.
