@@ -21,7 +21,13 @@
       windowFocus: 'Activer',
       windowMove: 'Déplacer',
       emptyHint: 'Aucune fenêtre détectée ou accès non autorisé.',
-      automationUnknown: 'macOS ne permet pas de lire cet état sans envoyer un Apple Event. Utilisez « Tester l’accès » pour vérifier explicitement Capri → Événements système.',
+      automationUnknown: 'macOS ne permet pas de lire cet état sans envoyer un Apple Event. Choisissez une cible et demandez explicitement l’autorisation.',
+      automationLoading: 'Envoi d’un Apple Event de vérification… macOS peut afficher une demande.',
+      automationPrompted: 'Requête Apple Events envoyée. Choisissez dans la boîte macOS si elle apparaît, puis vérifiez l’état.',
+      automationDenied: 'Accès refusé. Ouvrez Réglages Système → Confidentialité et sécurité → Automatisation, puis modifiez l’autorisation de la cible.',
+      automationGranted: (name) => `Apple Event envoyé à ${name} et autorisation vérifiée.`,
+      automationUnknownResult: 'La requête a été envoyée, mais son résultat ne permet pas de confirmer l’autorisation. Consultez les instructions macOS.',
+      automationNotSent: 'Aucun Apple Event envoyé. Vérifiez que l’application cible est ouverte.',
       refreshFailed: (err) => `Impossible de vérifier les permissions : ${err}`,
     },
     en: {
@@ -39,7 +45,13 @@
       windowFocus: 'Focus',
       windowMove: 'Move',
       emptyHint: 'No windows detected or access denied.',
-      automationUnknown: 'macOS cannot read this state without sending an Apple Event. Use “Test access” to explicitly check Capri → System Events.',
+      automationUnknown: 'macOS cannot read this state without sending an Apple Event. Choose a target and explicitly request access.',
+      automationLoading: 'Sending a verification Apple Event… macOS may show a prompt.',
+      automationPrompted: 'Apple Events request sent. Choose in the macOS prompt if shown, then verify the state.',
+      automationDenied: 'Access denied. Open System Settings → Privacy & Security → Automation and change access for this target.',
+      automationGranted: (name) => `Apple Event sent to ${name}; permission verified.`,
+      automationUnknownResult: 'The request was sent, but its result cannot confirm permission. See macOS instructions.',
+      automationNotSent: 'No Apple Event was sent. Check that the target application is open.',
       refreshFailed: (err) => `Could not check permissions: ${err}`,
     },
   };
@@ -122,6 +134,48 @@
     }
     const hint = $('summaryHint');
     if (hint && perms.automation?.status === 'unknown') hint.textContent = t('automationUnknown');
+    for (const target of state.automationTargets || []) renderAutomationTarget(target);
+  }
+
+  function renderAutomationTarget(target) {
+    const row = document.querySelector(`[data-target="${target.targetId}"]`);
+    if (!row) return;
+    const badge = row.querySelector('[data-target-status]');
+    if (badge) {
+      badge.className = badgeClass(target.status);
+      badge.textContent = t(target.status || 'unknown');
+    }
+    row.dataset.status = target.status || 'unknown';
+  }
+
+  async function probeAutomation(targetId, verify = false) {
+    const row = document.querySelector(`[data-target="${targetId}"]`);
+    const result = $('automation-result');
+    const buttons = row?.querySelectorAll('button');
+    buttons?.forEach((button) => { button.disabled = true; });
+    if (result) result.textContent = t('automationLoading');
+    try {
+      const response = await window.macPermissions.automationProbe(targetId, verify);
+      if (response.automationTargets) response.automationTargets.forEach(renderAutomationTarget);
+      else if (response.targetId) renderAutomationTarget(response);
+      if (result) {
+        if (response.status === 'granted') result.textContent = t('automationGranted', response.targetApp || targetId);
+        else if (response.status === 'denied') result.textContent = t('automationDenied');
+        else if (response.requestSent) result.textContent = t('automationUnknownResult');
+        else result.textContent = response.message || response.error || t('automationNotSent');
+      }
+      if (response.status === 'denied') {
+        const hint = $('summaryHint');
+        if (hint) hint.textContent = t('automationDenied');
+      }
+      return response;
+    } catch (err) {
+      console.error(`[capri-perm-ui] Apple Events request failed for ${targetId}:`, err);
+      if (result) result.textContent = t('refreshFailed', err.message || err);
+      return { ok: false, status: 'unknown', error: err.message };
+    } finally {
+      buttons?.forEach((button) => { button.disabled = false; });
+    }
   }
 
   async function refresh() {
@@ -274,8 +328,12 @@
 
   $('btn-settings-screen')?.addEventListener('click', () => handleSettings('screen'));
 
-  $('btn-request-automation')?.addEventListener('click', () => handleRequest('automation'));
-  $('btn-settings-automation')?.addEventListener('click', () => handleSettings('automation'));
+  document.querySelectorAll('[data-target]').forEach((row) => {
+    const targetId = row.dataset.target;
+    row.querySelector('[data-target-request]')?.addEventListener('click', () => probeAutomation(targetId, false));
+    row.querySelector('[data-target-verify]')?.addEventListener('click', () => probeAutomation(targetId, true));
+    row.querySelector('[data-target-settings]')?.addEventListener('click', () => handleSettings('automation'));
+  });
 
   $('testWindowsBtn')?.addEventListener('click', testWindows);
 

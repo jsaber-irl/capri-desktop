@@ -163,19 +163,32 @@
           <ul class="perm-features-list" id="features-automation"></ul>
         </div>
 
-        <div class="perm-instructions" id="inst-box-automation">
-          <span class="inst-label">Instructions macOS :</span>
+        <p class="perm-desc" id="automation-result" aria-live="polite">L’état reste inconnu tant qu’aucun Apple Event vers la cible n’a été vérifié.</p>
+        <div class="automation-targets" id="automation-targets">
+          <article class="automation-target" data-target="systemEvents">
+            <div class="automation-target-head"><strong>Événements système (System Events)</strong><span class="badge badge--unknown" data-target-status>INCONNU</span></div>
+            <p>Vérifie la lecture des processus visibles utilisée par Capri pour observer et contrôler les fenêtres.</p>
+            <div class="perm-actions">
+              <button type="button" class="btn btn--action" data-target-request>Demander l’autorisation</button>
+              <button type="button" class="btn btn--secondary" data-target-settings>Ouvrir les Réglages Système</button>
+              <button type="button" class="btn btn--secondary" data-target-verify>Vérifier à nouveau</button>
+            </div>
+          </article>
+          <article class="automation-target" data-target="spotify">
+            <div class="automation-target-head"><strong>Spotify</strong><span class="badge badge--unknown" data-target-status>INCONNU</span></div>
+            <p>La vérification interroge l’état de lecture de Spotify, uniquement si l’application est déjà ouverte.</p>
+            <div class="perm-actions">
+              <button type="button" class="btn btn--action" data-target-request>Demander l’autorisation</button>
+              <button type="button" class="btn btn--secondary" data-target-settings>Ouvrir les Réglages Système</button>
+              <button type="button" class="btn btn--secondary" data-target-verify>Vérifier à nouveau</button>
+            </div>
+          </article>
+        </div>
+        <details class="perm-instructions" id="inst-box-automation">
+          <summary class="inst-label">Instructions macOS</summary>
           <p class="inst-text" id="instructions-automation"></p>
-        </div>
-
-        <div class="perm-actions">
-          <button type="button" class="btn btn--action" id="btn-request-automation">
-            Tester l’accès
-          </button>
-          <button type="button" class="btn btn--secondary" id="btn-settings-automation">
-            Ouvrir Réglages Système
-          </button>
-        </div>
+          <p class="inst-text">L’autorisation est accordée application par application et peut être demandée au premier Apple Event. Après une modification manuelle, vérifiez à nouveau ou redémarrez Capri. La présence de Capri dans cette liste dépend de la façon dont l’application est exécutée, empaquetée et signée.</p>
+        </details>
       </section>
 
       <!-- Window Management & Diagnostics Section -->

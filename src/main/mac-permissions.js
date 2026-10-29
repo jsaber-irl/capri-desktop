@@ -11,6 +11,14 @@ const SETTINGS_URLS = {
   security: 'x-apple.systempreferences:com.apple.preference.security',
 };
 
+// These are the applications Capri currently addresses with Apple Events. The renderer only
+// receives these stable IDs; a caller cannot pass an arbitrary AppleScript application name.
+const AUTOMATION_TARGETS = Object.freeze({
+  systemEvents: { id: 'systemEvents', targetApp: 'System Events', nameFr: 'Événements système (System Events)', nameEn: 'System Events', probe: 'systemEvents' },
+  spotify: { id: 'spotify', targetApp: 'Spotify', nameFr: 'Spotify', nameEn: 'Spotify', probe: 'spotify' },
+});
+const AUTOMATION_TCC_DENIED = /(-1743|not permitted|not allowed|not authorized to send apple events)/i;
+
 const PERMISSIONS_META = {
   accessibility: {
     id: 'accessibility',
@@ -96,8 +104,8 @@ const PERMISSIONS_META = {
       'System window orchestration via System Events',
       'Media playback control in compatible apps'
     ],
-    instructionsFr: 'Ouvrez Réglages Système > Confidentialité et sécurité > Automatisation, et vérifiez que « Capri » est autorisé pour les applications cibles (notamment « Événements système »).',
-    instructionsEn: 'Open System Settings > Privacy & Security > Automation, and verify that "Capri" is authorized for target applications (specifically "System Events").',
+    instructionsFr: 'Ouvrez Réglages Système → Confidentialité et sécurité → Automatisation, puis vérifiez que Capri est autorisé à contrôler les applications cibles, notamment Événements système lorsque cette autorisation est nécessaire. L’autorisation est accordée séparément pour chaque application et peut être demandée lors du premier Apple Event. Après une modification manuelle, vérifiez à nouveau ou redémarrez Capri. L’entrée Capri/Electron dépend de la façon dont l’application est exécutée, empaquetée et signée.',
+    instructionsEn: 'Open System Settings → Privacy & Security → Automation, then verify Capri is allowed to control the target apps, including System Events when needed. Permission is granted separately for each app and may be requested on the first Apple Event. After a manual change, check again or restart Capri. Whether Capri/Electron appears depends on how the app is run, packaged, and signed.',
     canPromptDirectly: false,
   },
 };
@@ -180,42 +188,61 @@ function checkScreenRecording({ systemPreferences, platform = process.platform }
   }
 }
 
-async function checkAutomation({ targetApp = 'System Events', exec = cp.execFile, platform = process.platform, probe = false } = {}) {
+async function checkAutomation({ targetId = 'systemEvents', targetApp, exec = cp.execFile, platform = process.platform, probe = false } = {}) {
   if (platform !== 'darwin') {
     return { id: 'automation', status: 'unsupported', granted: false };
   }
+  const target = targetApp
+    ? Object.values(AUTOMATION_TARGETS).find((entry) => entry.targetApp === targetApp)
+    : AUTOMATION_TARGETS[targetId];
+  if (!target) return { id: 'automation', status: 'unknown', granted: false, error: 'Unsupported Apple Events target.' };
   // There is no public, passive TCC query for Apple Events. A probe can display
   // macOS's Automation prompt, so only run it after an explicit user action.
-  if (!probe) return { id: 'automation', status: 'unknown', granted: false, targetApp, error: 'macOS does not expose Automation status without sending an Apple Event.' };
-  const script = `tell application "${targetApp}" to get name of first process whose visible is true`;
+  if (!probe) return { id: 'automation', status: 'unknown', granted: false, targetId: target.id, targetApp: target.targetApp, error: 'macOS does not expose Automation status without sending an Apple Event.' };
+
+  // Spotify is probed only if already running: tell-application can launch a target, which would
+  // be surprising from a permission button. System Events is queried for a read-only visible-process name.
+  if (target.probe === 'spotify') {
+    const running = await new Promise((resolve) => exec('pgrep', ['-x', 'Spotify'], { timeout: 3000 }, (err) => resolve(!err)));
+    if (!running) return { id: 'automation', status: 'unknown', granted: false, targetId: target.id, targetApp: target.targetApp, requestSent: false, error: 'Lancez Spotify avant de tester son autorisation Apple Events.' };
+  }
+  const script = target.probe === 'systemEvents'
+    ? 'tell application "System Events" to get name of first process whose visible is true'
+    : 'tell application "Spotify" to get player state';
   return new Promise((resolve) => {
-    exec('osascript', ['-e', script], { timeout: 4000 }, (err, stdout) => {
+    // Leave enough time for the native TCC dialog and the user's choice. execFile is async, so
+    // this does not block Electron's main thread.
+    exec('osascript', ['-e', script], { timeout: 120000 }, (err, stdout) => {
       if (!err) {
         return resolve({
           id: 'automation',
           status: 'granted',
           granted: true,
-          targetApp,
+          targetId: target.id,
+          targetApp: target.targetApp,
+          requestSent: true,
           details: String(stdout || '').trim(),
         });
       }
       const msg = String(err.message || '');
-      // Error -1743 = errAEEventNotPermitted (TCC denied)
-      // Error -54 = permission error
-      if (msg.includes('-1743') || msg.toLowerCase().includes('not permitted') || msg.toLowerCase().includes('not allowed')) {
+      if (AUTOMATION_TCC_DENIED.test(msg)) {
         return resolve({
           id: 'automation',
           status: 'denied',
           granted: false,
-          targetApp,
+          targetId: target.id,
+          targetApp: target.targetApp,
+          requestSent: true,
           error: msg,
         });
       }
       return resolve({
         id: 'automation',
-        status: 'action_required',
+        status: 'unknown',
         granted: false,
-        targetApp,
+        targetId: target.id,
+        targetApp: target.targetApp,
+        requestSent: true,
         error: msg,
       });
     });
@@ -273,8 +300,33 @@ async function openMacSettings(section, { shell, platform = process.platform } =
   }
 }
 
+async function requestAutomationTarget(targetId, { exec = cp.execFile, platform = process.platform } = {}) {
+  if (platform !== 'darwin') return { ok: false, reason: 'unsupported', status: 'unsupported' };
+  if (!Object.hasOwn(AUTOMATION_TARGETS, targetId)) return { ok: false, status: 'unknown', error: 'Cible Apple Events inconnue.' };
+  const result = await checkAutomation({ targetId, exec, platform, probe: true });
+  return {
+    ok: result.status === 'granted',
+    id: 'automation',
+    targetId,
+    targetApp: result.targetApp,
+    status: result.status,
+    granted: result.granted,
+    requestSent: Boolean(result.requestSent),
+    error: result.error,
+    message: result.status === 'granted'
+      ? `Apple Event vers ${result.targetApp} réussi : autorisation vérifiée.`
+      : result.status === 'denied'
+        ? `La requête Apple Events vers ${result.targetApp} a été bloquée. Ouvrez Réglages Système pour modifier l’autorisation.`
+        : result.requestSent
+          ? `La requête Apple Events vers ${result.targetApp} a été envoyée, mais l’autorisation reste impossible à déterminer.`
+          : result.error || `Aucune requête n’a été envoyée vers ${result.targetApp}.`,
+  };
+}
+
 async function requestPermission(id, { systemPreferences, shell, exec = cp.execFile, platform = process.platform } = {}) {
   if (platform !== 'darwin') return { ok: false, reason: 'unsupported' };
+
+  if (id === 'automation') return requestAutomationTarget('systemEvents', { exec, platform });
 
   if (id === 'accessibility') {
     if (systemPreferences?.isTrustedAccessibilityClient) {
@@ -306,12 +358,6 @@ async function requestPermission(id, { systemPreferences, shell, exec = cp.execF
   if (id === 'screen') {
     await openMacSettings('screen', { shell, platform });
     return { ok: true, id, status: checkScreenRecording({ systemPreferences, platform }).status };
-  }
-
-  if (id === 'automation') {
-    const result = await checkAutomation({ exec, platform, probe: true });
-    const settingsOpened = await openMacSettings('automation', { shell, platform });
-    return { ok: true, id, status: result.status, settingsOpened, error: result.error };
   }
 
   return { ok: false, error: 'unknown permission id' };
@@ -464,11 +510,22 @@ function createMacPermissionsWindow({
   ipcMain,
   shell,
   systemPreferences,
+  exec = cp.execFile,
+  platform = process.platform,
   screen,
   lang = () => 'fr',
   protocolUrl = 'capri://app/src/renderer/mac-permissions.html',
 }) {
   let win = null;
+  const automationTargets = Object.fromEntries(Object.values(AUTOMATION_TARGETS).map((target) => [target.id, {
+    targetId: target.id,
+    targetApp: target.targetApp,
+    nameFr: target.nameFr,
+    nameEn: target.nameEn,
+    status: 'unknown',
+    granted: false,
+    requestSent: false,
+  }]));
 
   function assertPanelSender(event) {
     if (!win || win.isDestroyed() || event.sender !== win.webContents || event.senderFrame !== event.sender.mainFrame) {
@@ -477,10 +534,11 @@ function createMacPermissionsWindow({
   }
 
   async function getFullState() {
-    const check = await checkAllPermissions({ systemPreferences });
+    const check = await checkAllPermissions({ systemPreferences, exec, platform });
     const currentLang = typeof lang === 'function' ? lang() : lang;
     return {
       ...check,
+      automationTargets: Object.values(automationTargets).map((target) => ({ ...target })),
       lang: currentLang,
     };
   }
@@ -535,16 +593,37 @@ function createMacPermissionsWindow({
     ipcMain.handle('macPermissions:request', async (event, id) => {
       assertPanelSender(event);
       if (!Object.hasOwn(PERMISSIONS_META, id)) return { ok: false, error: 'unknown permission id' };
-    const res = await requestPermission(id, { systemPreferences, shell });
+      const res = await requestPermission(id, { systemPreferences, shell, exec, platform });
       const state = await getFullState();
-    if (id === 'automation' && res.status) {
-      state.permissions.automation.status = res.status;
-      state.permissions.automation.granted = res.status === 'granted';
-      state.permissions.automation.probeTarget = 'System Events';
-      state.permissions.automation.error = res.error || '';
-    }
       win?.webContents.send('macPermissions:statusChange', state);
       return res;
+    });
+
+    ipcMain.handle('macPermissions:automationProbe', async (event, request) => {
+      assertPanelSender(event);
+      if (!request || !Object.hasOwn(AUTOMATION_TARGETS, request.targetId) || typeof request.verify !== 'boolean') {
+        return { ok: false, status: 'unknown', error: 'Requête de vérification Apple Events invalide.' };
+      }
+      const prior = automationTargets[request.targetId];
+      // A denied TCC request will not prompt again. Direct the user to Settings unless
+      // they explicitly selected “Vérifier à nouveau” after making a manual change.
+      if (prior.status === 'denied' && !request.verify) {
+        return { ok: false, id: 'automation', ...prior, requestSent: false, message: 'Autorisation déjà refusée. Modifiez-la dans Réglages Système, puis vérifiez à nouveau.' };
+      }
+      const result = await requestAutomationTarget(request.targetId, { exec, platform });
+      Object.assign(prior, {
+        status: result.status,
+        granted: Boolean(result.granted),
+        requestSent: Boolean(result.requestSent),
+        error: result.error || '',
+        message: result.message || '',
+      });
+      const state = await getFullState();
+      state.permissions.automation.status = result.status;
+      state.permissions.automation.granted = Boolean(result.granted);
+      state.permissions.automation.error = result.error || '';
+      win?.webContents.send('macPermissions:statusChange', state);
+      return { ...result, automationTargets: state.automationTargets };
     });
 
     ipcMain.handle('macPermissions:openSettings', async (event, section) => {
@@ -579,7 +658,7 @@ function createMacPermissionsWindow({
   return {
     show,
     isOpen: () => Boolean(win && !win.isDestroyed()),
-    checkAll: () => checkAllPermissions({ systemPreferences }),
+    checkAll: () => checkAllPermissions({ systemPreferences, exec, platform }),
     close: () => { if (win && !win.isDestroyed()) win.close(); },
   };
 }
@@ -595,6 +674,8 @@ module.exports = {
   checkAllPermissions,
   openMacSettings,
   requestPermission,
+  requestAutomationTarget,
+  AUTOMATION_TARGETS,
   listMacWindows,
   moveMacWindow,
   focusMacWindow,

@@ -338,6 +338,34 @@ html, body {
   flex-wrap: wrap;
 }
 
+.automation-targets {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.automation-target {
+  padding: 12px;
+  border: 1px solid rgba(142, 164, 211, 0.2);
+  border-radius: 8px;
+  background: rgba(9, 14, 27, 0.62);
+}
+
+.automation-target-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.automation-target p {
+  margin: 7px 0;
+  color: #d0dcfa;
+  font-size: 11.5px;
+}
+
+#inst-box-automation summary { cursor: pointer; }
+
 /* Diagnostics & Window Test Card */
 .card--diagnostics {
   border-left-color: var(--pink);

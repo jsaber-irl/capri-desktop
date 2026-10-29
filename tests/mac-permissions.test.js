@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   SETTINGS_URLS,
   PERMISSIONS_META,
@@ -13,6 +15,7 @@ const {
   checkAllPermissions,
   openMacSettings,
   requestPermission,
+  requestAutomationTarget,
   listMacWindows,
   moveMacWindow,
   focusMacWindow,
@@ -115,6 +118,54 @@ test('Automation remains unknown until an explicit Apple Events probe', async ()
   assert.equal(resWin.status, 'unsupported');
 });
 
+test('automation requests send a read-only Apple Event to an allowlisted target and report the actual result', async () => {
+  const calls = [];
+  const success = (command, args, _opts, cb) => {
+    calls.push({ command, args });
+    if (command === 'pgrep') return cb(null, '123');
+    cb(null, 'playing');
+  };
+  const systemEvents = await requestAutomationTarget('systemEvents', { exec: success, platform: 'darwin' });
+  assert.equal(systemEvents.status, 'granted');
+  assert.equal(systemEvents.requestSent, true);
+  assert.deepEqual(calls[0].args, ['-e', 'tell application "System Events" to get name of first process whose visible is true']);
+
+  calls.length = 0;
+  const spotify = await requestAutomationTarget('spotify', { exec: success, platform: 'darwin' });
+  assert.equal(spotify.status, 'granted');
+  assert.equal(calls[1].command, 'osascript');
+  assert.match(calls[1].args[1], /get player state/);
+
+  let sent = false;
+  const notRunning = await requestAutomationTarget('spotify', {
+    exec: (command, _args, _opts, cb) => { sent ||= command === 'osascript'; cb(new Error('not running')); },
+    platform: 'darwin',
+  });
+  assert.equal(notRunning.status, 'unknown');
+  assert.equal(notRunning.requestSent, false);
+  assert.equal(sent, false);
+
+  const denied = await requestAutomationTarget('systemEvents', {
+    exec: (_command, _args, _opts, cb) => cb(new Error('execution error: -1743 not authorized to send Apple Events')),
+    platform: 'darwin',
+  });
+  assert.equal(denied.status, 'denied');
+  assert.equal(denied.granted, false);
+  assert.equal(denied.requestSent, true);
+  assert.equal((await requestAutomationTarget('anything', { platform: 'darwin' })).ok, false);
+});
+
+test('Section 13 exposes per-target request, settings, verification, and macOS instructions controls', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/renderer/mac-permissions.html'), 'utf8');
+  assert.match(html, /data-target="systemEvents"/);
+  assert.match(html, /data-target="spotify"/);
+  assert.equal((html.match(/data-target-request/g) || []).length, 2);
+  assert.equal((html.match(/data-target-settings/g) || []).length, 2);
+  assert.equal((html.match(/data-target-verify/g) || []).length, 2);
+  assert.match(html, /<summary class="inst-label">Instructions macOS<\/summary>/);
+  assert.match(PERMISSIONS_META.automation.instructionsFr, /Réglages Système → Confidentialité et sécurité → Automatisation/);
+});
+
 test('checkAllPermissions aggregates global status and counts', async () => {
   const mockSys = {
     isTrustedAccessibilityClient: () => true,
@@ -192,6 +243,8 @@ test('requestPermission prompts or opens settings per permission type', async ()
 test('permissions IPC rejects renderer callers outside its dedicated window', async () => {
   const handlers = new Map();
   const listeners = new Map();
+  let denied = false;
+  let appleEventsSent = 0;
   const ipcMain = {
     handle: (channel, handler) => handlers.set(channel, handler),
     on: (channel, handler) => listeners.set(channel, handler),
@@ -216,6 +269,11 @@ test('permissions IPC rejects renderer callers outside its dedicated window', as
     ipcMain,
     shell: { openExternal: async () => true },
     systemPreferences: { isTrustedAccessibilityClient: () => true, getMediaAccessStatus: () => 'granted' },
+    platform: 'darwin',
+    exec: (_command, _args, _opts, cb) => {
+      appleEventsSent += 1;
+      cb(denied ? new Error('execution error: -1743 not authorized to send Apple Events') : null, 'Safari');
+    },
   });
   api.show();
   const authorized = { sender: api.show().webContents, senderFrame: api.show().webContents.mainFrame };
@@ -224,7 +282,25 @@ test('permissions IPC rejects renderer callers outside its dedicated window', as
   const state = await handlers.get('macPermissions:getStatus')(authorized);
   assert.equal(state.isMac, true);
   assert.equal(state.permissions.automation.status, 'unknown');
+  assert.equal(state.automationTargets.length, 2);
+  assert.equal(state.automationTargets[0].status, 'unknown');
   assert.equal(await handlers.get('macPermissions:openSettings')(authorized, 'arbitrary'), false);
+  const probeResult = await handlers.get('macPermissions:automationProbe')(authorized, { targetId: 'systemEvents', verify: false });
+  assert.equal(probeResult.status, 'granted');
+  assert.equal(probeResult.requestSent, true);
+  assert.equal(probeResult.automationTargets[0].status, 'granted');
+  denied = true;
+  const deniedResult = await handlers.get('macPermissions:automationProbe')(authorized, { targetId: 'systemEvents', verify: false });
+  assert.equal(deniedResult.status, 'denied');
+  const afterDenied = appleEventsSent;
+  const noRepeat = await handlers.get('macPermissions:automationProbe')(authorized, { targetId: 'systemEvents', verify: false });
+  assert.equal(noRepeat.requestSent, false);
+  assert.equal(appleEventsSent, afterDenied);
+  const explicitVerify = await handlers.get('macPermissions:automationProbe')(authorized, { targetId: 'systemEvents', verify: true });
+  assert.equal(explicitVerify.status, 'denied');
+  assert.equal(appleEventsSent, afterDenied + 1);
+  await assert.rejects(handlers.get('macPermissions:automationProbe')(unauthorized, { targetId: 'systemEvents', verify: false }), /Unauthorized/);
+  assert.equal((await handlers.get('macPermissions:automationProbe')(authorized, { targetId: 'arbitrary', verify: false })).ok, false);
   listeners.get('macPermissions:close')({ ...unauthorized });
   assert.equal(api.isOpen(), true);
 });

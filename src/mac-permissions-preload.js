@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('macPermissions', {
   getStatus: () => ipcRenderer.invoke('macPermissions:getStatus'),
   request: (id) => ipcRenderer.invoke('macPermissions:request', id),
+  automationProbe: (targetId, verify = false) => ipcRenderer.invoke('macPermissions:automationProbe', { targetId, verify }),
   openSettings: (section) => ipcRenderer.invoke('macPermissions:openSettings', section),
   listWindows: () => ipcRenderer.invoke('macPermissions:listWindows'),
   focusWindow: (appName) => ipcRenderer.invoke('macPermissions:focusWindow', appName),

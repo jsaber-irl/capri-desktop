@@ -1,6 +1,6 @@
 {
   "name": "capri-desktop",
-  "version": "2.00.00",
+  "version": "2.00.01",
   "description": "Capri, the Project Capricorn construct, living on your desktop and narrating what Claude Code is doing.",
   "author": "mochiiwuff and jsaber",
   "repository": "github:jsaber-irl/capri-desktop",
