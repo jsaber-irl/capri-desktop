@@ -786,6 +786,7 @@ async function boot() {
     panel.say({ kind: 'done', face: 'grin', line: te.saved, hold: 6000 });
   }
 
+  let farewellInProgress = false;
   async function runCommand(cmd) {
     const t = brain.t;
     switch (cmd.name) {
@@ -1002,6 +1003,21 @@ async function boot() {
       case 'intro': // her intro again, as when she starts (still: as with Windows' animations off)
         panel.hide();
         await capri.intro(capri.spot('post'), cmd.still ? { still: true } : {});
+        break;
+      case 'farewell':
+        if (farewellInProgress) break;
+        farewellInProgress = true;
+        try {
+          panel.hide();
+          capri.wake();
+          if (capri.stance === 'peek') await capri.unpeek();
+          const caption = typeof cmd.caption === 'string' && /^Bye bye(?: .+)?$/.test(cmd.caption) ? cmd.caption : 'Bye bye';
+          await capri.intro(capri.spot('post'), { label: 'hi', caption });
+        } catch (err) {
+          console.error('[capri] farewell animation failed:', err);
+        } finally {
+          host.farewellDone();
+        }
         break;
       case 'pose':
         capri.debug = cmd.params || null;

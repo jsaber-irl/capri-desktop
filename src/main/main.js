@@ -38,6 +38,7 @@ const { createPrepare } = require('./prepare');
 const { createHub } = require('./hub');
 const { createMacPermissionsWindow, macPermissionsMenuItem, listMacWindows } = require('./mac-permissions');
 const { createIncomingCall } = require('./incoming-call');
+const { createFarewell } = require('./farewell');
 const stt = require('./stt');
 const vision = require('./screen');
 const control = require('./control');
@@ -73,6 +74,11 @@ let terminalBounds = null;
 let terminalExpandedBounds = null;
 let terminalIsCompact = false;
 let macPermissions = null;
+const farewell = createFarewell({
+  sendCommand,
+  quit: () => app.quit(),
+  getUserName: () => config.load().userName,
+});
 // (a message to the overlay once its window is gone, while she is quitting, would throw)
 const toOverlay = (channel, payload) => { if (overlay && !overlay.isDestroyed()) overlay.webContents.send(channel, payload); };
 const incomingCall = createIncomingCall({
@@ -896,6 +902,7 @@ function buildTray() {
       ...(hookState.installed ? [{ label: t.hooksRemove, click: () => runHooks('uninstall') }] : []),
     ] : []),
     { type: 'separator' },
+    { label: t.farewell, click: () => { if (!config.load().visible) toggleVisible(true); farewell.start(); } },
     { label: t.quit, click: () => app.quit() },
   ]);
   tray.setContextMenu(menu);
@@ -1242,6 +1249,9 @@ function createTray() {
 }
 
 function registerIpc() {
+  ipcMain.on('farewell:done', (event) => {
+    if (event.sender === overlay?.webContents) farewell.finish();
+  });
   ipcMain.on('overlay:interactive', (_e, on) => {
     overlay?.setIgnoreMouseEvents(!on, { forward: true });
   });

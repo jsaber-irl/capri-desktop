@@ -11,6 +11,7 @@ const on = (channel) => (fn) => {
 contextBridge.exposeInMainWorld('host', {
   onClaudeEvent: on('claude:event'),
   onCommand: on('capri:command'),
+  farewellDone: () => ipcRenderer.send('farewell:done'),
   onConfig: on('capri:config'),
   onResize: on('overlay:resize'),
   onWindows: on('windows:update'),

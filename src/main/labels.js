@@ -21,7 +21,7 @@ const TRAY = {
     soundsDir: 'Open custom sounds folder', screen: 'Display Capri uses', screenDescription: 'Choose Capri’s display. “Look at my screen” captures this display; choosing it does not take a screenshot.', wander: 'Wander around when idle',
     possess: 'Possess my windows', possessMove: 'Move them while she has them', lang: 'Language', auto: 'Automatic (system)', startup: 'Start with Windows',
     hooksOn: 'Claude Code hooks: installed', hooksOff: 'Install Claude Code hooks',
-    hooksRemove: 'Remove Claude Code hooks', forget: 'Forget our conversations', quit: 'Quit',
+    hooksRemove: 'Remove Claude Code hooks', forget: 'Forget our conversations', farewell: 'Say goodbye to Capri', quit: 'Quit',
     version: 'About Capri', macPermissions: 'macOS permissions…',
   },
   ru: {
@@ -42,7 +42,7 @@ const TRAY = {
     soundsDir: 'Открыть папку своих звуков', screen: 'Экран, где находится Capri', screenDescription: 'Выберите экран для Capri. «Посмотри на экран» использует его для снимка; выбор сам снимок не делает.', wander: 'Гулять, когда ничего не происходит',
     possess: 'Вселяться в мои окна', possessMove: 'Двигать окна, в которые вселилась', lang: 'Язык', auto: 'Автоматически (системный)', startup: 'Запускать вместе с Windows',
     hooksOn: 'Хуки Claude Code: установлены', hooksOff: 'Установить хуки Claude Code',
-    hooksRemove: 'Удалить хуки Claude Code', forget: 'Забыть наши разговоры', quit: 'Выйти',
+    hooksRemove: 'Удалить хуки Claude Code', forget: 'Забыть наши разговоры', farewell: 'Попрощаться с Capri', quit: 'Выйти',
     version: 'О Capri', macPermissions: 'Разрешения macOS…',
   },
   fr: {
@@ -64,7 +64,7 @@ const TRAY = {
     possess: 'Posséder mes fenêtres', possessMove: 'Les déplacer pendant qu’elle les possède', lang: 'Langue', auto: 'Automatique (système)', startup: 'Démarrer avec Windows',
     version: 'À propos de Capri', macPermissions: 'Autorisations macOS…',
     hooksOn: 'Hooks Claude Code : installés', hooksOff: 'Installer les hooks Claude Code',
-    hooksRemove: 'Supprimer les hooks Claude Code', forget: 'Oublier nos conversations', quit: 'Quitter',
+    hooksRemove: 'Supprimer les hooks Claude Code', forget: 'Oublier nos conversations', farewell: 'Dire au revoir à Capri', quit: 'Quitter',
   },
 };
 
