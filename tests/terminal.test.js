@@ -190,6 +190,34 @@ test('music commands share the central controller and report status, ambiguity, 
   assert.equal((await terminal.execute('/music volume 101')).kind, 'error');
 });
 
+test('chess and document commands call their real shared services', async () => {
+  const chessCalls = [];
+  const documents = [];
+  const terminal = createTerminal({
+    chess: (request) => { chessCalls.push(request); return { ok: true, lines: ['Échiquier ouvert.'] }; },
+    createTextDocument: async (filename, content) => { documents.push({ filename, content }); return { ok: true, file: `/Documents/${filename}` }; },
+  });
+  assert.equal((await terminal.execute('/chess')).kind, 'response');
+  assert.deepEqual(chessCalls[0], { action: 'start' });
+  assert.equal((await terminal.execute('/chess help')).kind, 'response');
+  assert.deepEqual(chessCalls[1], { action: 'help' });
+  assert.equal((await terminal.execute('/chess move e2e4')).kind, 'response');
+  assert.deepEqual(chessCalls[2], { action: 'move', move: 'e2e4' });
+  const created = await terminal.execute('/document create test.txt "Hello World!"');
+  assert.equal(created.kind, 'response');
+  assert.deepEqual(documents[0], { filename: 'test.txt', content: 'Hello World!' });
+});
+
+test('video search terminal command calls the shared search service', async () => {
+  const calls = [];
+  const terminal = createTerminal({ videoSearch: async (request) => { calls.push(request); return { ok: true }; } });
+  const result = await terminal.execute('/search videos MrBeast in Safari');
+  assert.equal(result.kind, 'response');
+  assert.deepEqual(calls, [{ creator: 'MrBeast', browser: 'Safari' }]);
+  assert.match(result.lines.join(' '), /triée par date/i);
+  assert.equal((await createTerminal().execute('/search videos MrBeast')).kind, 'error');
+});
+
 test('handles mascot control commands', async () => {
   const actions = [];
   const terminal = createTerminal({

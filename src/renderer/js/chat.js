@@ -30,6 +30,9 @@ const CLOSE_ASK = /\b(close|shut|quit|kill|exit|ferme|quitte)\b|закр|вык�
 const TAG = /\[\[\s*(open|music|media|site)\s*:\s*([^\]]*)\]\]/i;
 // "open", "launch", "открой"...
 const OPEN_ASK = /\b(open|launch|start|run|ouvre|lance|démarre)\b|открой|запусти/i;
+const CHESS_ASK = /\b(?:play|let'?s play|chess)\b|\b(?:jouons|jouer|partie|échecs|echecs)\b|шахмат/iu;
+const LATEST_VIDEO_ASK = /\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b.*\b(?:video|vid[eé]o)\b|\b(?:video|vid[eé]o)\b.*\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b/iu;
+const DOCUMENT_CREATE = /(?:create|crée|cree|créer).*?(?:new\s+)?(?:text\s+)?(?:file|document|fichier).*?(?:write|écris|ecris|écrire)\s+["“]([\s\S]*?)["”]/iu;
 // what to do with the music playing, said plainly (only when it's about music, or said in a few words)
 const MEDIA_ASK = [
   ['pause', /\bpause\b|stop (the )?music|arr[eê]te(?:r)?\s+(?:la\s+)?musique|пауз/i],
@@ -120,6 +123,7 @@ export class Chat {
     this.later = '';     // what you said (your voice) while she was still answering
     this.onSetup = null; // (status) => void: she can't answer yet (app.js hands it to setup.js)
     this.onBetterModel = null; // () => void: a bigger model than the tiny one she's on (setup.js)
+    this.onSpokenText = null; // (text) => void: an accepted call mirrors exactly what she sends to speech
     host.onChatDelta(({ id, text }) => this.onDelta(id, text));
   }
 
@@ -327,6 +331,7 @@ export class Chat {
     const expr = this.heart?.answered(MOOD_TAG.exec(res.text)?.[1], { already: felt.reaction }) || null;
     this.panel.setFace(expr ? this.heart.face(expr) : mood(answer));
     if (!expr && felt.tags.includes('jokeAsk')) this.capri.react('laugh'); // her own joke cracks her up
+    this.onSpokenText?.(answer);
     this.speech?.say(answer, { mood: expr || this.heart?.mood.mood || 'calm', kind: 'chat' });
     this.panel.setChatBusy(false);
     this.sayLater();
@@ -392,6 +397,19 @@ export class Chat {
     const memo = MEMO_ASK.exec(text)?.[1]?.trim();
     if (memo) return { kind: 'memo', text: memo };
     if (FORGET_ME.test(text)) return { kind: 'forgetMe' };
+    if (LATEST_VIDEO_ASK.test(text) && /youtube/i.test(text)) {
+      const browserMatch = /\b(?:dans|depuis|in)\s+(safari|firefox|chrome)\b/i.exec(text);
+      const browser = browserMatch ? ({ safari: 'Safari', firefox: 'Firefox', chrome: 'Google Chrome' }[browserMatch[1].toLowerCase()]) : '';
+      const creatorMatch = /(?:vid[eé]o)\s+(?:la\s+plus\s+r[eé]cente\s+)?(?:de|d['’]|from|by)\s+(.+?)(?=\s+(?:sur|on)\s+youtube\b|\s+(?:dans|depuis|in)\s+(?:safari|firefox|chrome)\b|$)/i.exec(text);
+      const creator = (creatorMatch?.[1] || '').replace(/\b(?:mr\.?\s*beast|mister\s+beast)\b/i, 'MrBeast').trim();
+      if (creator) return { kind: 'videoSearch', creator, browser };
+    }
+    if (CHESS_ASK.test(text)) return { kind: 'chess' };
+    const documentContent = DOCUMENT_CREATE.exec(text)?.[1];
+    if (documentContent !== undefined) {
+      const filename = /(?:named|called|nommé|nommee|nommée)\s+["“]?([^"”\s]+)["”]?/iu.exec(text)?.[1] || 'Note.txt';
+      return { kind: 'createText', filename, content: documentContent, openIn: /text\s*edit/i.test(text) ? 'TextEdit' : '' };
+    }
     const theme = askedTheme(text);
     if (theme) return { kind: 'theme', theme };
     // her hands on the PC (windows, a message): what you asked, read plainly (hands.js)
@@ -448,6 +466,25 @@ export class Chat {
       // what she learned about you, wiped (what you asked her to remember stays: that's in her menu)
       this.bond?.forget();
       return { line: pick(lifeLines(this.brain.lang).bond.forgot), face: 'aside' };
+    }
+    if (asked.kind === 'chess') {
+      const result = await this.host.chessStart?.();
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      if (!result?.ok) return { line: result?.error || (fr ? 'Je n’ai pas pu ouvrir la partie d’échecs.' : ru ? 'Не удалось открыть шахматную партию.' : 'I could not open the chess game.'), face: 'aside' };
+      return { line: fr ? 'L’échiquier est prêt. Tu joues les blancs ; les coups sont aussi disponibles dans le terminal Capri.' : ru ? 'Шахматная доска готова. Ты играешь белыми; ходы доступны и в терминале Capri.' : 'The board is ready. You play White; moves are also available in the Capri terminal.', face: 'smug' };
+    }
+    if (asked.kind === 'videoSearch') {
+      const result = await this.host.videoSearch?.({ creator: asked.creator, browser: asked.browser });
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      if (!result?.ok) return { line: result?.error || (fr ? 'Je n’ai pas pu ouvrir la recherche YouTube.' : ru ? 'Не удалось открыть поиск YouTube.' : 'I could not open YouTube search.'), face: 'aside' };
+      return { line: fr ? `Recherche YouTube triée par date ouverte pour ${asked.creator}${asked.browser ? ` dans ${asked.browser}` : ''}. Vérifie les résultats : je ne peux pas confirmer ici lequel est réellement le plus récent.` : ru ? `Поиск YouTube с сортировкой по дате открыт для ${asked.creator}. Проверь результаты: я не могу подтвердить, какое видео самое новое.` : `Date-sorted YouTube search opened for ${asked.creator}${asked.browser ? ` in ${asked.browser}` : ''}. Check the results: I cannot verify here which video is actually newest.`, face: 'smug' };
+    }
+    if (asked.kind === 'createText') {
+      const result = await this.host.createTextDocument?.({ filename: asked.filename, content: asked.content });
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      if (result?.ok) return { line: fr ? `Document créé et vérifié : ${result.file}${result.opened ? ' (ouvert dans TextEdit).' : '.'}` : ru ? `Документ создан и проверен: ${result.file}.` : `Document created and verified: ${result.file}.`, face: 'smug' };
+      const failure = result?.created ? `${result.error} Le fichier créé est : ${result.file}` : result?.error || (fr ? 'Le document n’a pas été créé.' : 'The document was not created.');
+      return { line: failure, face: 'aside' };
     }
     if (asked.kind === 'memo') {
       custom.memories = [...(custom.memories || []).filter((m) => m !== asked.text), asked.text].slice(-MEMORIES_MAX);

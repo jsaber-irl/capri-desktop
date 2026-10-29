@@ -12,6 +12,7 @@ function fixture() {
   const listeners = new Map();
   const commands = [];
   const windows = [];
+  const overlayWebContents = { id: 'overlay' };
   class FakeWindow {
     constructor(options) {
       this.options = options;
@@ -32,8 +33,8 @@ function fixture() {
     handle(name, fn) { handlers.set(name, fn); },
     on(name, fn) { listeners.set(name, fn); },
   };
-  const call = createIncomingCall({ BrowserWindow: FakeWindow, ipcMain, preload: '/safe/preload.js', protocolUrl: 'capri://app/src/renderer/call.html', sendCommand: (...args) => commands.push(args) });
-  return { call, handlers, listeners, commands, windows };
+  const call = createIncomingCall({ BrowserWindow: FakeWindow, ipcMain, preload: '/safe/preload.js', protocolUrl: 'capri://app/src/renderer/call.html', sendCommand: (...args) => commands.push(args), getOverlayWebContents: () => overlayWebContents });
+  return { call, handlers, listeners, commands, windows, overlayWebContents };
 }
 
 test('the menu label exists in French and sits immediately above Talk to her', () => {
@@ -93,4 +94,27 @@ test('call IPC rejects a different renderer and duplicate accept attempts', asyn
   assert.equal(await f.handlers.get('call:accept')(event), true);
   assert.equal(await f.handlers.get('call:accept')(event), false);
   assert.equal(f.commands.filter(([name]) => name === 'callAccepted').length, 1);
+});
+
+test('accepted call mirrors verified transcript lines from the overlay only', async () => {
+  const f = fixture();
+  f.call.show();
+  const callEvent = { sender: f.windows[0].webContents };
+  f.listeners.get('call:transcript')({ sender: f.overlayWebContents }, { speaker: 'user', text: 'before accept' });
+  assert.equal(f.windows[0].webContents.sent.length, 0);
+  await f.handlers.get('call:accept')(callEvent);
+  f.listeners.get('call:transcript')({ sender: {} }, { speaker: 'user', text: 'spoofed' });
+  f.listeners.get('call:transcript')({ sender: f.overlayWebContents }, { speaker: 'user', text: 'real words', final: true });
+  assert.deepEqual(f.windows[0].webContents.sent.at(-1), ['call:transcript', { speaker: 'user', text: 'real words', final: true }]);
+});
+
+test('call transcript UI uses asymmetrical speaker bubbles and never mirrors invented text', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/renderer/call.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../src/renderer/call.css'), 'utf8');
+  const ui = fs.readFileSync(path.join(__dirname, '../src/renderer/call-ui.js'), 'utf8');
+  assert.match(html, /id="transcript"/);
+  assert.match(css, /\.message--capri \{ align-self: start;/);
+  assert.match(css, /\.message--user \{ align-self: end;/);
+  assert.match(ui, /onCallTranscript\(addTranscript\)/);
+  assert.match(ui, /textContent = String\(line\)\.trim\(\)/);
 });

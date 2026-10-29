@@ -4,7 +4,7 @@ out/
 *.log
 .DS_Store
 Thumbs.db
-UPDATE.md
+/.private/
 .env
 
 # local debug captures

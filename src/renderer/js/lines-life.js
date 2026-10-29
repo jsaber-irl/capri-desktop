@@ -4,6 +4,7 @@
 
 export const LIFE_LINES = {
   ru: {
+    callGreeting: 'Привет! Чем я могу помочь?',
     mood: {
       label: { calm: 'СПОКОЙНА', happy: 'В ДУХЕ', angry: 'ЗЛИТСЯ', annoyed: 'НЕ В ДУХЕ', sad: 'ГРУСТИТ', shy: 'СМУЩЕНА', bored: 'СКУЧАЕТ' },
       // when you click her and nothing's going on, by mood
@@ -361,6 +362,7 @@ export const LIFE_LINES = {
   },
 
   en: {
+    callGreeting: 'Hi, how can I help?',
     mood: {
       label: { calm: 'CALM', happy: 'IN A GOOD MOOD', angry: 'ANGRY', annoyed: 'ANNOYED', sad: 'SAD', shy: 'FLUSTERED', bored: 'BORED' },
       idle: {
@@ -700,6 +702,7 @@ export const LIFE_LINES = {
 
 LIFE_LINES.fr = {
   ...LIFE_LINES.en,
+  callGreeting: 'Salut, comment puis-je t’aider ?',
   mood: {
     ...LIFE_LINES.en.mood,
     label: { calm: 'CALME', happy: 'DE BONNE HUMEUR', angry: 'EN COLÈRE', annoyed: 'AGACÉE', sad: 'TRISTE', shy: 'EMBARRASSÉE', bored: 'ENNUIE' },

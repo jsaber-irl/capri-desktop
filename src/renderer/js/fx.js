@@ -1476,7 +1476,7 @@ export class FxLayer {
         const tagAt = onScreen(GRAB.tag);
         const fs = Math.round(clamp(vh * 0.06, 40, 76));
         const hi = (k = 1, ky = 1) => {
-          this.hiTag(tagAt.x, tagAt.y, it.label, fs, k, ky);
+          if (it.label) this.hiTag(tagAt.x, tagAt.y, it.label, fs, k, ky);
           if (it.caption && frame >= T.hi + 6 && ky === 1) {
             this.typed(tagAt.x + fs * 0.5, tagAt.y + fs * 1.15, it.caption, it.caption.slice(0, (frame - T.hi - 6) * 2), frame);
           }

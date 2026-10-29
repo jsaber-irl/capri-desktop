@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capri // Chess</title>
+  <link rel="stylesheet" href="styles/capri.css">
+  <link rel="stylesheet" href="chess.css">
+</head>
+<body>
+  <main class="chess">
+    <header class="chess__header"><div><small>CAPRI // DUEL</small><h1 id="title">Échecs avec Capri</h1></div><button id="close" aria-label="Fermer">×</button></header>
+    <p id="status" class="chess__status" aria-live="polite">Chargement…</p>
+    <div class="board" id="board" role="grid" aria-label="Échiquier"></div>
+    <div id="promotion" class="promotion" hidden aria-label="Choisir une promotion"></div>
+    <footer class="chess__actions"><button id="new">Nouvelle partie</button><button id="resign">Abandonner</button><button id="help">Aide</button></footer>
+    <p id="message" aria-live="polite"></p>
+  </main>
+  <script src="chess-ui.js"></script>
+</body>
+</html>

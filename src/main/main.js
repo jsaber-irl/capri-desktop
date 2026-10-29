@@ -3,7 +3,7 @@
 const path = require('node:path');
 const os = require('node:os');
 const fs = require('node:fs');
-const { spawn: spawnProgram } = require('node:child_process');
+const { spawn: spawnProgram, execFile } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 const {
   app, BrowserWindow, Tray, Menu, ipcMain, screen, protocol, net, shell, globalShortcut, nativeImage,
@@ -38,6 +38,9 @@ const { createPrepare } = require('./prepare');
 const { createHub } = require('./hub');
 const { createMacPermissionsWindow, macPermissionsMenuItem, listMacWindows } = require('./mac-permissions');
 const { createIncomingCall } = require('./incoming-call');
+const { createChessWindow } = require('./chess-window');
+const { createTextDocument } = require('./documents');
+const { openVideoSearch } = require('./video-search');
 const { createFarewell } = require('./farewell');
 const stt = require('./stt');
 const vision = require('./screen');
@@ -56,6 +59,23 @@ const PORT = Number(process.env.CAPRI_PORT) || 47823;
 const SOUND_EXT = /\.(mp3|wav|ogg|m4a)$/i;
 
 const OLLAMA_SITE = 'https://ollama.com';
+function createUserTextDocument(filename, content) {
+  return createTextDocument({
+    filename, content, directory: app.getPath('documents'), platform: process.platform,
+    openTextEdit: (file) => new Promise((resolve) => execFile('open', ['-a', 'TextEdit', '--', file], { timeout: 15000 }, (err) => resolve(err ? { ok: false, error: err.message } : { ok: true }))),
+  });
+}
+function performVideoSearch(request = {}) {
+  return openVideoSearch({
+    creator: request.creator,
+    browser: request.browser,
+    platform: process.platform,
+    openExternal: (url) => shell.openExternal(url),
+    openInBrowser: (browser, url) => new Promise((resolve, reject) => {
+      execFile('open', ['-a', browser, url], { timeout: 15000 }, (error) => error ? reject(error) : resolve());
+    }),
+  });
+}
 // her colours (renderer themes.js), in the order of her menu
 const THEMES = ['classic', 'netrunner', 'toxic', 'violet', 'gold', 'sakura', 'ghost', 'mood'];
 // which saved key each voice engine uses (OpenAI's is the same one as her chat's)
@@ -83,8 +103,9 @@ const farewell = createFarewell({
 const toOverlay = (channel, payload) => { if (overlay && !overlay.isDestroyed()) overlay.webContents.send(channel, payload); };
 const incomingCall = createIncomingCall({
   BrowserWindow, ipcMain, preload: path.join(__dirname, '..', 'preload.js'),
-  protocolUrl: 'capri://app/src/renderer/call.html', sendCommand,
+  protocolUrl: 'capri://app/src/renderer/call.html', sendCommand, getOverlayWebContents: () => overlay?.webContents,
 });
+const chessWindow = createChessWindow({ BrowserWindow, ipcMain, preload: path.join(__dirname, '..', 'preload.js'), lang: () => resolveLang(config.load().lang) });
 // the recording she was given as her voice, if any (voice-sample.js): in her own data folder
 const voiceSample = createSample({ dir: () => path.join(app.getPath('userData'), 'voices') });
 const chatterbox = new Chatterbox({ roots: placesNextToHer, voices: () => [voiceSample.dir()] });
@@ -550,6 +571,9 @@ const terminal = createTerminal({
   openFile: (file) => safeOpenFile(file, shell),
   download: downloadTerminalFile,
   musicControl: (request) => musicControl.command(request),
+  chess: (request) => chessWindow.command(request),
+  createTextDocument: createUserTextDocument,
+  videoSearch: (request) => performVideoSearch(request),
   mascot: (action, payload) => {
     if (action === 'teleport') sendCommand('teleport');
     else if (action === 'satellite') sendCommand('satellite');
@@ -1438,6 +1462,13 @@ function registerIpc() {
   ipcMain.handle('music:command', (_e, request) => musicControl.command(request || {}));
   ipcMain.handle('apps:music', (_e, query) => launch.music(query).catch(() => false));
   ipcMain.handle('apps:site', (_e, address) => launch.site(address).catch(() => false));
+  ipcMain.handle('apps:videoSearch', (_e, request) => performVideoSearch(request || {}));
+  ipcMain.handle('documents:createText', async (_e, request) => {
+    if (!request || typeof request.filename !== 'string' || typeof request.content !== 'string' || request.filename.length > 120 || request.content.length > 100000) {
+      return { ok: false, stage: 'validate', error: 'Requête de document invalide.' };
+    }
+    return createUserTextDocument(request.filename, request.content);
+  });
   // typing to her: the overlay takes the keyboard while the chat is open, and gives it back after
   ipcMain.on('overlay:focus', (_e, on) => {
     if (!overlay) return;

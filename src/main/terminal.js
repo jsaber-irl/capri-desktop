@@ -33,6 +33,11 @@ const HELP_COMMANDS = [
   ['/test demoSatellite', 'Tester la reconnexion satellite de Capri.', 'Test Capri satellite reconnection.'],
   ['/music <action>', 'Contrôler le lecteur multimédia actif (status, play, pause, toggle, next, previous, current, volume).', 'Control the active media player.'],
   ['/music spotify <action>', 'Cibler explicitement Spotify (ou deezer).', 'Target Spotify (or deezer) explicitly.'],
+  ['/chess', 'Ouvrir une partie d’échecs contre Capri.', 'Open a chess game against Capri.'],
+  ['/chess move <coup>', 'Jouer un coup en notation e2e4 ou algébrique.', 'Play a move in UCI or algebraic notation.'],
+  ['/chess new | resign | help', 'Recommencer, abandonner ou afficher les commandes.', 'Start a new game, resign, or show help.'],
+  ['/document create <nom> "<texte>"', 'Créer un nouveau fichier texte sans remplacer un fichier existant.', 'Create a new text file without overwriting existing files.'],
+  ['/search videos <chaîne> [in Safari]', 'Ouvrir une recherche YouTube triée par date.', 'Open a YouTube search sorted by date.'],
 ];
 
 const HELP = HELP_COMMANDS.map(([name, fr]) => [name, fr]);
@@ -83,6 +88,9 @@ function createTerminal({
   network = null,
   mascot = null,
   musicControl = null,
+  chess = null,
+  createTextDocument = null,
+  videoSearch = null,
   random = Math.random
 } = {}) {
   const history = [];
@@ -152,6 +160,41 @@ function createTerminal({
         if (action === 'status' || action === 'current') return result([`${musicResult.session.service} · ${musicResult.session.status || musicResult.status}`, label || tr('Métadonnées indisponibles.', 'Metadata unavailable.')]);
         return result([`${tr('Commande exécutée :', 'Command sent:')} ${action}${label ? ` · ${label}` : ''}`]);
       } catch (err) { return error(`${tr('Erreur multimédia :', 'Media error:')} ${err.message}`); }
+    }
+
+    if (command === '/chess') {
+      if (!chess) return error(tr('Le mode échecs est indisponible.', 'Chess is unavailable.'));
+      const action = (rest.shift() || 'start').toLowerCase();
+      const request = action === 'move' ? { action, move: rest.join('') } : { action };
+      const outcome = chess(request);
+      if (outcome && typeof outcome.then === 'function') {
+        try { const done = await outcome; return done.ok ? response(done.lines || []) : error(done.error || tr('Coup impossible.', 'Chess command failed.')); }
+        catch (err) { return error(`${tr('Erreur échecs :', 'Chess error:')} ${err.message}`); }
+      }
+      return outcome?.ok ? response(outcome.lines || []) : error(outcome?.error || tr('Commande échecs impossible.', 'Chess command failed.'));
+    }
+
+    if (command === '/document') {
+      if (rest[0]?.toLowerCase() !== 'create' || !rest[1] || rest.length < 3) return error(tr('Usage : /document create <nom> "<texte>".', 'Usage: /document create <name> "<text>".'));
+      if (!createTextDocument) return error(tr('La création de documents est indisponible.', 'Document creation is unavailable.'));
+      try {
+        const created = await createTextDocument(rest[1], rest.slice(2).join(' '));
+        return created.ok ? response([tr(`Document créé et vérifié : ${created.file}`, `Document created and verified: ${created.file}`)]) : error(`${created.error || tr('Échec de la création.', 'Document creation failed.')} ${created.file || ''}`.trim());
+      } catch (err) { return error(`${tr('Échec de la création :', 'Creation failed:')} ${err.message}`); }
+    }
+
+    if (command === '/search' && rest[0]?.toLowerCase() === 'videos') {
+      const args = rest.slice(1);
+      const browserIndex = args.findIndex((part, index) => index > 0 && /^in$/i.test(part) && /^(safari|firefox|chrome)$/i.test(args[index + 1] || ''));
+      const browser = browserIndex >= 0 ? ({ safari: 'Safari', firefox: 'Firefox', chrome: 'Google Chrome' }[args[browserIndex + 1].toLowerCase()]) : '';
+      const creator = (browserIndex >= 0 ? args.slice(0, browserIndex) : args).join(' ').trim();
+      if (!creator) return error(tr('Usage : /search videos <chaîne> [in Safari].', 'Usage: /search videos <channel> [in Safari].'));
+      if (!videoSearch) return error(tr('La recherche vidéo n’est pas disponible.', 'Video search is unavailable.'));
+      try {
+        const found = await videoSearch({ creator, browser });
+        if (!found?.ok) return error(found?.error || tr('La recherche n’a pas pu être ouverte.', 'The search could not be opened.'));
+        return response([tr(`Recherche YouTube triée par date ouverte pour « ${creator} »${browser ? ` dans ${browser}` : ''}. Vérifie les résultats : Capri ne peut pas confirmer le classement de YouTube sans accès à ses données.`, `Date-sorted YouTube search opened for “${creator}”${browser ? ` in ${browser}` : ''}. Check the results: Capri cannot verify YouTube’s ranking without access to its data.`)]);
+      } catch (err) { return error(`${tr('Erreur de recherche vidéo :', 'Video search error:')} ${err.message}`); }
     }
 
     // 1. General commands

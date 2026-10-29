@@ -1,7 +1,7 @@
 'use strict';
 
 // Owns the simulated incoming/active call window. Only this window can answer its call controls.
-function createIncomingCall({ BrowserWindow, ipcMain, preload, protocolUrl, sendCommand }) {
+function createIncomingCall({ BrowserWindow, ipcMain, preload, protocolUrl, sendCommand, getOverlayWebContents = () => null }) {
   let win = null;
   let accepted = false;
   let serial = 0;
@@ -42,6 +42,11 @@ function createIncomingCall({ BrowserWindow, ipcMain, preload, protocolUrl, send
     if (!fromWindow(event) || !accepted) return;
     const allowed = new Set(['connecting', 'listening', 'processing', 'speaking', 'error']);
     if (status && allowed.has(status.state)) tell(status.state, String(status.message || '').slice(0, 240));
+  });
+  ipcMain.on('call:transcript', (event, message) => {
+    if (!accepted || event.sender !== getOverlayWebContents() || !message || !['capri', 'user'].includes(message.speaker)) return;
+    const text = String(message.text || '').trim().slice(0, 2000);
+    if (text) win?.webContents.send('call:transcript', { speaker: message.speaker, text, final: message.final !== false });
   });
 
   return {

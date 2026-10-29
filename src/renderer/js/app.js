@@ -353,6 +353,7 @@ async function boot() {
   let callId = null;
   let callHasError = false;
   let callOpenedChat = false;
+  chat.onSpokenText = (text) => { if (callActive) host.callTranscript('capri', text, true); };
   brain.onTalk = () => chat.start();
   chat.heart = heart;
   chat.speech = speech;
@@ -391,6 +392,7 @@ async function boot() {
   ears.configure(config);
   ears.onTranscript = (text) => {
     if (callActive) {
+      host.callTranscript('user', text, true);
       if (chat.open) chat.send(text);
       return;
     }
@@ -866,19 +868,21 @@ async function boot() {
             if (!status.ok) throw new Error(status.error === 'offline' ? 'Le service de conversation est hors ligne.' : status.error || 'La conversation IA n’est pas prête.');
             await chat.start();
             if (!chat.open) throw new Error('Impossible d’ouvrir la conversation de Capri.');
-            const greeting = 'Salut, comment puis-je t’aider ?';
+            const greeting = lifeLines(brain.lang).callGreeting;
+            host.callTranscript('capri', greeting, true);
             panel.chatTurn({ quote: '', face: 'look' });
             panel.stream(greeting, { done: true });
             chat.speech.callMode = true;
             host.callUiState('speaking');
             await chat.speech.say(greeting, { mood: 'happy', kind: 'chat', force: true });
             if (!callActive || callId !== cmd.id) return;
+            panel.hide();
             const opened = await ears.startCall();
             if (!opened) {
               const err = ears.lastMicError;
               const explanation = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError'
-                ? 'Autorise le microphone dans les réglages de confidentialité, puis réessaie.'
-                : err?.message || 'Aucun microphone utilisable n’a été trouvé.';
+                ? ({ fr: 'Autorise le microphone dans les réglages de confidentialité, puis réessaie.', en: 'Allow microphone access in privacy settings, then try again.', ru: 'Разреши доступ к микрофону в настройках конфиденциальности и попробуй снова.' }[brain.lang] || 'Allow microphone access in privacy settings, then try again.')
+                : err?.message || ({ fr: 'Aucun microphone utilisable n’a été trouvé.', en: 'No usable microphone was found.', ru: 'Не удалось найти доступный микрофон.' }[brain.lang] || 'No usable microphone was found.');
               throw new Error(explanation);
             }
             host.callUiState('listening');
@@ -1012,7 +1016,7 @@ async function boot() {
           capri.wake();
           if (capri.stance === 'peek') await capri.unpeek();
           const caption = typeof cmd.caption === 'string' && /^Bye bye(?: .+)?$/.test(cmd.caption) ? cmd.caption : 'Bye bye';
-          await capri.intro(capri.spot('post'), { label: 'hi', caption });
+          await capri.intro(capri.spot('post'), { label: '', caption });
         } catch (err) {
           console.error('[capri] farewell animation failed:', err);
         } finally {

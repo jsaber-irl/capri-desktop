@@ -72,7 +72,9 @@ test('localized farewell menu item follows a separator and immediately precedes 
   assert.match(main, /farewell\.finish\(\)/);
   const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/js/app.js'), 'utf8');
   const command = renderer.indexOf("case 'farewell':");
-  const animation = renderer.indexOf("await capri.intro(capri.spot('post'), { label: 'hi', caption });", command);
+  const animation = renderer.indexOf("await capri.intro(capri.spot('post'), { label: '', caption });", command);
   const acknowledgement = renderer.indexOf('host.farewellDone();', animation);
   assert.ok(command < animation && animation < acknowledgement, 'the renderer acknowledges completion after reusing the intro');
+  const fx = fs.readFileSync(path.join(__dirname, '../src/renderer/js/fx.js'), 'utf8');
+  assert.match(fx, /if \(it\.label\) this\.hiTag/, 'normal intros keep their greeting, while an empty label draws no Hi');
 });

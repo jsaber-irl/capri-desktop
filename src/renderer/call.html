@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Capri</title>
+  <link rel="stylesheet" href="styles/capri.css">
   <link rel="stylesheet" href="./call.css">
 </head>
 <body>
@@ -13,6 +14,9 @@
     <h1>Capri</h1>
     <p id="status" aria-live="polite">Appel entrant…</p>
     <p class="detail" id="detail" hidden></p>
+    <section id="conversation" class="conversation" hidden aria-label="Conversation de l’appel">
+      <ol id="transcript" class="transcript" aria-live="polite"></ol>
+    </section>
     <audio id="ringtone" src="capri://app/assets/songs/phone-call.mp3" loop preload="auto"></audio>
     <section class="buttons" id="incoming-buttons">
       <button class="round decline" id="decline" aria-label="Refuser"><span>✕</span></button>

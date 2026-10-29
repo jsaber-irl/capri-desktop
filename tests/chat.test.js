@@ -66,6 +66,27 @@ test('plain French app-opening commands from text or voice enter the shared app 
   assert.deepEqual(voiceRequest, { kind: 'open', text: 'Ouvre l’application météo' });
 });
 
+test('natural TextEdit document requests preserve the quoted text for the verified document action', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
+  assert.deepEqual(chat.asked('Ouvre TextEdit, crée un nouveau fichier et écris "Hello World!"'), { kind: 'createText', filename: 'Note.txt', content: 'Hello World!', openIn: 'TextEdit' });
+  assert.deepEqual(chat.asked('Crée un fichier nommé test.txt et écris "Hello World!" dedans.'), { kind: 'createText', filename: 'test.txt', content: 'Hello World!', openIn: '' });
+});
+
+test('chess requests from French and English chat are routed to the shared game action', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
+  assert.deepEqual(chat.asked('Capri, jouons aux échecs.'), { kind: 'chess' });
+  assert.deepEqual(chat.asked('Let’s play chess.'), { kind: 'chess' });
+});
+
+test('latest YouTube video requests open a date-sorted search instead of choosing an arbitrary video', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
+  assert.deepEqual(chat.asked('Ouvre la dernière vidéo de Mister Beast sur YouTube depuis Safari.'), { kind: 'videoSearch', creator: 'MrBeast', browser: 'Safari' });
+  assert.deepEqual(chat.asked('Ouvre YouTube.'), { kind: 'open', text: 'Ouvre YouTube.' });
+});
+
 test('French text and voice music requests identify actions, current-track requests, and explicit services', async () => {
   const { Chat } = await load('chat.js');
   const chat = Object.assign(Object.create(Chat.prototype), {

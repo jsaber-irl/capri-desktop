@@ -672,7 +672,12 @@ html[data-motion='reduced'] .panel__bar {
 .panel[data-kind='chat'] { --accent: var(--green); }
 
 .panel.is-chat {
-  width: clamp(320px, 24vw, 420px);
+  width: clamp(360px, 27vw, 460px);
+}
+
+@media (max-width: 640px) {
+  .panel.is-chat { width: min(calc(100vw - 24px), 380px); }
+  .panel__meta { gap: 5px; letter-spacing: 0.09em; }
 }
 
 /* your line up top like a prompt, her answer under it */

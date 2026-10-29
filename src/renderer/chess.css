@@ -1,0 +1,25 @@
+:root { --red:#ff2152; --green:#36ff7a; --ink:#101118; --violet:#7b3dff; color-scheme:dark; font-family:'JetBrains Mono',monospace; }
+* { box-sizing:border-box; }
+body { margin:0; min-width:0; min-height:100vh; color:#f5f0fa; background:linear-gradient(145deg,#19131d,#10131b 60%); }
+.chess { width:min(100%,560px); min-height:100vh; margin:auto; padding:16px 22px; display:flex; flex-direction:column; align-items:center; border-inline:1px solid #ff215255; }
+.chess__header { width:100%; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #ff215255; padding-bottom:9px; }
+.chess__header small { color:var(--red); letter-spacing:.2em; font-size:10px; }
+h1 { margin:4px 0; font:700 23px 'Chakra Petch',sans-serif; }
+button { color:#f5f0fa; background:#17121d; border:1px solid #ff2152a8; padding:8px 11px; font:600 11px 'JetBrains Mono',monospace; cursor:pointer; }
+button:hover,button:focus-visible { outline:2px solid var(--green); outline-offset:1px; }
+#close { border:0; font-size:20px; background:transparent; }
+.chess__status { width:100%; min-height:28px; margin:9px 0; color:var(--green); font-size:12px; }
+.board { width:min(100%,480px); aspect-ratio:1; display:grid; grid-template-columns:repeat(8,1fr); border:3px solid #7b3dff; box-shadow:0 0 26px #0009; }
+.square { border:0; padding:0; aspect-ratio:1; display:grid; place-items:center; position:relative; font:clamp(23px,6vw,42px)/1 'Arial Unicode MS',serif; }
+.square--light { background:#d2c8b5; color:#15121a; }.square--dark { background:#4b3b55; color:#faf4ff; }
+.square[data-piece='white'] { text-shadow:0 1px 1px #221833; }.square[data-piece='black'] { text-shadow:0 1px 2px #000; }
+.square.is-selected { box-shadow:inset 0 0 0 4px var(--green); z-index:1; }
+.square.is-last { background-image:linear-gradient(#ffcf4655,#ffcf4655); }
+.square.is-target::after { content:''; width:25%; aspect-ratio:1; border-radius:50%; background:#36ff7aaa; position:absolute; }
+.square.has-capture.is-target::after { width:85%; background:transparent; border:3px solid #ff2152cc; }
+.square__coord { position:absolute; bottom:1px; left:3px; font:8px 'JetBrains Mono',monospace; color:#111; opacity:.7; }
+.chess__actions { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:12px; }
+.chess__actions #new { border-color:var(--green); }.chess__actions #resign { border-color:var(--red); }
+#message { min-height:16px; color:#f1b2bd; font-size:10px; text-align:center; }
+.promotion { display:flex; gap:6px; margin-top:8px; }.promotion button { font-size:22px; }
+@media(max-width:460px) { .chess { padding:10px; } .chess__actions button { padding:7px; } }
