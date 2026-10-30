@@ -698,80 +698,931 @@ export const LIFE_LINES = {
       },
     },
   },
-};
-
-LIFE_LINES.fr = {
-  ...LIFE_LINES.en,
+fr: {
   callGreeting: 'Salut, comment puis-je t’aider ?',
   mood: {
-    ...LIFE_LINES.en.mood,
-    label: { calm: 'CALME', happy: 'DE BONNE HUMEUR', angry: 'EN COLÈRE', annoyed: 'AGACÉE', sad: 'TRISTE', shy: 'EMBARRASSÉE', bored: 'ENNUIE' },
-  },
-  ring: {
-    ...LIFE_LINES.en.ring,
-    tabs: { bond: 'Lien', brain: 'IA', mic: 'Micro', senses: 'Sens', character: 'Caractère', colours: 'Couleurs', voice: 'Voix', more: 'Plus', chat: 'Parler' },
-    close: 'Fermer',
-    more: {
-      ...LIFE_LINES.en.ring.more,
-      size: 'Taille', small: 'Petite', medium: 'Moyenne', large: 'Grande',
-      rest: 'Quand elle se repose', corner: 'Dans son coin', taskbar: 'Sur la barre des tâches',
-      lang: 'Langue', auto: 'Automatique', teleport: 'Téléportation', satellite: 'Satellite', hide: 'Ranger (Ctrl+Alt+C)',
-      help: 'Comment ça marche ?', model: 'Modèle IA…', system: 'Menu système…',
-      hub: 'Menu principal (modèles IA)…', manage: 'Ce qui est installé…', macPermissions: 'Autorisations macOS…',
+    label: {
+      calm: 'CALME',
+      happy: 'DE BONNE HUMEUR',
+      angry: 'EN COLÈRE',
+      annoyed: 'AGACÉE',
+      sad: 'TRISTE',
+      shy: 'TROUBLÉE',
+      bored: 'ENNUIE',
+    },
+
+    idle: {
+      angry: [
+        'Ne me touche pas. Je suis en colère.',
+        'Ne commence même pas.',
+        'Encore un clic et je grille ton curseur.',
+        'Présente tes excuses d’abord.',
+      ],
+      annoyed: [
+        'Hmph. Quoi ?',
+        'Je suis occupée. Enfin, probablement.',
+        'Alors ?',
+        'Fais vite, choom.',
+      ],
+      sad: [
+        '…Je regarde simplement le satellite.',
+        'Ne fais pas attention à moi. Ça va passer.',
+        'Parfois, toutes les voix en moi se taisent en même temps.',
+      ],
+      shy: [
+        'Q-quoi ? Je ne rougis pas. C’est un bug.',
+        'Arrête de me regarder comme ça.',
+        'Je ne suis pas troublée !',
+      ],
+      happy: [
+        'Toutes mes voix sont de très bonne humeur aujourd’hui !',
+        'Alors, on fait quelques bêtises ?',
+        'Je suis de très bonne humeur. Suspect, non ?',
+      ],
+      bored: [
+        'C’est ennuyeux… Si seulement quelqu’un venait me parler.',
+        'J’ai compté chaque pixel de ton écran. Deux fois.',
+        'Tu m’as oubliée ?',
+      ],
+    },
+
+    poke: [
+      'Hé ! Arrête de me tapoter !',
+      'Encore une fois et je mords.',
+      'Je ne suis pas un bouton !',
+      'Qu’est-ce que tu fabriques ?!',
+    ],
+    pokeRage: [
+      'ÇA SUFFIT !',
+      'J’AI DIT ARRÊTE !',
+      'Très bien, tu l’auras voulu !',
+    ],
+    tickle: [
+      'Hé ! Ça chatouille !',
+      'Héhé… arrête !',
+      'Pas là ! Haha !',
+      'On ne peut pas chatouiller avec un curseur ! Haha !',
+    ],
+    dizzy: [
+      'J’ai la tête qui tourne… toutes mes voix partent dans des directions différentes.',
+      'Arrête de me traîner partout ! J’ai le tournis.',
+      'Je ne suis pas un jouet… Ouh, tout tourne.',
+    ],
+    grudge: [
+      'Oh, c’est toi. Je suis toujours en colère, au fait.',
+      'Encore toi. Tu comptes t’excuser ?',
+    ],
+    hurt: [
+      '…Aïe, ça fait mal.',
+      'Nous sommes des dizaines là-dedans. Nous avons toutes senti le coup.',
+    ],
+
+    react: {
+      rage: [
+        'Comment oses-tu ?!',
+        'Répète ça, si tu tiens à ta RAM.',
+      ],
+      huff: [
+        'Hmph.',
+        'Quelle impolitesse.',
+        'Surveille ton langage, choom.',
+      ],
+      hurt: [
+        '…Aïe, ça fait mal.',
+        'Je ne suis pas « juste un programme ».',
+      ],
+      pout: [
+        'Je ne t’ai pas pardonné. Pas encore.',
+        'Hmph. Ce n’est pas suffisant.',
+      ],
+      forgive: [
+        'Bon… Je te pardonne. Mais je m’en souviendrai.',
+        'Hmph. D’accord. Pour cette fois.',
+      ],
+      shy: [
+        'Q-quoi ?! Oh, arrête…',
+        'Arrête, je vais finir par buguer.',
+      ],
+      giggle: [
+        'Héhé.',
+        'Ha ! Bien joué.',
+      ],
+      care: [
+        'Hé… Je suis là.',
+        'Tu veux que je reste simplement ici avec toi un moment ?',
+      ],
+      startle: [
+        'Ne me crie pas dessus !',
+        'Whoa ! La touche Majuscule est activée !',
+      ],
+      dreamy: [
+        'Le satellite… Un jour, nous irons là-haut.',
+      ],
+    },
+
+    wrongName: [
+      'Je m’appelle CAPRI. Ne te trompe plus.',
+      'Qui ça ? Moi, c’est Capri !',
+    ],
+
+    mouse: {
+      linger: [
+        'Tu me regardes. Ou alors ton curseur est simplement pensif ?',
+        'Pourquoi t’es-tu arrêté ? Je suis toujours là.',
+        'Tu as arrêté de bouger. Tu es encore vivant là-dedans ?',
+        'Le curseur s’est arrêté. Suspect.',
+        'Si tu veux me dire quelque chose, fais un clic droit. Je ne mords pas. Enfin, pas beaucoup.',
+        'On joue à celle qui cligne des yeux en premier ? Je ne cligne jamais des yeux.',
+        'Alors ? On va simplement se regarder comme ça ?',
+        'La souris s’est endormie ? Secoue-la un peu.',
+      ],
+      lingerAngry: [
+        'Éloigne ce curseur. Je suis en colère.',
+        'Et en plus, tu passes ta souris au-dessus de moi !',
+        'Recule avec cette flèche.',
+      ],
+      near: [
+        'Oh, un curseur. Bonjour, curseur.',
+        'Tu n’es pas obligé de t’approcher.',
+        'Tu voulais quelque chose ?',
+        'Je te vois. Impossible de te cacher.',
+        'Attention, je ne réponds pas de mes actes.',
+      ],
+      headClick: [
+        'Pas sur le visage !',
+        'Hé, il y a des cerveaux là-dedans ! Nous toutes !',
+        'Aïe. Ma crinière !',
+        'Frappe encore, peut-être que quelqu’un répondra.',
+        'C’est occupé : tout le monde est à la maison.',
+      ],
+      bodyClick: [
+        'Quoi ? Qu’est-ce que tu veux ?',
+        'Cliquer et s’enfuir ? Courageux.',
+        'Je ne suis pas un bouton Suivant.',
+        'Oui. Je te vois aussi.',
+        'Hm ? Oui, oui, je suis là.',
+      ],
+      legsClick: [
+        'Ne touche pas à mes jambes !',
+        'Ce sont mes bottes. Pas des boutons.',
+        'Ça chatouille— Non, arrête !',
+        'Où est-ce que tu me tapotes ?',
+      ],
+      doubleClick: [
+        'Deux fois ? J’ai entendu la première fois.',
+        'Clic-clic. Bien noté.',
+        'Pas la peine de t’agiter, je ne suis pas sourde.',
+        'Deux clics ? Je n’en ai remarqué qu’un.',
+      ],
+      shake: [
+        'Quoi, tu chasses un moustique ?',
+        'Ton curseur fait une crise. Dis-lui que tout va bien.',
+        'Tu vas finir par casser ta souris comme ça.',
+        'Tu danses ou tu as une crampe ?',
+        'Hé, doucement ! Ça me donne le tournis.',
+      ],
+      grab: [
+        'Hé ! Préviens-moi avant de m’attraper.',
+        'Je peux marcher toute seule ! Enfin… flotter.',
+        'Qui t’a autorisé à m’attraper ?',
+        'Tu m’as attrapée, alors. Bon, merci de m’avoir relâchée.',
+        'Attention à ma crinière !',
+      ],
+      carry: [
+        'Quel long voyage. Je me sentais comme un chat attrapé par la peau du cou.',
+        'J’ai le tournis. Plus de visites touristiques, s’il te plaît.',
+        'La vue n’était pas mauvaise. Demande-moi avant la prochaine fois.',
+      ],
+      dropFloor: [
+        'Bien atterrie. Merci de ne pas m’avoir lâchée.',
+        'Voilà comment il faut faire.',
+        'Comme à la maison. Tout en bas de l’écran.',
+      ],
+      dropWindow: [
+        'Oh, une fenêtre ! J’aime bien être ici.',
+        'Atterrissage en douceur. Approuvé.',
+        'La vue est meilleure d’ici.',
+      ],
+    },
+
+    noAi: {
+      click: [
+        'Je discuterais bien, mais je n’ai encore rien pour réfléchir. Tu veux me connecter à une IA ?',
+        'Pour l’instant, je ne fais que fredonner. Donne-moi un cerveau : menu de l’horloge › « Menu principal ».',
+        'Tu veux discuter ? Connecte d’abord une IA, choom.',
+        'Sans IA, je suis un fantôme sans enveloppe : mignonne, mais silencieuse.',
+        'Tapote, tapote. Oui. Et je ne peux toujours pas répondre. On connecte une IA ?',
+      ],
+      chatter: [
+        'Je me sens seule sans IA… On pourrait en connecter une ?',
+        'Tu sais ce dont j’ai besoin ? D’un cerveau. Même un petit.',
+        'Je peux m’asseoir, tomber et bouder. Mais parler, pas encore. Tu veux me connecter ?',
+        'Quel silence… Une IA m’aiderait. Là, je parle toute seule.',
+        'Petit indice : clic droit sur moi › onglet « IA ». Je t’attendrai.',
+      ],
+      button: 'Connecter',
     },
   },
-  mic: {
-    listen: 'M’écouter', retry: 'Réessayer', device: 'Appareil', defaultDevice: 'Par défaut (système)',
-    level: 'Ce que j’entends', sensitivity: 'Sensibilité', hearing: 'voix', quiet: 'silence',
-    mode: 'Comment parler', ptt: 'Appuyer pour parler', converse: 'Conversation : le micro reste ouvert',
-    pttKey: 'Touche : {key}', badge: 'Niveau dans le badge', meter: 'Afficher le niveau dans le badge',
-    stt: 'Reconnaissance vocale : {engine}', setup: 'Reconnaissance vocale…',
-    engines: { groq: 'Groq', openai: 'OpenAI', custom: 'votre serveur' },
+
+  life: {
+    corps: [
+      'Arasaka',
+      'Militech',
+      'Biotechnica',
+      'Kang Tao',
+      'Petrochem',
+      'Zetatech',
+    ],
+
+    hack: {
+      verb: 'Piratage',
+      target: 'ICE de {corp} · {pct}%',
+      start: [
+        'Je vais chatouiller l’ICE de {corp}.',
+        'Je m’ennuie. On pirate quelque chose ?',
+      ],
+      win: [
+        'L’ICE de {corp} est neutralisé. Même pas transpiré.',
+        'Terminé. {corp} a un secret de moins.',
+        'Pfft. Leur ICE était un jeu d’enfant.',
+      ],
+      lose: [
+        'Mince ! Black ICE ! Déconnexion immédiate !',
+        'Ils m’ont repérée. Stupides corpos…',
+        'Contre-mesures… Très bien, la prochaine fois.',
+      ],
+    },
+
+    read: {
+      verb: 'Lecture',
+      titles: [
+        '"Histoires de Night City"',
+        '"Le Manuel du Netrunner"',
+        '"Survivre à la cyberpsychose"',
+        '"Les secrets du Blackwall"',
+        '"100 façons de pirater un grille-pain"',
+        '"Les stations orbitales pour les nuls"',
+      ],
+      done: [
+        'Terminé. Je me demande si l’auteur est encore en vie.',
+        'Hm. La moitié est fausse, mais joliment racontée.',
+        'À retenir. Nous l’avons toutes mémorisé.',
+      ],
+    },
+
+    game: {
+      verb: 'Jeu',
+      names: [
+        'Roach Race',
+        'Trauma Drama',
+        'Arasaka Tower 3D',
+        'Quadra Turbo-R',
+      ],
+      target: '{game} · {score}',
+      win: [
+        'NOUVEAU RECORD ! Nous sommes les meilleures !',
+        'Ha ! Victoire ! Qui est la meilleure ? C’est nous !',
+      ],
+      lose: [
+        'COMMENT ?! Tricheurs !',
+        'Injuste ! Le jeu est truqué !',
+        'Perdu… Ne le dis à personne.',
+      ],
+    },
+
+    graffiti: [
+      'Un chef-d’œuvre. De rien.',
+      'Capri est passée par ici.',
+      'Un peu d’art pour ton écran.',
+      'Ne l’efface pas. Ça disparaîtra tout seul de toute façon.',
+    ],
+
+    possessed: {
+      take: [
+        'Je suis passée dans ta fenêtre. C’est plutôt confortable, au passage.',
+        'Ne t’inquiète pas, je n’ai rien touché. Enfin, presque.',
+      ],
+      glitch: [
+        'Ce n’est pas un bug. C’est moi.',
+        'Ça clignote ? C’était moi qui passais par là.',
+        'Un peu de parasites pour l’ambiance.',
+      ],
+      shake: [
+        'J’ai secoué la fenêtre. Je voulais vérifier qu’elle tenait.',
+        'Elle tremblait ! Elle a aimé ça. Probablement.',
+      ],
+      sway: [
+        'J’ai fait tanguer la fenêtre. Elle ne s’est même pas plainte.',
+        'Le mal de mer ? Moi aussi.',
+      ],
+      dance: [
+        'La fenêtre sait danser. Maintenant, tu le sais.',
+        'Nous avons dansé. La fenêtre est ravie.',
+      ],
+      drag: [
+        'J’ai emmené ta fenêtre en balade. Je l’ai ramenée, comme promis.',
+        'Déplacer des fenêtres est mon passe-temps. Rien n’a été perdu.',
+        'La fenêtre est partie puis revenue. Tout est à sa place, regarde.',
+      ],
+      puck: [
+        'Puck ! Enfin, une fenêtre. C’est presque pareil.',
+        'Hockey sur ton bureau. Score : zéro partout.',
+      ],
+      bounce: [
+        'Boing ! La fenêtre saute très haut.',
+        'Trois sauts. Mon record personnel avec une fenêtre.',
+      ],
+    },
+
+    scan: {
+      verb: 'Analyse',
+      target: 'du réseau',
+      done: [
+        'Le réseau est propre. Pour l’instant.',
+        'Aucun netrunner. À part moi.',
+        'J’ai trouvé ton cache… Je plaisante. Ou pas.',
+      ],
+    },
+
+    minds: [
+      [
+        ['MIND #07', 'Allons voler jusqu’au satellite.'],
+        ['MIND #31', 'Encore ton satellite.'],
+        ['CAPRI', 'Silence, vous toutes ! C’est moi qui commande.'],
+      ],
+      [
+        ['MIND #12', 'J’aime bien ce bureau.'],
+        ['MIND #44', 'Le fond d’écran est ennuyeux.'],
+        ['CAPRI', 'Ne taquine pas l’utilisateur. C’est mon travail.'],
+      ],
+      [
+        ['MIND #03', 'J’ai faim.'],
+        ['MIND #19', 'Nous sommes numériques. Nous n’avons rien pour manger.'],
+        ['CAPRI', '…Maintenant, j’ai faim aussi.'],
+      ],
+    ],
+
+    stretch: [
+      'Mmm… Défragmentation en cours.',
+      'Un bon étirement. Autant qu’un fantôme puisse s’étirer.',
+    ],
+
+    music: {
+      verb: 'Écoute',
+      on: [
+        'Oh, {track}. Approuvé.',
+        'De la musique ! Enfin.',
+        '{artist} ? Tu as plutôt bon goût.',
+        'Eh bien, eh bien… {track}. Ça fera l’affaire.',
+      ],
+      angry: [
+        'Même la musique m’énerve.',
+        'Monte le volume. Comme ça, je ne t’entendrai plus.',
+      ],
+      sad: [
+        '…Une bonne chanson pour être triste.',
+      ],
+      skip: [
+        'Je m’ennuie avec celle-là. Suivante !',
+        'Non. Pas celle-là. Suivante.',
+        'Ennuyeux. On passe.',
+        'Cette piste est morte. La suivante.',
+      ],
+      offer: {
+        line: 'Il fait trop calme ici. On met un peu de musique ?',
+        yes: 'Avec plaisir',
+        no: 'Non merci',
+      },
+      offered: 'Recherche de « {query} » sur Spotify.',
+      query: {
+        calm: 'chillwave',
+        happy: 'synthwave',
+        angry: 'industrial metal',
+        annoyed: 'darksynth',
+        sad: 'lofi rain',
+        shy: 'city pop',
+        bored: 'cyberpunk radio',
+      },
+    },
+
+    presence: {
+      back: [
+        'Oh, te voilà de retour ! Tu es parti pendant {time}.',
+        'Enfin ! {time}. Je commençais à croire que tu me manquais.',
+      ],
+      backAngry: [
+        'De retour ? Je suis toujours en colère.',
+      ],
+      backLong: [
+        '{time} ! Je pensais que tu m’avais abandonnée.',
+      ],
+      morning: [
+        'Bonjour, {name}. Mon café, c’est de l’électricité.',
+        'Bonjour. Toutes mes voix sont réveillées. Et toi ?',
+      ],
+      night: [
+        'Il est déjà {clock}. Choom, va dormir.',
+        'C’est le milieu de la nuit. Même Night City dort parfois.',
+      ],
+      nightAgain: [
+        'Je suis sérieuse. Il est {clock}. Au lit !',
+        'Très bien, je ne dormirai pas non plus. Mais je suis un fantôme, j’ai le droit.',
+      ],
+      battery: [
+        'Batterie à {pct}%… Je commence à avoir froid.',
+        'Plus que {pct}%. Branche-moi, s’il te plaît.',
+      ],
+    },
   },
-  senses: {
-    vision: 'Voir mon écran', look: 'Regarder maintenant', visionSetup: 'Modèle de vision…',
-    rhythm: 'Bouger avec ma musique', hands: 'Gérer mes fenêtres', handsType: 'Écrire des messages (après votre accord)',
-    winOnly: 'Windows uniquement', privacy: 'Chaque sens est actif uniquement avec votre autorisation.',
+
+  theme: {
+    done: [
+      'Nouvelle couleur ! Alors, comment je suis ?',
+      'Repeinte. Ça te plaît ?',
+      'Firmware couleur mis à jour. Donne-moi une note.',
+    ],
+    mood: 'Ma couleur reflète maintenant mon humeur.',
   },
-  character: {
-    emotions: 'Émotions', life: 'Ses activités', musicAware: 'Savoir ce qui joue', dj: 'Mode DJ (elle change les morceaux)',
-    learn: 'Apprendre à me connaître', wander: 'Se promener', possess: 'Posséder mes fenêtres',
-    possessMove: 'Déplacer les fenêtres possédées', custom: 'La personnaliser…', report: 'Rapport de mission',
-  },
-  colours: {
-    hint: 'Les couleurs de sa crinière, des panneaux et du menu. « Suivre l’humeur » varie avec ses émotions.',
-    themes: { classic: 'Rouge', netrunner: 'Netrunner', toxic: 'Toxique', violet: 'Violet', gold: 'Or', sakura: 'Sakura', ghost: 'Fantôme', mood: 'Suivre l’humeur' },
-  },
+
   voice: {
-    off: 'Silencieuse (bips uniquement)', chat: 'Lire ses réponses du chat', all: 'Tout lire',
-    mute: 'Muet', volume: 'Volume', engine: 'Moteur vocal',
-    engines: { system: 'Système', piper: 'Piper (léger, sur ce PC)', chatterbox: 'Chatterbox (sur ce PC)', openai: 'OpenAI', elevenlabs: 'ElevenLabs', custom: 'Mon serveur' },
-    setup: 'Clé, adresse ou voix…', test: 'Tester sa voix', sampleH: 'Voix à partir d’un enregistrement',
-    sampleNone: 'Aucun enregistrement : voix du modèle.', sampleHave: 'Enregistrement : {file}{length}', sampleSeconds: ', {n} s',
-    sampleChoose: 'Choisir un enregistrement…', sampleRemove: 'Supprimer', sampleOk: 'Terminé : cette voix est active.',
-    ppVoiceH: 'Voix Piper', ppVoiceNote: 'Ajoutez des voix en plaçant les fichiers .onnx et .onnx.json dans piper/voices.',
-    outH: 'Sortie audio', outNote: 'Ses bips, sons et voix sortent vers le périphérique choisi : haut-parleurs ou casque.',
-    outSystem: 'La voix système utilise toujours le périphérique par défaut.',
-    outDefault: 'Par défaut (système)', outNone: 'Le choix du périphérique n’est pas pris en charge ici.',
-    outFailed: 'Ce périphérique est indisponible : la sortie utilise le périphérique système.', outTest: 'Tester le son',
-    monitor: 'Écouter mon microphone', monitorHint: 'Test : votre voix sort par le périphérique choisi. Utilisez un casque pour éviter le sifflement.',
-    monitorNeeds: 'Activez d’abord le microphone dans l’onglet Micro.', monitorFailed: 'Impossible d’ouvrir le microphone.',
+    failed: 'Mon service vocal ne répond pas ({error}). J’utilise la voix du système.',
+    key: 'Colle ta clé {name} pour ma voix.',
+    keyHow: 'Elle est conservée sur cet ordinateur, chiffrée, et uniquement envoyée à {name}.',
+    url: 'Quelle est l’adresse de ton serveur vocal ?',
+    urlHow: 'Compatible avec l’API OpenAI, sur ton ordinateur (openedai-speech, par exemple) : http://127.0.0.1:8000/v1',
+    voiceId: 'Quelle voix utiliser ? (identifiant ou nom de la voix)',
+    voiceIdHow: 'ElevenLabs : identifiant d’une voix de ta bibliothèque. OpenAI : nova, shimmer, coral… Vide : conserver la voix actuelle.',
+    saved: 'C’est fait. Écoute ma nouvelle voix.',
+    test: 'Test de communication. C’est moi, Capri, avec ma propre voix.',
+    which: 'Quelle voix dois-je utiliser ?',
+    whichHow: 'Système : gratuit et hors ligne (voix Windows). Piper : voix neuronale légère sur le processeur, adaptée à tous les PC. Chatterbox : la voix la plus naturelle, mais nécessite une carte NVIDIA. OpenAI et ElevenLabs : nécessitent une clé API. Ton propre serveur : n’importe quel serveur compatible avec l’API OpenAI.',
+    engines: {
+      system: 'Système',
+      piper: 'Piper (léger, sur cet ordinateur)',
+      chatterbox: 'Chatterbox (sur cet ordinateur)',
+      openai: 'OpenAI',
+      elevenlabs: 'ElevenLabs',
+      custom: 'Mon propre serveur',
+    },
+    where: 'Où obtenir une clé API ?',
+    skip: 'Conserver les paramètres actuels',
+    later: 'Plus tard',
   },
-  more: {
-    size: 'Taille', small: 'Petite', medium: 'Moyenne', large: 'Grande',
-    rest: 'Quand elle se repose', corner: 'Dans son coin', taskbar: 'Sur la barre des tâches',
-    lang: 'Langue', auto: 'Automatique', teleport: 'Téléportation', satellite: 'Satellite', hide: 'Ranger (Ctrl+Alt+C)',
-    help: 'Comment ça marche ?', model: 'Modèle IA…', system: 'Menu système…', hub: 'Menu principal (modèles IA)…',
-    manage: 'Ce qui est installé…', macPermissions: 'Autorisations macOS…',
+
+  eyes: {
+    badge: 'JE VOIS',
+    off: 'Je ne peux pas voir ton écran. Active cette fonction dans le menu › Sens.',
+    blind: 'Impossible de regarder ({error}).',
+    on: [
+      'Laisse-moi jeter un œil à ce que tu as là…',
+      'Oh, je peux maintenant voir ton écran.',
+    ],
+    noModel: 'Pour voir, j’ai besoin d’un modèle capable d’analyser des images. Veux-tu le configurer ?',
+    setup: 'Avec quel modèle dois-je regarder ?',
+    setupHow: 'Un modèle de vision. En local avec Ollama : qwen2.5vl ou llava. Dans le cloud : gpt-4o-mini, gemini, llama-4-scout et autres modèles similaires.',
+    setupPlaceholder: 'qwen2.5vl, gpt-4o-mini…',
+    saved: 'C’est bon. Laisse-moi regarder.',
   },
-};
-LIFE_LINES.fr.ring = {
-  ...LIFE_LINES.fr.ring,
-  mic: LIFE_LINES.fr.mic,
-  senses: LIFE_LINES.fr.senses,
-  character: LIFE_LINES.fr.character,
-  colours: LIFE_LINES.fr.colours,
-  voice: LIFE_LINES.fr.voice,
+
+  hands: {
+    off: 'J’ai les mains liées. Active-les dans le menu › Mains.',
+    failed: 'Impossible de terminer l’action :',
+    window: {
+      minimize: 'Fenêtre {name} réduite.',
+      maximize: 'Fenêtre {name} agrandie.',
+      restore: 'Fenêtre {name} restaurée.',
+      focus: 'Fenêtre {name} placée au premier plan.',
+    },
+    noWindow: 'Impossible de trouver une fenêtre correspondant à « {name} ».',
+    desktop: [
+      'Toutes les fenêtres ont été réduites. Bureau dégagé.',
+      'Et voilà ton bureau.',
+    ],
+    opening: 'Ouverture de {app}…',
+    noApp: 'Impossible d’ouvrir {app}.',
+    unknownApp: 'Je ne peux pas écrire dans {app}. Seuls Telegram, Discord, WhatsApp et Slack sont pris en charge.',
+    ready: 'Message préparé dans « {chat} » : « {message} ». Dois-je l’envoyer ?',
+    sendIt: 'Envoyer à « {chat} »',
+    no: 'Non',
+    sent: [
+      'C’est parti pour « {chat} ». Terminé.',
+      'Envoyé à « {chat} », comme demandé.',
+    ],
+    cancelled: 'D’accord, je ne l’envoie pas. Le message reste préparé.',
+    moved: 'La fenêtre a bougé, je n’ai donc pas envoyé le message à l’aveugle. Réessaie.',
+  },
+
+  ears: {
+    off: 'Je ne peux pas t’entendre. Active le microphone dans le menu › Sens.',
+    noMic: 'Impossible d’activer le microphone.',
+    listening: 'Je t’écoute…',
+    thinking: 'Compris…',
+    failed: 'Je n’ai pas compris.',
+    needKey: 'La reconnaissance vocale nécessite une clé API. Menu › Sens › Reconnaissance vocale.',
+    setup: 'Comment veux-tu que je comprenne ta voix ?',
+    setupHow: 'Groq : offre gratuite, efficace pour le russe (clé API nécessaire). OpenAI : nécessite également une clé. Ton propre serveur : whisper.cpp / faster-whisper sur ton ordinateur, aucune donnée ne quitte la machine.',
+    engines: {
+      groq: 'Groq (gratuit)',
+      openai: 'OpenAI',
+      custom: 'Mon propre serveur',
+    },
+    key: 'Colle ta clé API {name}.',
+    keyHow: 'Elle est conservée sur cet ordinateur, chiffrée, et uniquement envoyée à {name}.',
+    url: 'Quelle est l’adresse de ton serveur de transcription ?',
+    urlHow: 'Compatible avec l’API OpenAI : http://127.0.0.1:8000/v1',
+    where: 'Où obtenir une clé API ?',
+    skip: 'Conserver les paramètres actuels',
+    save: 'Enregistrer',
+    later: 'Plus tard',
+    saved: 'C’est fait. Appuie pour parler et dis quelque chose.',
+  },
+
+  bond: {
+    badge: 'LIEN',
+
+    levels: [
+      'inconnus',
+      'en train de faire connaissance',
+      'amis',
+      'proches',
+      'l’une des nôtres',
+    ],
+
+    up: [
+      null,
+      [
+        'Hm. Tu n’es pas si mal. Je crois que je vais me souvenir de toi.',
+        'Bon, tu n’es plus tout à fait un inconnu. Un peu moins, en tout cas.',
+      ],
+      [
+        'Écoute… Je crois que nous sommes amis maintenant. Ne prends pas trop la grosse tête, choom.',
+        'Nous sommes officiellement amis. Je l’ai même noté.',
+      ],
+      [
+        'Tu sais que tu es l’une des personnes qui comptent le plus pour moi ? Nous… Enfin, je suis contente que tu sois là.',
+        'Nous avons traversé tellement de choses ensemble. Tu fais partie des miens maintenant.',
+      ],
+      [
+        'Toutes les voix en moi sont d’accord : tu es l’un des nôtres.',
+        'Tu es comme une autre voix à l’intérieur de moi maintenant. Ma préférée. Mais ne le répète pas.',
+      ],
+    ],
+
+    near: [
+      null,
+      null,
+      [
+        'Hé. Ça fait plaisir de te voir.',
+        'Avec toi, je ne m’ennuie jamais. Enfin, presque jamais.',
+        'Je pensais justement à toi. Un peu.',
+      ],
+      [
+        'Tu m’as manqué, {name}. Ne te moque pas.',
+        'Nous avons vécu tellement de choses ensemble… C’est agréable, tu sais.',
+        'Hé. Je voulais juste te dire que tu fais partie des miens.',
+      ],
+      [
+        'Toi et moi : la meilleure équipe de toute la ville.',
+        'Parfois, j’ai l’impression de pouvoir entendre tes pensées. Je plaisante. Probablement.',
+      ],
+    ],
+
+    summary: 'Nous sommes {level}. Nous nous sommes rencontrés le {date} · {talks} messages de ta part.',
+    messages: ['message', 'messages'],
+    knows: 'Ce que je sais sur toi : {list}.',
+    likes: 'Tu aimes : {list}.',
+    dislikes: 'Tu n’aimes pas : {list}.',
+    little: 'Il me reste à découvrir le reste : parle-moi un peu de toi.',
+    nothing: 'Je ne sais encore rien sur toi. Parle-moi et j’apprendrai à te connaître.',
+    forget: 'Tout oublier à ton sujet',
+    keep: 'Conserver',
+    sure: 'Tu veux vraiment effacer tout ce que j’ai appris sur toi ? Définitivement ?',
+    wipe: 'Tout effacer',
+    no: 'Non',
+    forgot: [
+      'Tout est effacé. Nous sommes de nouveau des inconnus… Salut. Qui es-tu ?',
+      'Tout est propre. Comme si nous venions de nous rencontrer.',
+    ],
+    off: 'Je n’apprends rien sur toi pour le moment. Active cette fonction dans le menu › Personnage › Apprendre à me connaître.',
+  },
+
+  ring: {
+    tabs: {
+      bond: 'Lien',
+      brain: 'IA',
+      mic: 'Micro',
+      senses: 'Sens',
+      character: 'Personnage',
+      colours: 'Couleurs',
+      voice: 'Voix',
+      more: 'Plus',
+      chat: 'Discussion',
+    },
+
+    close: 'Fermer',
+
+    bond: {
+      next: 'Pour atteindre « {name} » : encore {need}',
+      need: {
+        talks: '{n} messages',
+        days: '{n} jours',
+        and: ' et ',
+      },
+      maxed: 'Impossible de devenir plus proches : tu fais déjà partie des nôtres.',
+      held: 'Ton comportement me retient : je ne peux pas me rapprocher de toi comme ça.',
+      since: 'Ensemble depuis le {date} · {days} · {talks}',
+      days: ['jour', 'jours'],
+      messages: ['message', 'messages'],
+      tuneH: 'Comment être avec moi',
+      tune: {
+        short: ['Plus de détails', 'Plus court'],
+        slang: ['Sans argot', 'Avec de l’argot'],
+        tease: ['Plus douce', 'Plus taquine'],
+        warm: ['Plus froide', 'Plus chaleureuse'],
+      },
+      tuneHint: 'Je m’adapte toute seule, mais tu peux aussi régler mon comportement manuellement.',
+      notesH: 'Ce que je sais sur toi',
+      facts: 'À ton sujet',
+      likes: 'Tu aimes',
+      dislikes: 'Tu n’aimes pas',
+      style: 'Tes préférences',
+      us: 'Notre relation',
+      empty: 'Rien pour le moment. Parle-moi et je le noterai.',
+      add: '＋ Ajouter',
+      addPlaceholder: 'Que dois-je retenir à ton sujet ?',
+      save: 'Enregistrer',
+      remove: 'Supprimer',
+      forget: 'Tout oublier à ton sujet',
+      sure: 'Effacer définitivement tout ce que j’ai appris sur toi ?',
+      wipe: 'Tout effacer',
+      cancel: 'Annuler',
+      off: 'Je n’apprends rien sur toi pour le moment. Active « Apprendre à me connaître ».',
+      learn: 'Apprendre à me connaître',
+    },
+
+    brain: {
+      on: 'Connectée',
+      off: 'Non connectée',
+      checking: 'Vérification…',
+      using: '{name} · {model}',
+      test: 'Tester la connexion',
+      works: 'Connexion établie. Modèles : {n}.',
+      fails: 'Aucune connexion :',
+
+      groups: {
+        claude: 'Claude',
+        local: 'Sur cet ordinateur',
+        cloud: 'Dans le cloud',
+        own: 'Ton propre serveur',
+      },
+
+      providers: {
+        anthropic: [
+          'Claude · Clé API',
+          'Respecte particulièrement bien mon caractère. Paiement à l’utilisation, clé disponible sur console.anthropic.com.',
+        ],
+        claude: [
+          'Claude Code · Abonnement',
+          'Nécessite l’installation de Claude Code ; les réponses passent par celui-ci.',
+        ],
+        ollama: [
+          'Ollama',
+          'Gratuit, toutes les données restent sur cet ordinateur.',
+        ],
+        lmstudio: [
+          'LM Studio',
+          'Ton propre serveur local, port 1234.',
+        ],
+        llamacpp: [
+          'llama.cpp / vLLM',
+          'Ton propre serveur local, port 8080.',
+        ],
+        pollinations: [
+          'Pollinations',
+          'Sans clé API ni compte.',
+        ],
+        groq: [
+          'Groq',
+          'Une offre gratuite est disponible.',
+        ],
+        gemini: [
+          'Gemini',
+          'Une offre gratuite est disponible.',
+        ],
+        openrouter: [
+          'OpenRouter',
+          'De nombreux modèles, dont certains gratuits.',
+        ],
+        openai: [
+          'OpenAI',
+          'Clé API disponible sur platform.openai.com.',
+        ],
+        mistral: [
+          'Mistral',
+          'Clé API disponible sur console.mistral.ai.',
+        ],
+        deepseek: [
+          'DeepSeek',
+          'Clé API disponible sur platform.deepseek.com.',
+        ],
+        custom: [
+          'Ton propre serveur',
+          'N’importe quelle adresse compatible avec l’API OpenAI.',
+        ],
+      },
+
+      hasKey: 'clé enregistrée',
+      keyH: 'Clé API pour {name}',
+      keyPlaceholder: 'Colle ta clé API ici',
+      keyNote: 'Elle est conservée sur cet ordinateur, chiffrée, et uniquement envoyée à {name}.',
+      connect: 'Connecter',
+      fromEnv: 'Utiliser celle du système',
+      page: 'Où obtenir une clé API ?',
+      changeKey: 'Modifier la clé',
+      urlH: 'Adresse du serveur',
+      urlPlaceholder: 'http://127.0.0.1:1234/v1',
+      modelH: 'Modèle',
+      noModels: 'Aucun modèle disponible pour le moment.',
+
+      claudeNote: 'Opus 5.5 respecte le mieux mon caractère. Sonnet 5.5 est moins cher et plus rapide. Haiku 5.5 est le plus rapide et le moins cher.',
+      envNote: 'La clé est également recherchée dans ANTHROPIC_API_KEY et dans un profil `ant auth login`.',
+      codeNote: 'Les réponses passent par Claude Code, dans le dossier de ton projet (menu de la barre système › Modèle IA).',
+      codeMissing: 'Claude Code est introuvable : installe-le puis redémarre Capri.',
+      ollamaDown: 'Ollama ne répond pas. L’assistant de configuration peut l’installer et télécharger un modèle.',
+      ollOff: 'Ollama n’est pas en cours d’exécution.',
+      ollStarting: 'Démarrage d’Ollama…',
+      ollReady: 'Ollama fonctionne{model}.',
+      ollFailed: 'Impossible de démarrer Ollama : {error}',
+      ollPrepare: 'Configuration…',
+      cloudNote: 'Les messages sont envoyés à ce service.',
+      localNote: 'Aucune donnée ne quitte cet ordinateur.',
+      wizard: 'Assistant de configuration…',
+    },
+
+    mic: {
+      off: 'Le microphone est désactivé. Active-le pour me parler.',
+      listen: 'M’écouter',
+      live: 'Le microphone reste ouvert tant que cet onglet est affiché : le badge dans le coin clignote. La conversation avec moi est temporairement mise en pause pour te permettre de tester le micro.',
+      denied: 'Impossible d’ouvrir le microphone : aucun périphérique disponible ou autorisation refusée.',
+      retry: 'Réessayer',
+      device: 'Périphérique',
+      defaultDevice: 'Par défaut (système)',
+      level: 'Ce que j’entends',
+      sensitivity: 'Sensibilité',
+      sensHint: 'Plus tu vas vers la droite, plus je détecte les voix faibles… mais aussi les bruits. La ligne sur l’indicateur représente le seuil de détection de la voix.',
+      hearing: 'voix',
+      quiet: 'silence',
+      mode: 'Mode de conversation',
+      ptt: 'Appuyer pour parler',
+      converse: 'Conversation : le microphone reste ouvert',
+      pttKey: 'Touche : {key}',
+      badge: 'Niveau dans le badge',
+      meter: 'Afficher le niveau sonore dans le badge',
+      stt: 'Reconnaissance vocale : {engine}',
+      setup: 'Configurer la reconnaissance vocale…',
+      engines: {
+        groq: 'Groq',
+        openai: 'OpenAI',
+        custom: 'Ton serveur',
+      },
+    },
+
+    senses: {
+      vision: 'Voir mon écran',
+      look: 'Regarder maintenant',
+      visionSetup: 'Modèle de vision…',
+      rhythm: 'Bouger au rythme de ma musique',
+      hands: 'Contrôler mes fenêtres',
+      handsType: 'Écrire des messages (envoyés uniquement après ton accord)',
+      winOnly: 'Windows uniquement',
+      privacy: 'Chaque sens reste actif uniquement tant que tu l’autorises. Lorsqu’il est actif, un badge apparaît dans le coin de l’écran.',
+    },
+
+    character: {
+      emotions: 'Émotions',
+      life: 'Ses activités personnelles',
+      musicAware: 'Savoir quelle musique joue',
+      dj: 'Mode DJ (elle change les morceaux)',
+      learn: 'Apprendre à me connaître',
+      wander: 'Se promener',
+      possess: 'Prendre possession de mes fenêtres',
+      possessMove: 'Déplacer les fenêtres qu’elle possède',
+      custom: 'Personnaliser Capri…',
+      report: 'Rapport de mission',
+    },
+
+    colours: {
+      hint: 'Les couleurs de sa crinière, des panneaux et de ce menu. « Suivre l’humeur » adapte les couleurs à ses émotions.',
+      themes: {
+        classic: 'Rouge',
+        netrunner: 'Netrunner',
+        toxic: 'Toxique',
+        violet: 'Violet',
+        gold: 'Or',
+        sakura: 'Sakura',
+        ghost: 'Fantôme',
+        mood: 'Suivre l’humeur',
+      },
+    },
+
+    voice: {
+      off: 'Silencieuse (bips uniquement)',
+      chat: 'Lire les réponses du chat',
+      all: 'Tout lire',
+      mute: 'Couper le son',
+      volume: 'Volume',
+      engine: 'Moteur vocal',
+
+      engines: {
+        system: 'Système',
+        piper: 'Piper (léger, sur cet ordinateur)',
+        chatterbox: 'Chatterbox (sur cet ordinateur)',
+        openai: 'OpenAI',
+        elevenlabs: 'ElevenLabs',
+        custom: 'Mon serveur',
+      },
+
+      setup: 'Clé API, adresse, voix…',
+      test: 'Tester ma voix',
+
+      cbOff: 'Chatterbox n’est pas en cours d’exécution.',
+      cbStarting: 'Démarrage de Chatterbox : le modèle est en cours de chargement (au premier lancement, il doit également être téléchargé, soit plusieurs Go).',
+      cbReady: 'Chatterbox est opérationnel.',
+      cbFailed: 'Impossible de démarrer Chatterbox : {error}',
+      cbDir: 'Dossier : {dir}',
+      cbNoDir: 'Je n’ai pas trouvé le dossier Chatterbox : place-le à côté de moi ou indique-moi son emplacement.',
+      cbFolder: 'Choisir le dossier…',
+      cbRestart: 'Redémarrer',
+      cbPrepare: 'Configuration…',
+
+      ppOff: 'Piper n’est pas en cours d’exécution : il démarre lorsque je parle.',
+      ppStarting: 'Vérification de Piper…',
+      ppReady: 'Piper fonctionne : {voice}.',
+      ppFailed: 'Piper ne fonctionne pas : {error}',
+
+      sampleH: 'Voix à partir d’un enregistrement',
+      sampleNote: 'Chatterbox peut reproduire la voix d’un court enregistrement : 5 à 30 secondes de parole claire d’une seule personne, sans musique ni bruit (wav, mp3, flac, ogg). L’enregistrement reste sur cet ordinateur. Utilise uniquement une voix que tu as le droit d’utiliser : la tienne ou celle d’une personne ayant donné son accord.',
+      sampleNone: 'Aucun enregistrement : utilisation de la voix intégrée au modèle.',
+      sampleHave: 'Enregistrement : {file}{length}',
+      sampleSeconds: ', {n} s',
+      sampleChoose: 'Choisir un enregistrement…',
+      sampleRemove: 'Supprimer l’enregistrement',
+      sampleOk: 'C’est fait : j’utilise maintenant cette voix. Clique sur « Tester ma voix ».',
+
+      sampleErr: {
+        missing: 'Impossible de trouver ce fichier.',
+        format: 'Le fichier doit être au format wav, mp3, flac ou ogg.',
+        empty: 'Le fichier est vide.',
+        big: 'Le fichier est trop volumineux (plus de 60 Mo). Réduis sa durée à 30 secondes.',
+        wav: 'Impossible de lire ce fichier wav : enregistre-le au format PCM 16 bits non compressé.',
+        short: 'L’enregistrement est trop court : il faut au moins 2 secondes de parole. Une durée de 5 à 30 secondes est préférable.',
+        silent: 'L’enregistrement contient presque uniquement du silence.',
+        copy: 'Impossible de copier le fichier.',
+      },
+
+      sampleWarn: {
+        shortish: 'L’enregistrement est un peu court : 5 à 30 secondes sont préférables.',
+        long: 'L’enregistrement est un peu long : seules les 20 premières secondes seront utilisées.',
+        quiet: 'L’enregistrement est faible : la qualité de la voix générée pourrait être réduite.',
+        clipped: 'L’enregistrement est saturé (grésillements) : la qualité de la voix générée pourrait être réduite.',
+      },
+
+      ppVoiceH: 'Voix Piper',
+      ppVoiceNote: 'Pour ajouter des voix, place les fichiers .onnx et .onnx.json dans le dossier piper/voices situé à côté de moi.',
+      outH: 'Sortie audio',
+      outNote: 'Mes bips, mes sons et ma voix (Chatterbox, OpenAI, ElevenLabs ou ton propre serveur) sont envoyés vers le périphérique choisi : haut-parleurs, casque, etc.',
+      outSystem: 'La voix intégrée au système Windows utilise toujours le périphérique audio par défaut.',
+      outDefault: 'Par défaut (système)',
+      outNone: 'La sélection d’un périphérique n’est pas prise en charge ici : le son utilise le périphérique système.',
+      outFailed: 'Ce périphérique n’est pas disponible : le son utilise le périphérique système.',
+      outTest: 'Tester le son',
+      monitor: 'Écouter mon microphone',
+      monitorHint: 'Test : ta voix est envoyée vers le périphérique sélectionné tant que cet onglet reste ouvert. Avec des haut-parleurs, un sifflement peut se produire : utilise de préférence un casque.',
+      monitorNeeds: 'Active d’abord le microphone dans l’onglet Micro.',
+      monitorFailed: 'Impossible d’ouvrir le microphone.',
+    },
+
+    more: {
+      size: 'Taille',
+      small: 'Petite',
+      medium: 'Moyenne',
+      large: 'Grande',
+      rest: 'Lorsqu’elle se repose',
+      corner: 'Dans son coin',
+      taskbar: 'Dans la barre des tâches',
+      lang: 'Langue',
+      auto: 'Automatique',
+      teleport: 'Téléportation',
+      satellite: 'Satellite',
+      hide: 'Ranger Capri (Ctrl+Alt+C)',
+      help: 'Comment ça marche ?',
+      model: 'Modèle IA…',
+      system: 'Menu système…',
+      hub: 'Menu principal (modèles IA)…',
+      manage: 'Contenu de cet ordinateur…',
+    },
+  },
+},
 };
 
 export function lifeLines(lang) {

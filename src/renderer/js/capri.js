@@ -97,6 +97,7 @@ export class Capri {
     this.manePop = 0;        // a mane flare on a beat, decays each frame
     this.nextHome = 0;
     this.dragging = false;
+    this.fallToFloor = false;
 
     this.p = {
       seed: 0, boil: 0.9, hair: 0, head: 0, mane: 0, armL: 0, armR: 0, longL: 1, longR: 1, sit: 0, kickL: 0, kickR: 0,
@@ -685,18 +686,32 @@ export class Capri {
 
   stopHandstand() {
     if (this.stance !== 'handstand') return false;
-    const target = this.windows.wins.find((w) => w.id === this.handstandTarget?.id);
+
+    const target = this.windows.wins.find(
+        (w) => w.id === this.handstandTarget?.id
+    );
+
     this.handstandTarget = null;
     this.busy = false;
     this.endAct(false);
+
+    // Elle se redresse sous le rebord avant de tomber.
     this.setStance('stand');
-    this.pos.y = target ? Math.min(this.view.floor - 8, target.y + SPRITE.height * this.scale) : Math.min(this.view.floor - 8, this.pos.y + SPRITE.height * this.scale);
+
+    this.pos.y = target
+        ? Math.min(this.view.floor - 8, target.y + SPRITE.height * this.scale)
+        : Math.min(this.view.floor - 8, this.pos.y + SPRITE.height * this.scale);
+
     this.pos.x = Math.max(24, Math.min(this.view.w - 24, this.pos.x));
+
     this.bob = this.tilt = 0;
     this.place();
-    this.nudge();
+
+    // Déclenche une chute jusqu'en bas de l'écran.
+    this.fall({ toFloor: true });
+
     return true;
-  }
+}
 
   // ---------- her moods (mood.js) ----------
 
@@ -1803,21 +1818,34 @@ export class Capri {
   }
 
   // `leave`: she hops off her ledge on purpose, so it is not where she lands.
-  fall({ leave = false } = {}) {
+  fall({ leave = false, toFloor = false } = {}) {
     if (this.stance === 'fall') return;
+
     if (this.sky) this.endAct(false);
+
     this.leftLedge = leave && this.perch ? this.perch.id : null;
-    this.landingSpot = this.landing(this.leftLedge);
+    this.fallToFloor = toFloor;
+
+    this.landingSpot = this.fallToFloor
+        ? { x: this.pos.x, y: this.floor, stance: 'stand', perch: null }
+        : this.landing(this.leftLedge);
+
     this.setStance('fall');
     this.vy = 0;
     this.lastFall = performance.now();
-    this.nudge(); // falling is smooth motion: frame by frame from now
-    if (reducedMotion.matches) this.updateFall(this.lastFall + 10000);
-  }
+
+    this.nudge();
+
+    if (reducedMotion.matches) {
+        this.updateFall(this.lastFall + 10000);
+    }
+}
 
   updateFall(now) {
     // (the windows move while she falls: where she lands is looked at again every drawing)
-    const target = this.landingSpot = this.landing(this.leftLedge);
+    const target = this.landingSpot = this.fallToFloor
+    ? { x: this.pos.x, y: this.floor, stance: 'stand', perch: null }
+    : this.landing(this.leftLedge);
     const dt = Math.min(0.05, (now - this.lastFall) / 1000);
     this.lastFall = now;
     this.vy = Math.min(this.vy + GRAVITY * dt, 1900);
@@ -1828,6 +1856,7 @@ export class Capri {
     }
     this.pos.y = target.y;
     this.leftLedge = null;
+    this.fallToFloor = false;
     this.setStance(target.stance, { perch: target.perch });
     const s = this.scale;
     if (target.stance === 'sit') {
@@ -2014,53 +2043,128 @@ export class Capri {
     });
     this.canvas.addEventListener('mousedown', (e) => {
       if (e.button !== 0 || this.busy || !this.hit(e.clientX, e.clientY)) return;
-      down = { x: e.clientX, y: e.clientY, pos: { ...this.pos }, at: performance.now() };
+      down = {
+        x: e.clientX,
+        y: e.clientY,
+        pos: { ...this.pos },
+        at: performance.now(),
+        handstand: this.stance === 'handstand',
+        handstandTarget: this.handstandTarget
+        ? { ...this.handstandTarget }
+        : null,
+};
     });
-    window.addEventListener('mousemove', (e) => {
-      this.mouse = { x: e.clientX, y: e.clientY }; // a window she's in watches it
-      if (down) {
-        const dx = e.clientX - down.x, dy = e.clientY - down.y;
+    
+window.addEventListener('mousemove', (e) => {
+    this.mouse = { x: e.clientX, y: e.clientY };
+
+    if (down) {
+        const dx = e.clientX - down.x;
+        const dy = e.clientY - down.y;
+
         if (!this.dragging && Math.hypot(dx, dy) > 5 && !this.busy) {
-          this.dragging = true;
-          this.nudge();
-          if (this.upside) {
-            // flip back upright under the pointer
-            down.pos = { x: down.pos.x, y: down.y + (SPRITE.feet.y - SPRITE.head.y) * this.scale };
-          }
-          this.endAct(false);
-          this.setStance('stand');
-          this.p.glitch = 0.18;
-          this.p.split = 2;
-          this.onTeleport?.('start');
+            this.dragging = true;
+            this.nudge();
+
+            // Si elle ne fait pas le poirier, comportement habituel.
+            if (!down.handstand) {
+                if (this.upside) {
+                    down.pos = {
+                        x: down.pos.x,
+                        y: down.y + (SPRITE.feet.y - SPRITE.head.y) * this.scale
+                    };
+                }
+
+                this.endAct(false);
+                this.setStance('stand');
+                this.onTeleport?.('start');
+            }
+
+            this.p.glitch = 0.18;
+            this.p.split = 2;
         }
+
         if (this.dragging) {
-          this.pos = {
-            x: clamp(down.pos.x + dx, 40, this.view.w - 40),
-            y: clamp(down.pos.y + dy, SPRITE.height * this.scale * 0.5, this.floor),
-          };
-          this.p.glitchSeed = Math.random() * 100;
-          this.place();
+            if (down.handstand) {
+                // Conserver le rebord comme point d'appui.
+                const win = this.windows.wins.find(
+                    w => w.id === down.handstandTarget?.id
+                );
+
+                if (!win) {
+                    this.dragging = false;
+                    down = null;
+                    this.stopHandstand();
+                    return;
+                }
+
+                const dxOnWindow = clamp(
+                    down.handstandTarget.dx + dx,
+                    24,
+                    Math.max(24, win.w - 24)
+                );
+
+                this.handstandTarget = {
+                    id: win.id,
+                    dx: dxOnWindow
+                };
+
+                this.pos = ledges.handstandSeat(win, dxOnWindow);
+            } else {
+                // Déplacement normal.
+                this.pos = {
+                    x: clamp(down.pos.x + dx, 40, this.view.w - 40),
+                    y: clamp(
+                        down.pos.y + dy,
+                        SPRITE.height * this.scale * 0.5,
+                        this.floor
+                    ),
+                };
+            }
+
+            this.p.glitchSeed = Math.random() * 100;
+            this.place();
         }
+
         return;
-      }
-      this.notice(e.clientX, e.clientY);
-    });
-    window.addEventListener('mouseup', (e) => {
-      if (!down) return;
-      const wasDragging = this.dragging;
-      const { at } = down;
-      down = null;
-      this.dragging = false;
-      if (wasDragging) {
+    }
+
+    this.notice(e.clientX, e.clientY);
+});
+
+window.addEventListener('mouseup', (e) => {
+    if (!down) return;
+
+    const wasDragging = this.dragging;
+    const { at, handstand } = down;
+
+    down = null;
+    this.dragging = false;
+
+    if (wasDragging) {
         tween(this.p, { glitch: 0, split: 0 }, 200, ease.out);
-        this.onTeleport?.('end');
-        const where = this.drop();
-        this.onDrop?.({ ms: performance.now() - at, where }); // dragged around too often, she gets dizzy; put down, a word about it (heart.js)
-      } else {
-        this.onClick?.({ zone: this.zone(e.clientX, e.clientY) });
-      }
-    });
+
+        if (handstand) {
+            // Elle reste en poirier après le déplacement.
+            this.nudge();
+        } else {
+            this.onTeleport?.('end');
+
+            const where = this.drop();
+
+            this.onDrop?.({
+                ms: performance.now() - at,
+                where
+            });
+        }
+    } else {
+        this.onClick?.({
+            zone: this.zone(e.clientX, e.clientY)
+        });
+    }
+});
   }
+
 
   // Let go of her: onto a ledge if her hips are right at one, otherwise she falls. Says where she ended up:
   // 'window' (on one, not the taskbar) or 'floor'.

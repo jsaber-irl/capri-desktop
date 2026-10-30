@@ -54,16 +54,49 @@ export const ACTS = {
     ],
   },
 
-  // Balanced upside down, arms braced while her legs make a small counterbalancing sway.
-  handstand: {
+  // Poirier : corps retourné, bras en appui et jambes relevées
+  // avec les genoux visibles et un léger mouvement d'équilibre.
+handstand: {
     loop: true,
     keys: [
-      [8, { kickL: 0.08, kickR: -0.06, hair: -1, arms: -0.72, tilt: -0.8 }],
-      [3, { kickL: 0.15, kickR: -0.12, hair: 1, arms: -0.78, tilt: 0.8 }],
-      [8, { kickL: -0.06, kickR: 0.08, hair: 1, arms: -0.72, tilt: 0.8 }],
-      [3, { kickL: -0.12, kickR: 0.15, hair: -1, arms: -0.78, tilt: -0.8 }],
+        [8, {
+            kickL: 0.12,
+            kickR: -0.08,
+            hair: -1,
+            arms: -0.72,
+            rotation: 180,
+            tilt: -0.8,
+            bob: 84
+        }],
+        [3, {
+            kickL: 0.20,
+            kickR: -0.14,
+            hair: 1,
+            arms: -0.78,
+            rotation: 180,
+            tilt: 0.8,
+            bob: 80
+        }],
+        [8, {
+            kickL: -0.08,
+            kickR: 0.12,
+            hair: 1,
+            arms: -0.72,
+            rotation: 180,
+            tilt: 0.8,
+            bob: 84
+        }],
+        [3, {
+            kickL: -0.14,
+            kickR: 0.20,
+            hair: -1,
+            arms: -0.78,
+            rotation: 180,
+            tilt: -0.8,
+            bob: 80
+        }],
     ],
-  },
+},
 
   // leaning in from the edge of the screen, toward the middle
   peek: {

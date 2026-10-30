@@ -241,8 +241,6 @@ export const LINES = {
     },
   },
 
-  // Brazilian Portuguese
-
   // Russian: "choom" is "чумба", as in the game's Russian localization
   ru: {
     state: { work: 'В РАБОТЕ', done: 'ГОТОВО', alert: 'ЖДУ', error: 'ОШИБКА', info: 'СИНХР', idle: 'ПОКОЙ' },
@@ -484,48 +482,547 @@ export const LINES = {
       AskUserQuestion: 'Спрашивает', ExitPlanMode: 'Предлагает', default: 'Использует',
     },
   },
+
+  fr: {
+    state: {
+      work: 'EN COURS',
+      done: 'TERMINÉ',
+      alert: 'EN ATTENTE',
+      error: 'ERREUR',
+      info: 'SYNC',
+      idle: 'AU REPOS',
+    },
+
+    hello: [
+      'Connexion établie. Salut, choom.',
+      'Le construct Capricorn est en ligne. Qu’est-ce qu’on construit ?',
+      'Toutes mes consciences sont réveillées. Je surveille {project}.',
+      'Bio-puce opérationnelle. Je suis là.',
+    ],
+
+    resume: [
+      'De retour sur {project}. Je n’ai rien oublié.',
+      'Session reprise. Reprenons là où nous en étions.',
+    ],
+
+    prompt: [
+      'Nouvelle mission. Claude s’en occupe.',
+      'Compris. Je garde un œil sur Claude.',
+      'Parfait, c’est parti.',
+      'Mission acceptée. Je te tiens au courant.',
+    ],
+
+    working: [
+      'Ça avance. {count} actions effectuées.',
+      'Claude travaille. Je compte : {count}.',
+      'Toujours en cours. {count} actions au compteur.',
+    ],
+
+    done: [
+      'Terminé ! Du travail de pro.',
+      'Mission accomplie, choom.',
+      'Claude a terminé. Tu peux revenir.',
+      'Livré. Pas mal, non ?',
+      'Terminé. Nous étions des dizaines à surveiller, rien ne nous a échappé.',
+    ],
+
+    permission: [
+      'Hé ! Claude a besoin de ton autorisation.',
+      'Choom, tu dois confirmer quelque chose.',
+      'J’attends ton feu vert.',
+    ],
+
+    waiting: [
+      'Claude attend ta réponse.',
+      'À toi de jouer, choom.',
+    ],
+
+    error: [
+      'Aïe. {tool} a planté.',
+      '{tool} est hors service. Claude va réessayer.',
+      '{tool} a échoué. Rien de grave… enfin, je crois.',
+    ],
+
+    interrupted: [
+      'Interrompu. Changement de programme ?',
+      'Connexion coupée. Je reste dans le coin.',
+    ],
+
+    crashed: [
+      'Claude s’est arrêté en plein travail.',
+      'Gros plantage. Claude n’a pas pu terminer.',
+    ],
+
+    subagentStart: ['Sous-agent {agent} déployé.'],
+    subagentStop: ['Le sous-agent {agent} est de retour.'],
+
+    someTool: 'L’outil',
+    someAgent: 'agent',
+
+    compact: [
+      'Compression de nos souvenirs…',
+      'Trop de souvenirs. Un petit rangement s’impose.',
+    ],
+
+    // Discussion avec Capri (chat.js) : les réponses sont générées par une IA.
+    chat: {
+      badge: 'IA · EN DIRECT',
+      talk: 'Parle-moi',
+
+      hello: [
+        'Salut, choom. À quoi tu penses ?',
+        'La ligne est ouverte. Parle-nous.',
+        'Envie de discuter ? Nous sommes tout ouïe. Toutes autant que nous sommes.',
+      ],
+
+      again: [
+        'Où en étions-nous ?',
+        'Déjà de retour ? Je t’écoute.',
+      ],
+
+      placeholder: 'Écris quelque chose…',
+      send: 'Envoyer',
+      close: 'Fermer',
+
+      noteTag: 'IA',
+      note: 'Réponses générées par une IA locale. Ce n’est pas la véritable Capri.',
+      noteCloud: 'Réponses générées par une IA en ligne. Ce n’est pas la véritable Capri.',
+
+      offline: 'Impossible de joindre Ollama.',
+      offlineHow: 'Pour discuter avec moi, installe Ollama (ollama.com), lance-le, puis exécute dans un terminal : ollama pull llama3.2\nTout reste sur ton PC.',
+
+      noModel: 'Aucun modèle n’est encore installé dans Ollama.',
+      noModelHow: 'Dans un terminal, exécute : ollama pull llama3.2 (environ 2 Go). Tu pourras ensuite discuter avec moi.',
+
+      getOllama: 'Télécharger Ollama',
+      ok: 'Compris',
+
+      preparing: 'Je me prépare encore : je configure mon esprit et ma voix.',
+      preparingHow: 'Consulte la fenêtre de configuration pour voir ce qui est déjà prêt.',
+      openPrepare: 'Fenêtre de configuration',
+
+      failed: 'Signal perdu :',
+
+      swamped: 'Leurs serveurs sont actuellement saturés, même avec un autre modèle. Réessaie dans quelques instants.',
+      credit: 'Ton compte n’a plus de crédits disponibles. Recharge-le sur leur site avant de réessayer.',
+      badkey: 'Cette clé a été refusée. Vérifie-la dans mon menu › IA.',
+      refused: 'Le service a refusé de répondre. Essaie de reformuler ta demande.',
+      gone: 'Ce modèle n’est plus disponible. Choisis-en un autre : clic droit sur moi › Modèle IA.',
+
+      loading: 'Réveil du modèle… La première réponse peut prendre un peu de temps.',
+      tiny: 'Je fonctionne avec {model} : il est assez petit, je risque de raconter des bêtises. On en prend un plus puissant ?',
+      better: 'Un meilleur modèle',
+
+      working: 'Je m’en occupe… (Claude Code travaille)',
+
+      // Fermeture d'une application à la demande de l'utilisateur.
+      closeIt: 'Fermer {app}',
+      no: 'Non',
+      closed: '{app} : application fermée.',
+      stillOpen: '{app} est toujours ouvert : il est peut-être réduit dans la zone de notification ou attend que tu enregistres quelque chose.',
+      force: 'Forcer la fermeture',
+      leave: 'Laisser ouvert',
+      forced: '{app} : fermeture forcée.',
+      unkillable: 'Impossible de fermer {app}. Ferme-le manuellement depuis le Gestionnaire des tâches.',
+      notFound: 'Je ne trouve pas « {app} » parmi les applications ouvertes sur ton PC.',
+
+      // Ouverture d'une application, d'un jeu, d'un site ou recherche musicale.
+      openIt: 'Ouvrir {app}',
+      opened: '{app} : lancement en cours.',
+      notInstalled: 'Je ne trouve pas « {app} » sur ton PC.',
+      music: 'Recherche de « {song} » sur Spotify.',
+      siteIt: 'Ouvrir {site}',
+      siteOpened: '{site} : ouvert.',
+
+      media: {
+        pause: 'Lecture en pause.',
+        play: 'Lecture en cours.',
+        next: 'Morceau suivant.',
+        previous: 'Morceau précédent.',
+        volup: 'Volume augmenté.',
+        voldown: 'Volume diminué.',
+        mute: 'Son coupé.',
+      },
+
+      version: 'Je suis Capri, version {version}.',
+    },
+
+    // Rapport des missions effectuées par Claude.
+    report: {
+      title: 'Journal des missions',
+      badge: 'DÉBRIEFING',
+
+      missions: 'Missions terminées',
+      actions: 'Actions',
+      files: 'Fichiers',
+      errors: 'Erreurs',
+      longest: 'Plus longue mission',
+
+      prompts: ['requête', 'requêtes'],
+      approvals: ['autorisation', 'autorisations'],
+      projects: ['projet', 'projets'],
+
+      copy: 'Copier l’image',
+      copied: 'Copié ✓',
+      copyFailed: 'Impossible de copier',
+      close: 'Fermer',
+
+      lines: {
+        none: [
+          'Aucune mission aujourd’hui. Nuit tranquille.',
+          'Journal vide. Claude a pris sa journée.',
+        ],
+        light: [
+          'Petite journée. Ça fait du bien.',
+          'Service écourté. Voici le bilan.',
+        ],
+        good: [
+          'Pas mal, choom. Voici le bilan de ta journée.',
+          'Le journal du jour. Plutôt nova.',
+        ],
+        big: [
+          'Grosse journée. Night City n’a jamais tourné aussi vite.',
+          'Regarde-moi ça. On a tout donné aujourd’hui.',
+        ],
+      },
+    },
+
+    // Claude réfléchit pendant une tâche.
+    thinking: {
+      verb: 'Réflexion',
+
+      hmm: [
+        'Petit moment de réflexion.',
+        'Claude réfléchit. Moi aussi, par la même occasion.',
+        'Toujours en réflexion. Je ne suis pas bloquée, promis.',
+      ],
+
+      long: [
+        'Cette fois, ça prend un peu de temps.',
+        'Longue réflexion. Claude prépare quelque chose de complexe.',
+      ],
+
+      longHow: 'Rien n’est bloqué : je surveille le temps. Avec un modèle local (Ollama), cela peut prendre plusieurs minutes.',
+    },
+
+    bye: [
+      'Session {project} terminée. À plus, choom.',
+      'Déconnexion. Je ne serai jamais bien loin.',
+    ],
+
+    idle: [
+      'Rien en cours. Je flotte tranquillement.',
+      'Aucune mission. Je commence à m’ennuyer.',
+      'Une nuit tranquille sur le Net.',
+    ],
+
+    gaze: [
+      'Tu vois cette étoile ?',
+      'Le satellite est toujours là-haut.',
+      'Chut. Je surveille.',
+    ],
+
+    uplink: [
+      'Un jour, j’arriverai à monter là-haut.',
+      'Tu crois qu’on pourrait y arriver ?',
+      'Il a répondu. Tu as vu ça ?',
+    ],
+
+    // Réponse de Claude affichée lorsque l'utilisateur n'est pas devant sa fenêtre.
+    reply: [
+      'Claude a répondu :',
+      'Voici ce que Claude a dit :',
+      'Message de Claude :',
+    ],
+
+    // Démonstration des animations de Capri.
+    showcase: {
+      minds: 'Il y a tout un monde dans ma tête.',
+      zap: 'Moi ? Une menace ?',
+      possess: 'Cette fenêtre est à moi maintenant.',
+      sleep: 'Petite sieste…',
+      chip: 'Ctrl+Alt+C, et je me réfugie ici.',
+      end: 'Fin de la démonstration. À toi de jouer, choom.',
+    },
+
+    // Guide d'accueil et d'utilisation.
+    guide: {
+      ok: 'Compris',
+      next: 'Suivant',
+      more: 'Fais-moi visiter',
+
+      labels: {
+        icon: 'MON ICÔNE',
+        claude: 'CLAUDE',
+      },
+
+      permissionThere: 'C’est dans la fenêtre de Claude, juste là où je te montre.',
+
+      menu: {
+        line: 'Que veux-tu que je te montre ?',
+        quote: 'Choisis, je t’y emmène.',
+      },
+
+      topics: {
+        connect: 'Me connecter à Claude',
+        icon: 'Où est mon icône ?',
+        claude: 'Où est Claude ?',
+        folder: 'Dossier de Claude',
+        talk: 'Discuter avec moi',
+        custom: 'Personnaliser Capri',
+        close: 'Non merci',
+      },
+
+      icon: {
+        line: 'Mon icône se trouve juste là, près de l’horloge.',
+        quote: 'Clique dessus pour ouvrir mon menu. Un clic droit sur moi fait la même chose.',
+        hidden: 'Windows la cache souvent derrière le symbole ^, près de l’horloge. Clique dessus pour me retrouver. Un clic droit sur mon icône ouvre également mon menu.',
+      },
+
+      claude: {
+        there: 'Claude se trouve dans cette fenêtre.',
+        thereHow: 'C’est la fenêtre dans laquelle tu as envoyé ta dernière requête. Lorsqu’une autorisation est nécessaire, tu dois répondre directement dans cette fenêtre.',
+
+        unknown: 'Je ne sais pas encore où il se trouve.',
+        unknownHow: 'Envoie-lui une requête : la fenêtre dans laquelle tu écris est celle de Claude. Je pourrai ensuite te la montrer.',
+
+        behind: 'Sa fenêtre est cachée derrière les autres.',
+        behindHow: 'C’est la fenêtre dans laquelle tu as envoyé ta dernière requête. Place-la au premier plan et je te la montrerai.',
+      },
+
+      folder: {
+        line: 'Voici le dossier de Claude : {dir}',
+
+        what: 'Le fichier settings.json contient ses paramètres. C’est également là que se trouve mon hook : une petite commande exécutée par Claude à chaque action pour me tenir informée.',
+
+        empty: 'Le fichier settings.json n’existe pas encore. Il sera créé lorsque tu me connecteras.',
+
+        hook: 'Pas besoin de modifier ce fichier manuellement.',
+
+        hookHow: 'Pour me déconnecter : clic droit sur moi › « Supprimer les hooks Claude Code ». Les fichiers .capri-backup sont des copies de sauvegarde créées avant mes modifications.',
+
+        missing: 'Je ne trouve aucun dossier Claude sur ce PC.',
+
+        missingHow: 'Ce dossier apparaît lorsque Claude Code est installé et lancé pour la première fois. Je pourrai ensuite m’y connecter.',
+      },
+    },
+
+    // Configuration de l'IA de discussion (setup.js).
+    setup: {
+      who: 'Pour discuter avec toi, j’ai besoin d’une IA.',
+
+      why: {
+        noOllama: 'Ollama n’est pas installé sur ce PC.',
+        asleep: 'Ollama est installé, mais il n’est pas démarré.',
+        noModel: 'Aucun modèle n’est encore installé dans Ollama.',
+      },
+
+      whoHow: 'Le plus simple : utiliser Ollama directement sur ton PC. C’est gratuit et aucune donnée ne quitte ta machine.\nTu peux aussi utiliser un service en ligne sans compte ou fournir une clé API.',
+
+      local: 'Sur mon PC',
+      online: 'En ligne, sans compte',
+      key: 'J’ai une clé API',
+      later: 'Plus tard',
+      back: 'Retour',
+      other: 'Une autre IA',
+      ok: 'Compris',
+      talk: 'Discuter',
+
+      install: 'Veux-tu installer Ollama ?',
+      installHow: 'Ollama permet de faire fonctionner une IA directement sur ton PC. Le téléchargement fait environ 1 Go et l’installation prend une ou deux minutes. Windows peut te demander une confirmation.',
+
+      installBtn: 'Installer',
+      site: 'Site d’Ollama',
+
+      noWinget: 'Je ne peux pas installer Ollama automatiquement sur ce PC.',
+      noWingetHow: 'Télécharge Ollama depuis son site officiel et installe-le. Reviens ensuite me parler : je m’occuperai du reste.',
+
+      installing: 'Installation d’Ollama…',
+      installingHow: 'Cela prend une ou deux minutes. Ne ferme aucune fenêtre.',
+
+      installFailed: 'L’installation a échoué.',
+
+      waking: 'Démarrage d’Ollama…',
+      wakingHow: 'Cela ne devrait prendre que quelques secondes.',
+
+      wakeFailed: 'Impossible de démarrer Ollama.',
+      wakeFailedHow: 'Ouvre Ollama depuis le menu Démarrer, puis reviens me parler.',
+
+      model: 'J’ai besoin d’un modèle IA. C’est un peu comme mon cerveau.',
+      bigger: 'Prenons-en un plus puissant. Lequel préfères-tu ?',
+      modelHow: 'gemma3 est généralement meilleur pour les langues autres que l’anglais. llama3.2 est plus léger et convient mieux aux petits PC.',
+
+      pulling: 'Téléchargement de {model}…',
+      pullStart: 'Démarrage…',
+      progress: '{done} sur {total} · {percent} %',
+
+      cancel: 'Annuler',
+      pullFailed: 'Le téléchargement a échoué.',
+
+      which: 'Quel service souhaites-tu utiliser ?',
+      whichHow: 'Groq et Gemini proposent une offre gratuite. Il suffit de créer un compte et de récupérer une clé API.',
+
+      paste: 'Colle ta clé API {name} ici.',
+      pasteHow: 'Je la conserve sur ce PC, chiffrée avec ton compte Windows.',
+
+      placeholder: 'Ta clé API…',
+      save: 'Enregistrer',
+      where: 'Où puis-je en obtenir une ?',
+
+      keyTag: 'CLÉ',
+      keyNote: 'Elle est uniquement transmise au service correspondant.',
+
+      keyBad: 'Cette clé ne fonctionne pas :',
+
+      address: 'Quelle est l’adresse de ton serveur ?',
+      addressHow: 'Il peut s’agir d’un serveur compatible avec l’API OpenAI, comme LM Studio : http://127.0.0.1:1234/v1',
+      addressNote: 'Les messages que tu m’envoies seront transmis à cette adresse.',
+
+      checking: 'Vérification…',
+
+      ready: 'Tout est prêt ! Je peux maintenant discuter avec toi.',
+      readyHow: 'Clique sur moi lorsque tu souhaites discuter.',
+
+      failed: 'Une erreur est survenue :',
+
+      gb: 'Go',
+      mb: 'Mo',
+
+      free: 'Gratuit avec Ollama',
+      freeLine: '{name} gratuitement avec Ollama.',
+
+      freeHow: 'Je vais ouvrir une fenêtre dans laquelle Ollama pourra démarrer {name}. Choisis un modèle : ceux portant la mention « cloud » sont plus rapides sur les petits PC, mais nécessitent un compte Ollama. Dès que le modèle fonctionne, je te montrerai ce qu’il fait.',
+
+      freeBtn: 'Ouvrir la fenêtre',
+      freeOpened: 'Fenêtre ouverte.',
+      freeOpenedHow: 'Choisis un modèle dans cette fenêtre. Dès que {name} commencera à fonctionner, je te tiendrai au courant.',
+    },
+
+    // Personnalisation de Capri (custom.js).
+    custom: {
+      name: 'Comment dois-je t’appeler ?',
+      nameHow: 'Ton prénom ou un pseudonyme. Je l’utiliserai de temps en temps.',
+      nameNow: 'Pour le moment, je t’appelle {name}.',
+      namePlaceholder: 'Ton prénom…',
+
+      persona: 'Envie de modifier un peu ma personnalité ?',
+      personaHow: 'Explique-moi comment tu aimerais que je sois : plus taquine, plus douce, parler comme une pirate… Cela concerne nos discussions. Je resterai toujours Capri.',
+      personaNow: 'Personnalité actuelle : « {persona} »',
+      personaPlaceholder: 'Plus taquine, et raconte-moi des histoires sur Night City…',
+
+      lines: 'Des phrases que tu aimerais m’entendre dire ?',
+      linesHow: 'Ajoute-les une par une. Écris {name} dans une phrase et je le remplacerai par ton nom.',
+      linesCount: 'Tes phrases : {count}. La dernière : « {last} »',
+      linePlaceholder: 'Une phrase pour moi…',
+
+      memories: 'Y a-t-il quelque chose que je devrais retenir ?',
+      memoriesHow: 'Ajoute les informations une par une. Je pourrai m’en souvenir lors de nos prochaines discussions.',
+      memoriesCount: 'Souvenirs enregistrés : {count}. Le dernier : « {last} »',
+      memoryPlaceholder: 'Ton jeu préféré, ton chat, D…',
+
+      save: 'Enregistrer',
+      add: 'Ajouter',
+      skip: 'Passer',
+      done: 'Terminé',
+      clear: 'Tout effacer',
+
+      saved: 'Compris.',
+      savedHow: 'Tu pourras tout modifier plus tard : clic droit sur moi › Personnaliser Capri.',
+
+      named: 'Compris, {name}.',
+      remembered: 'Compris, je m’en souviendrai.',
+
+      onlineName: [
+        'Te revoilà, {name}.',
+        'Salut {name}, je suis là.',
+        'Capri en ligne. Salut {name}.',
+      ],
+    },
+
+    // Écran de bienvenue et connexion à Claude Code.
+    welcome: {
+      hi: 'Salut, moi c’est Capri.',
+
+      alone: 'Pas de Claude Code ici, pas de travail à surveiller. Je vais simplement tenir compagnie à ton bureau.',
+
+      about: 'Je vis sur ton bureau et réagis aux actions de Claude Code sur ce PC. Sans lui, je peux simplement rester ici avec toi, et ça me va aussi.',
+
+      connect: 'Tu veux me connecter à Claude Code ? Un seul clic suffit. Il faudra ensuite fermer complètement Claude Code et le redémarrer.',
+
+      noClaude: 'Je ne trouve pas Claude Code sur ce PC (son utilisation nécessite un abonnement Claude). Sans lui, je resterai simplement sur ton bureau.',
+
+      menu: 'Fais un clic droit sur moi pour ouvrir mon menu. Ctrl+Alt+C permet de me ranger.',
+
+      connectBtn: 'Me connecter',
+      later: 'Plus tard',
+      whatClaude: 'Qu’est-ce que Claude Code ?',
+      justHang: 'Rester tranquillement ici',
+      ok: 'Compris',
+
+      connected: 'Connexion établie !',
+
+      restart: 'Ferme maintenant complètement Claude Code, puis relance-le pour démarrer une nouvelle session. Dès qu’il effectuera une action, je te le signalerai.',
+
+      linked: 'Je vois Claude ! Nous sommes connectées.',
+
+      ready: 'Je suis connectée à Claude Code.',
+
+      readyHow: 'Dès qu’il commencera à travailler, je te montrerai ce qu’il fait. Fais un clic droit sur moi pour ouvrir mon menu. Ctrl+Alt+C permet de me ranger.',
+
+      afterInstall: 'Une fois installé, fais un clic droit sur moi › « Installer les hooks Claude Code ».',
+
+      failed: 'Impossible de me connecter : {error}',
+    },
+
+    online: [
+      'Capri est en ligne.',
+      'De retour sur ton bureau, choom.',
+    ],
+
+    // Windows a désactivé les animations : Capri bouge très peu.
+    motion: {
+      line: 'Les animations de Windows sont désactivées. Je bouge donc très peu.',
+      quote: 'Tu veux que je bouge quand même ? Tu pourras modifier ce réglage plus tard dans mon menu › Animations.',
+      full: 'Bouger !',
+      still: 'Rester tranquille',
+    },
+
+    status: 'Claude travaille sur {project} depuis {time}.',
+    last: 'Dernière action : {action}',
+    sessions: '{count} sessions actives',
+
+    units: {
+      action: ['action', 'actions'],
+      file: ['fichier modifié', 'fichiers modifiés'],
+    },
+
+    hooksOk: 'Hooks installés. Redémarre Claude Code pour que je puisse tout voir.',
+    hooksRemoved: 'Hooks supprimés. Je ne peux plus voir ce que fait Claude.',
+    hooksFail: 'Impossible de modifier les hooks : {error}',
+
+    verbs: {
+      Read: 'Lit',
+      Write: 'Écrit',
+      Edit: 'Modifie',
+      MultiEdit: 'Modifie',
+      NotebookEdit: 'Modifie',
+      Bash: 'Exécute',
+      PowerShell: 'Exécute',
+      Grep: 'Recherche',
+      Glob: 'Parcourt',
+      WebFetch: 'Récupère',
+      WebSearch: 'Recherche sur le Web',
+      Agent: 'Délègue',
+      Task: 'Délègue',
+      TodoWrite: 'Planifie',
+      Skill: 'Charge',
+      AskUserQuestion: 'Pose une question',
+      ExitPlanMode: 'Propose',
+      default: 'Utilise',
+    },
+  },
 };
 
-LINES.fr = {
-  ...LINES.en,
-  state: { work: 'EN COURS', done: 'TERMINÉ', alert: 'EN ATTENTE', error: 'ERREUR', info: 'SYNC', idle: 'INACTIVE' },
-  hello: ['Connexion établie. Salut, pote.', 'Le construct Capricorn est en ligne. Qu’est-ce qu’on construit ?', 'Je suis réveillée. Je surveille {project}.', 'La bio-puce est chaude. Je suis là.'],
-  resume: ['De retour sur {project}. Je n’ai rien oublié.', 'Session reprise. On continue où nous en étions.'],
-  prompt: ['Nouvelle mission. Claude s’en occupe.', 'Compris. Je garde un œil sur Claude.', 'D’accord, c’est parti.', 'Mission acceptée. Je te tiens au courant.'],
-  working: ['Ça avance. {count} actions pour l’instant.', 'Claude travaille. Je compte : {count}.', 'Toujours dessus. {count} actions au compteur.'],
-  done: ['Terminé ! Voilà qui est propre.', 'Mission terminée, pote.', 'Claude a fini. Tu peux revenir.', 'Livré. Pas mal, non ?', 'Fini. Nous étions des dizaines à surveiller.'],
-  permission: ['Hé ! Claude a besoin de ton autorisation.', 'Pote, tu dois confirmer quelque chose.', 'J’attends ton feu vert.'],
-  waiting: ['Claude attend ta réponse.', 'À toi de jouer, pote.'],
-  error: ['Aïe. {tool} a planté.', '{tool} est hors service. Claude va réessayer.', '{tool} a échoué. Rien de grave… je crois.'],
-  interrupted: ['Interrompu. Changement de plan ?', 'Coupure. Je reste ici.'],
-  crashed: ['Claude s’est arrêté en plein vol.', 'Gros plantage. Claude n’a pas pu finir.'],
-  subagentStart: ['Sous-agent {agent} envoyé.'], subagentStop: ['Le sous-agent {agent} est de retour.'],
-  someTool: 'L’outil', someAgent: 'agent',
-  chat: {
-    ...LINES.en.chat,
-    badge: 'IA · EN DIRECT', talk: 'Parle-moi',
-    hello: ['Salut, pote. À quoi tu penses ?', 'La ligne est ouverte. Parle-nous.', 'Tu veux discuter ? Nous sommes tout ouïe.'],
-    again: ['Où en étions-nous ?', 'Déjà de retour ? Vas-y.'],
-    placeholder: 'Écris quelque chose…', send: 'Envoyer', close: 'Fermer',
-    noteTag: 'IA', note: 'Réponses générées par une IA locale. Ce n’est pas la vraie Capri.',
-    noteCloud: 'Réponses générées par une IA en ligne. Ce n’est pas la vraie Capri.',
-    offline: 'Je n’arrive pas à joindre Ollama.', getOllama: 'Obtenir Ollama', ok: 'Compris',
-    preparing: 'Je me prépare encore : j’installe mon esprit et ma voix.', openPrepare: 'Fenêtre de configuration',
-    failed: 'Signal perdu :', loading: 'Réveil du modèle… la première réponse prend un moment.',
-    working: 'Je m’en occupe… (Claude Code travaille)',
-    closeIt: 'Fermer {app}', no: 'Non', closed: '{app} : terminé.',
-    force: 'Forcer l’arrêt', leave: 'Laisser', forced: '{app} : arrêté proprement.',
-    notFound: 'Je ne vois pas « {app} » ouvert sur ton PC.',
-    openIt: 'Ouvrir {app}', opened: '{app} : je m’en occupe.', notInstalled: 'Je ne trouve pas « {app} » sur ton PC.',
-    siteIt: 'Ouvrir {site}', siteOpened: '{site} : ouvert.',
-    media: { pause: 'En pause.', play: 'Lecture.', next: 'Suivant.', previous: 'Précédent.', volup: 'Plus fort.', voldown: 'Moins fort.', mute: 'Son coupé.' },
-    version: 'Je suis Capri, version {version}.',
-  },
-  thinking: { verb: 'Réflexion', hmm: ['Instant cerveau.', 'Claude réfléchit. Moi aussi.', 'Je réfléchis encore. Je ne suis pas bloquée.'], long: ['Ça prend un moment.', 'Longue réflexion. Claude prépare quelque chose de compliqué.'], longHow: 'Rien n’est bloqué : je compte. Avec un modèle local (Ollama), cela peut prendre plusieurs minutes.' },
-  bye: ['Session {project} fermée. À plus.', 'Déconnectée. Je reste dans le coin.'],
-  idle: ['Rien ne tourne. Je flotte tranquillement.', 'Pas de mission. Je m’ennuie un peu.', 'Nuit calme sur le Net.'],
-  reply: ['Claude a répondu :', 'Voici ce que Claude a dit :', 'Message de Claude :'],
-};
 
 // The coding assistants she can watch besides Claude Code: the same lines with their name, their
 // hooks file, and what to do once her hooks are in.

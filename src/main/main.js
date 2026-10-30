@@ -1223,23 +1223,82 @@ function watchWindows() {
   });
 }
 
+
 async function refreshMacWindows() {
-  if (process.platform !== 'darwin' || !overlay || overlay.isDestroyed()) return;
-  const result = await listMacWindows();
-  windowDetection = result;
-  if (!result.ok) {
-    lastWindows = { fg: null, taskbar: false, over: false, wins: [], detectionError: result.error, permissionNeeded: result.permissionNeeded };
-  } else {
-    const bounds = overlay.getBounds();
-    const wins = result.windows.filter((win) => !/^capri(?: helper)?$/i.test(win.app)).map((win) => ({ ...win, x: win.x - bounds.x, y: win.y - bounds.y, max: false }))
-      .filter((win) => win.x < bounds.width && win.x + win.w > 0 && win.y < bounds.height && win.y + win.h > 0);
-    lastWindows = { fg: null, taskbar: false, over: false, wins };
-  }
-  overlay.webContents.send('windows:update', lastWindows);
-  if (!result.ok && handstandActive) {
-    clearInterval(macWindowTimer);
-    macWindowTimer = null;
-  }
+    console.log('[CAPRI DEBUG] refreshMacWindows appelée');
+
+    if (process.platform !== 'darwin' || !overlay || overlay.isDestroyed()) {
+        console.log('[CAPRI DEBUG] Détection ignorée : overlay indisponible');
+        return;
+    }
+
+    const result = await listMacWindows();
+
+    console.log('[CAPRI WINDOW DEBUG] Résultat AppleScript :', result);
+
+    if (result.ok) {
+        const bounds = overlay.getBounds();
+
+        console.log('[CAPRI WINDOW DEBUG] Bounds overlay :', bounds);
+
+        console.log('[CAPRI WINDOW DEBUG] Fenêtres détectées :',
+            result.windows.map(win => ({
+                app: win.app,
+                title: win.title,
+                x: win.x,
+                y: win.y,
+                w: win.w,
+                h: win.h
+            }))
+        );
+
+        // Exclure Capri et toutes les applications Electron.
+        const filteredWindows = result.windows.filter(win => {
+            const appName = (win.app || '').trim().toLowerCase();
+
+            return appName !== 'electron' &&
+                   appName !== 'capri' &&
+                   appName !== 'capri helper';
+        });
+
+        console.log('[CAPRI WINDOW DEBUG] Nombre après exclusion :', filteredWindows.length);
+
+        const wins = filteredWindows
+            .map(win => ({
+                ...win,
+                x: win.x - bounds.x,
+                y: win.y - bounds.y,
+                max: false
+            }))
+            .filter(win =>
+                win.x < bounds.width &&
+                win.x + win.w > 0 &&
+                win.y < bounds.height &&
+                win.y + win.h > 0
+            );
+
+        console.log('[CAPRI WINDOW DEBUG] Nombre après filtrage spatial :', wins.length);
+
+        lastWindows = {
+            fg: null,
+            taskbar: false,
+            over: false,
+            wins
+        };
+    } else {
+        console.error('[CAPRI WINDOW DEBUG] Échec :', result.error);
+
+        lastWindows = {
+            fg: null,
+            taskbar: false,
+            over: false,
+            wins: [],
+            detectionError: result.error,
+            permissionNeeded: result.permissionNeeded
+        };
+    }
+
+    overlay.webContents.send('windows:update', lastWindows);
 }
 
 function setHandstandTracking(active) {
@@ -1281,10 +1340,20 @@ function trayTip() {
 
 function createTray() {
   const icon = nativeImage.createFromPath(path.join(ROOT, 'assets', 'icons', 'tray.png'));
+
   tray = new Tray(icon);
   tray.setToolTip(trayTip());
+
   tray.on('click', () => sendCommand('status'));
-  buildTray();
+
+  // Détecte les fenêtres dès la création du menu sur macOS.
+  if (process.platform === 'darwin') {
+    refreshMacWindows()
+      .then(() => buildTray())
+      .catch((err) => console.error('[CAPRI] Initialisation des fenêtres :', err));
+  } else {
+    buildTray();
+  }
 }
 
 /** Relie les API preload aux opérations Main de configuration, conversation et système. */
