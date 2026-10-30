@@ -1,10 +1,10 @@
 ## GitHub Repository Sources
 
-### Branch `MAIN`
+### Branch `v1-ARCHIVED`
 - **Repository:** [mochiiwuff/capri-desktop](https://github.com/mochiiwuff/capri-desktop)
 - **Reference version:** `0.4.4`
 
-### Branch `V2`
+### Branch `v2`
 - **Repository:** [untrainedDemonKing/capri-desktop-main](https://github.com/untrainedDemonKing/capri-desktop-main)
 - **Reference commit:** [`1d10de56f0b4d5607c34541d42a2a21ff79d530c`](https://github.com/untrainedDemonKing/capri-desktop-main/commit/1d10de56f0b4d5607c34541d42a2a21ff79d530c)
 

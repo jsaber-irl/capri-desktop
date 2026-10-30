@@ -16,6 +16,7 @@ const PART = '.part';
 // Downloads `url` to `dest` (through dest + '.part', so a stopped download leaves no half file under the real
 // name). onProgress({ completed, total }) as it comes (total 0 when the server does not say). md5 or sha256: the
 // hash the file must have. Resolves { bytes }.
+/** Télécharge dans un fichier temporaire, contrôle taille/empreinte si fournies, puis publie le résultat. */
 async function download(url, dest, { onProgress, signal, fetchFn = (...a) => fetch(...a), md5 = '', sha256 = '' } = {}) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const res = await fetchFn(url, { redirect: 'follow', signal });
@@ -54,6 +55,7 @@ async function download(url, dest, { onProgress, signal, fetchFn = (...a) => fet
 
 // Unpacks a .zip into `dest`: the central directory is read from the end of the file, each file is streamed out
 // (stored or deflated), a path that leaves `dest` is refused. Big archives are fine: nothing is read whole.
+/** Extrait le ZIP tout en refusant une entrée qui sortirait du dossier de destination. */
 async function unzip(file, dest, { onProgress } = {}) {
   const root = path.resolve(dest);
   fs.mkdirSync(root, { recursive: true });

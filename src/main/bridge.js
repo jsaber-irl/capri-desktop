@@ -13,6 +13,7 @@ function send(res, status, body) {
   res.end(json);
 }
 
+/** Lit un corps JSON borné pour éviter qu’un hook local consomme une mémoire excessive. */
 function readJson(req) {
   return new Promise((resolve, reject) => {
     let size = 0;
@@ -37,6 +38,7 @@ function readJson(req) {
   });
 }
 
+/** Crée le serveur de boucle locale qui reçoit les hooks d’assistants. */
 function createBridge({ port, onEvent, onDebug }) {
   const server = http.createServer(async (req, res) => {
     // Browsers always send an Origin header on cross-site requests; hooks never do.

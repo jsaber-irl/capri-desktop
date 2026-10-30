@@ -27,6 +27,7 @@ const execFileAsync = (file, args, options = {}) => new Promise((resolve, reject
   execFile(file, args, { ...options, maxBuffer: options.maxBuffer || 16 * 1024 * 1024 }, (err, stdout) => err ? reject(err) : resolve(String(stdout || '')));
 });
 
+/** Normalise une demande d’application sans accents ni mots de commande superflus. */
 function normalizeRequest(text) {
   let value = plain(text).trim();
   value = value.replace(/^(?:(?:s'il\s+)?te\s+plait|please)\s+/u, '');
@@ -66,6 +67,7 @@ function editDistance(a, b) {
   return previous[b.length];
 }
 
+/** Résout les noms, alias et libellés localisés; les correspondances ex æquo restent ambiguës. */
 function resolveInCatalog(text, items) {
   const query = normalizeRequest(text);
   if (!query) return { status: 'not_found', suggestions: [] };
@@ -366,6 +368,7 @@ async function find(text) {
 
 // Opens one of them (only something she listed herself): a Start menu app through its AppsFolder
 // entry (desktop and Store apps alike), a game through its launcher's link.
+/** Lance une entrée résolue du catalogue, jamais une commande construite depuis le texte brut. */
 async function launch({ kind, id } = {}) {
   const item = (await launchables()).find((i) => i.kind === kind && i.id === id);
   if (!item) throw new Error('not found');

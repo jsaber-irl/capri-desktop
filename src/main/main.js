@@ -41,6 +41,7 @@ const { createIncomingCall } = require('./incoming-call');
 const { createChessWindow } = require('./chess-window');
 const { createTextDocument } = require('./documents');
 const { openVideoSearch } = require('./video-search');
+const { installNavigationGuards } = require('./electron-security');
 const { createFarewell } = require('./farewell');
 const stt = require('./stt');
 const vision = require('./screen');
@@ -59,12 +60,14 @@ const PORT = Number(process.env.CAPRI_PORT) || 47823;
 const SOUND_EXT = /\.(mp3|wav|ogg|m4a)$/i;
 
 const OLLAMA_SITE = 'https://ollama.com';
+/** Crée un texte neuf dans Documents puis demande à Launch Services d’ouvrir TextEdit. */
 function createUserTextDocument(filename, content) {
   return createTextDocument({
     filename, content, directory: app.getPath('documents'), platform: process.platform,
     openTextEdit: (file) => new Promise((resolve) => execFile('open', ['-a', 'TextEdit', '--', file], { timeout: 15000 }, (err) => resolve(err ? { ok: false, error: err.message } : { ok: true }))),
   });
 }
+/** Ouvre une recherche YouTube triée par date dans le navigateur demandé ou par défaut. */
 function performVideoSearch(request = {}) {
   return openVideoSearch({
     creator: request.creator,
@@ -252,6 +255,7 @@ function forgetChats() {
   sendCommand('forget');
 }
 
+// Sert uniquement les fichiers locaux du dépôt ou le dossier de sons utilisateur.
 // capri://app/...        -> files of this repo
 // capri://usersounds/... -> the user's own sound overrides
 function serveProtocol() {
@@ -585,6 +589,7 @@ const terminal = createTerminal({
 });
 
 // 'auto' -> the first system language Capri speaks, English otherwise.
+/** Résout le réglage « auto » à partir des langues préférées du système. */
 function resolveLang(setting) {
   if (LANGS.includes(setting)) return setting;
   const preferred = [...app.getPreferredSystemLanguages(), app.getSystemLocale(), app.getLocale()];
@@ -596,6 +601,7 @@ function resolveLang(setting) {
 }
 
 // What the overlay gets: `lang` is the resolved one, `langSetting` what the user picked.
+/** Produit la configuration Renderer sans transmettre les valeurs des clés API. */
 function rendererConfig() {
   const { apiKeys, ...cfg } = config.load(); // the keys stay here: the overlay only learns which ones are set
   return { ...cfg, keys: Object.keys(apiKeys || {}), assistant: activeAssistant().id, lang: resolveLang(cfg.lang), langSetting: LANGS.includes(cfg.lang) ? cfg.lang : 'auto', floorGap: overlayArea().gap };
@@ -603,6 +609,7 @@ function rendererConfig() {
 
 // A setting changed (her menus, her ring, her setup). Only what really changed is acted on: the same
 // value again costs nothing (no file, no message to the overlay, no menu to build).
+/** Applique les changements puis notifie les services et l’overlay. */
 function updateConfig(patch) {
   const changed = config.save(patch);
   if (!changed.length) return rendererConfig();
@@ -629,12 +636,16 @@ function updateConfig(patch) {
 
 // Who answers her chat, with its key or address if it needs one: saved, tried, and undone if it fails (the
 // wizard in her overlay and her main menu both connect a service this way).
+/** Essaie le fournisseur choisi et restaure l’ancien choix si sa connexion échoue. */
 async function useProvider({ provider, key, url } = {}) {
   if (!llm.PROVIDERS[provider]) return { ok: false, error: 'unknown provider' };
   const before = config.load();
   const patch = { provider };
   if (provider === 'ollama') patch.autoMind = true; // (choosing it again here: it is looked after at start-up again)
-  if (key) patch.apiKeys = { ...before.apiKeys, [provider]: setup.sealKey(String(key).trim()) };
+  if (key) {
+    try { patch.apiKeys = { ...before.apiKeys, [provider]: setup.sealKey(String(key).trim()) }; }
+    catch (err) { return { ok: false, error: err.message }; }
+  }
   if (url) patch.customUrl = String(url).trim();
   updateConfig(patch);
   const models = await refreshModels();
@@ -646,12 +657,16 @@ async function useProvider({ provider, key, url } = {}) {
 }
 
 // A voice service's key (or address, or voice) pasted in her panel or her main menu: the key kept encrypted.
+/** Met à jour la voix et conserve toute nouvelle clé dans le stockage sécurisé. */
 function ttsSetup({ engine, key, url, voice } = {}) {
   const before = config.load();
   const patch = {};
   if (engine && tts.ENGINES[engine]) patch.ttsEngine = engine;
   const slot = TTS_KEYS[patch.ttsEngine || before.ttsEngine];
-  if (key && slot) patch.apiKeys = { ...before.apiKeys, [slot]: setup.sealKey(String(key).trim()) };
+  if (key && slot) {
+    try { patch.apiKeys = { ...before.apiKeys, [slot]: setup.sealKey(String(key).trim()) }; }
+    catch (err) { return { ok: false, error: err.message }; }
+  }
   if (typeof url === 'string' && url.trim()) patch.ttsUrl = url.trim();
   if (typeof voice === 'string' && voice.trim()) patch.ttsVoice = voice.trim().slice(0, 80);
   return updateConfig(patch);
@@ -1272,6 +1287,7 @@ function createTray() {
   buildTray();
 }
 
+/** Relie les API preload aux opérations Main de configuration, conversation et système. */
 function registerIpc() {
   ipcMain.on('farewell:done', (event) => {
     if (event.sender === overlay?.webContents) farewell.finish();
@@ -1759,6 +1775,8 @@ function main() {
     app.quit();
     return;
   }
+  // Empêche qu'une navigation externe conserve le preload privilégié de Capri.
+  installNavigationGuards(app);
   app.on('second-instance', () => sendCommand('status'));
   if (process.platform === 'win32') app.setAppUserModelId('capri.desktop');
 

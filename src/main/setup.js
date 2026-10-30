@@ -186,10 +186,13 @@ function launchThroughOllama(integration) {
 }
 
 // API keys are kept encrypted in config.json, with your Windows account (DPAPI): "enc:<base64>".
+/** Chiffre une clé avant écriture; refuse le repli en clair si le coffre système manque. */
 function sealKey(key) {
-  return safeStorage.isEncryptionAvailable() ? `enc:${safeStorage.encryptString(key).toString('base64')}` : key;
+  if (!safeStorage.isEncryptionAvailable()) throw new Error('Le stockage chiffré du système est indisponible ; la clé API n’a pas été enregistrée.');
+  return `enc:${safeStorage.encryptString(key).toString('base64')}`;
 }
 
+/** Relit une clé; conserve la lecture des anciennes valeurs brutes par compatibilité. */
 function openKey(stored) {
   if (typeof stored !== 'string' || !stored.startsWith('enc:')) return stored || '';
   try {

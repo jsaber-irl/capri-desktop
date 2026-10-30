@@ -120,6 +120,7 @@ function macPermissionsMenuItem(platform, label, click) {
   return platform === 'darwin' ? { label, click } : null;
 }
 
+/** Lit l’indicateur d’accessibilité sans inventer un motif de refus précis. */
 function checkAccessibility({ systemPreferences, prompt = false, platform = process.platform } = {}) {
   if (platform !== 'darwin') {
     return { id: 'accessibility', status: 'unsupported', granted: false };
@@ -188,6 +189,7 @@ function checkScreenRecording({ systemPreferences, platform = process.platform }
   }
 }
 
+/** Interroge une cible Apple Events en lecture seule uniquement après une action explicite. */
 async function checkAutomation({ targetId = 'systemEvents', targetApp, exec = cp.execFile, platform = process.platform, probe = false } = {}) {
   if (platform !== 'darwin') {
     return { id: 'automation', status: 'unsupported', granted: false };

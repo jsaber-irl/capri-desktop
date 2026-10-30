@@ -78,6 +78,7 @@ async function safeOpenFile(file, shell) {
   }
 }
 
+/** Construit l’interpréteur; chaque capacité système lui est fournie explicitement par Main. */
 function createTerminal({
   version = 'unknown',
   lang = 'fr',

@@ -1,4 +1,4 @@
-## ** Project Capricorn**
+## **Project Capricorn**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -38,6 +38,7 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 13. [Rendering and animation](#rendering-and-animation)
 14. [Developers](#developers)
 15. [Authors and rights](#authors-and-rights)
+16. [Project structure and security review](#project-structure-and-security-review)
 
 ---
 
@@ -295,7 +296,7 @@ The demo plays through a complete fictional session, then shows Capri's autonomo
 - Communication with Claude Code uses `127.0.0.1`.
 - Hooks are backed up before modification and can be removed from the menu.
 - Vision and the microphone are disabled by default, and indicators show when they are active.
-- Irreversible actions require confirmation: sending a message, closing an application, opening a website, launching an application, and deleting items.
+- Actions that can affect another person or remove data use confirmation where the feature implements it. Application and website opening may execute immediately after an explicit user request.
 - Capri only removes her own installations and checks that each path is inside her data directory.
 - Windows are moved temporarily and then restored. Any manual user action interrupts the control.
 
@@ -433,3 +434,48 @@ To add a language, add it to these dictionaries, to `LANGS`, to the voice locale
 Capri is a fan project inspired by the world of *Cyberpunk: Edgerunners*. It is not affiliated with CD PROJEKT RED, Netflix, or the holders of the show's rights.
 
 The project's code is distributed under the MIT License, in accordance with the [LICENSE](LICENSE) file. Fonts and other assets provided in `assets/` retain their respective licenses.
+
+
+## Project structure and security review
+
+- [STRUCTURE.md](STRUCTURE.md) lists the versioned project files and explains the Electron processes, services, user interfaces, scripts and tests.
+- [SECURITY_AUDIT.md](SECURITY_AUDIT.md) records the static review, sensitive behaviors, fixes and remaining limitations.
+
+### Features available in the current code
+
+The following are present in the current source tree. Capabilities that depend on operating-system APIs, permissions, external providers or installed applications are identified as such.
+
+- **Voice calls:** the incoming-call screen can accept or decline; accepting uses Capri’s existing microphone, speech-recognition, conversation and speech-synthesis services. A microphone permission and configured speech services are required.
+- **Mac permissions:** macOS-only controls report Accessibility, microphone, screen recording and per-target Automation states where Electron/macOS can verify them. Some TCC states are inherently unknown until a real operation is attempted.
+- **Application and file actions:** application names are resolved from installed application metadata and aliases. Explicit document creation writes a new text file without overwriting an existing one, verifies it by reading it back, and opens it in TextEdit on macOS when that step succeeds. It does not automate arbitrary document editing inside every application.
+- **Video search:** a latest-video request opens YouTube search results ordered by date. Capri does not verify which result is genuinely newest or automatically select a video; inspect the results page yourself.
+- **Music:** terminal, chat and voice requests use the shared media controller and available platform adapters. Track metadata, volume control, native apps and browser sessions vary by operating system and reader.
+- **Chess:** the chat can open a local interactive chess window and the terminal supports /chess, /chess new, /chess help, /chess resign and /chess move <move>. The self-contained opponent is a casual, shallow-search bot; its strength has not been rated or calibrated to 1000 Elo.
+- **Terminal additions:** /document create <name> "<text>", /search videos <channel> [in Safari], and /music <action> provide explicit entry points to those shared services. /open app/<name> resolves and launches an installed application.
+- **Languages:** the primary menus and dialogue dictionaries include French, English and Russian. Some dedicated windows retain their own translation dictionaries, so not every external model response or every legacy string is guaranteed to be translated.
+
+### Platform and build notes
+
+The code contains platform-specific adapters for Windows, macOS and Linux, but the package configuration defines Windows and macOS distribution targets only. A Linux release target is not configured. Build commands present in package.json include npm run dist (Windows), npm run dist:mac (macOS), npm run dist:32 and npm run dist:all. No lint or TypeScript command is defined; the maintained application code is JavaScript, with PowerShell and Python helpers.
+
+### Services, keys and permissions
+
+Direct runtime dependencies include Electron and the Anthropic SDK; other providers and local services are reached through their documented APIs or installed executables. Configure provider credentials through Capri’s settings. New API keys are stored using Electron safeStorage; if the operating system cannot encrypt them, Capri now refuses to save the key. Older unencrypted configuration entries remain readable for compatibility and should be re-entered after encryption is available.
+
+Microphone, screen observation, Apple Events, Accessibility and window-control behavior require explicit user actions and applicable system permissions. Cloud chat, speech recognition, speech synthesis or vision sends the data needed for that request to the selected provider. Local Ollama, Piper and Chatterbox can keep those operations on the device, subject to their own setup and downloads.
+
+### Commands for developers
+
+~~~bash
+npm install
+npm start
+npm run dev
+npm test
+npm run demo
+npm run check:llm
+npm run voices:demo
+npm run dist
+npm run dist:mac
+~~~
+
+The repository does not define a separate lint or TypeScript-check command. The full test suite uses Node’s built-in test runner.
