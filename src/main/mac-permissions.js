@@ -367,26 +367,56 @@ async function requestPermission(id, { systemPreferences, shell, exec = cp.execF
 
 // Window management operations for macOS
 function listMacWindows({ exec = cp.execFile, platform = process.platform } = {}) {
-  if (platform !== 'darwin') return Promise.resolve({ ok: false, windows: [], reason: 'unsupported' });
+  if (platform !== 'darwin') {
+    return Promise.resolve({
+      ok: false,
+      windows: [],
+      reason: 'unsupported',
+    });
+  }
 
   const script = `
 tell application "System Events"
   set output to ""
   set procList to (every process whose visible is true and background only is false)
+
   repeat with p in procList
     set pName to name of p
+
     try
       set wList to (every window of p)
+
       repeat with w in wList
         try
-          set wName to name of w
-          set wPos to position of w
-          set wSize to size of w
-          set output to output & pName & ":::" & wName & ":::" & (item 1 of wPos) & ":::" & (item 2 of wPos) & ":::" & (item 1 of wSize) & ":::" & (item 2 of wSize) & "\\n"
+          -- Vérifier si la fenêtre est minimisée
+          -- Si l'attribut est indisponible, conserver la fenêtre
+          set isMinimized to false
+
+          try
+            set isMinimized to (value of attribute "AXMinimized" of w) as boolean
+          on error
+            set isMinimized to false
+          end try
+
+          -- Ignorer les fenêtres minimisées
+          if isMinimized is false then
+            set wName to name of w
+            set wPos to position of w
+            set wSize to size of w
+
+            set output to output & pName & ":::" & wName & ":::" & (item 1 of wPos) & ":::" & (item 2 of wPos) & ":::" & (item 1 of wSize) & ":::" & (item 2 of wSize) & "\\n"
+          end if
+
+        on error
+          -- Une fenêtre inaccessible ne bloque pas les autres
         end try
       end repeat
+
+    on error
+      -- Une application inaccessible ne bloque pas les autres
     end try
   end repeat
+
   return output
 end tell
 `;
@@ -397,21 +427,28 @@ end tell
         const msg = String(err.message || '');
         const permissionNeeded = permissionErrorKind(err);
         const isPerm = Boolean(permissionNeeded);
+
         return resolve({
           ok: false,
           windows: [],
-          error: isPerm ? 'Autorisez Capri pour Événements système dans Confidentialité et sécurité > Automatisation. Accessibilité peut aussi être nécessaire pour certaines opérations sur les fenêtres.' : msg,
+          error: isPerm
+            ? 'Autorisez Capri pour Événements système dans Confidentialité et sécurité > Automatisation. Accessibilité peut aussi être nécessaire pour certaines opérations sur les fenêtres.'
+            : msg,
           permissionNeeded,
         });
       }
 
       const lines = String(stdout || '').split('\n').filter(Boolean);
       const seenIds = new Map();
-      const windows = lines.map((line, idx) => {
+
+      const windows = lines.map((line) => {
         const [app, title, x, y, w, h] = line.split(':::');
+
         const key = `${(app || 'Unknown').trim()}::${(title || '').trim()}`;
         const occurrence = seenIds.get(key) || 0;
+
         seenIds.set(key, occurrence + 1);
+
         return {
           id: `${key}::${occurrence}`,
           app: (app || 'Unknown').trim(),
@@ -423,7 +460,10 @@ end tell
         };
       });
 
-      return resolve({ ok: true, windows });
+      return resolve({
+        ok: true,
+        windows,
+      });
     });
   });
 }

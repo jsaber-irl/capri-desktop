@@ -1,16 +1,16 @@
-# Structure du projet Capri
+# Capri Project Structure
 
 ## Architecture
 
-Capri est une application Electron. Le processus Main contrôle les fenêtres, les services système, la configuration et les connexions externes. Les pages Renderer dessinent l’overlay, les menus et les fenêtres dédiées. Les preloads exposent des fonctions ciblées par contextBridge; les Renderers n’obtiennent pas directement Node.js. Les processus échangent par IPC.
+Capri is an Electron application. The Main process controls windows, system services, configuration, and external connections. Renderer pages display the overlay, menus, and dedicated windows. Preloads expose targeted functions through `contextBridge`; Renderers do not have direct access to Node.js. Processes communicate through IPC.
 
-Flux courant : événement de hook ou action utilisateur → Main/IPC → service métier (IA, système, fichiers ou audio) → résultat → Renderer. Les appels IA, la transcription cloud et la vision peuvent transmettre les données nécessaires au fournisseur choisi.
+Typical flow: hook event or user action → Main/IPC → business service (AI, system, files, or audio) → result → Renderer. AI requests, cloud transcription, and vision features may transmit the required data to the selected provider.
 
-## Arborescence versionnée complète
+## Complete Version-Controlled Directory Tree
 
-Arbre construit à partir des 244 chemins suivis par Git au début de l’audit. Quatre fichiers créés pour cet audit ou sa correction sont également listés dans l’index : STRUCTURE.md, SECURITY_AUDIT.md, src/main/electron-security.js et tests/electron-security.test.js. node_modules et fichiers locaux ignorés sont exclus.
+Tree generated from the 244 paths tracked by Git at the beginning of the audit. Four files created for this audit or its security fixes are also listed in the index: `STRUCTURE.md`, `SECURITY_AUDIT.md`, `src/main/electron-security.js`, and `tests/electron-security.test.js`. `node_modules` and ignored local files are excluded.
 
-~~~text
+```text
 capri-desktop-main-main/
 ├── .github/
 │   ├── workflows/
@@ -108,7 +108,7 @@ capri-desktop-main-main/
 │   │   ├── chatterbox-setup.js
 │   │   ├── chatterbox.js
 │   │   ├── chess-game.js
-│   │   ├── chess-window.js
+│   │   ├── chess-window\.js
 │   │   ├── cleanup.js
 │   │   ├── config.js
 │   │   ├── control.js
@@ -191,7 +191,7 @@ capri-desktop-main-main/
 │   │   │   ├── setup.js
 │   │   │   ├── speech.js
 │   │   │   ├── sprite.js
-│   │   │   ├── steps-view.js
+│   │   │   ├── steps-view\.js
 │   │   │   ├── terminal.js
 │   │   │   ├── themes.js
 │   │   │   ├── util.js
@@ -280,324 +280,326 @@ capri-desktop-main-main/
 ├── package-lock.json
 ├── package.json
 └── README.md
-~~~
+```
 
-## Processus Electron
+## Electron Process
 
-- src/main/main.js démarre l’application, le protocole capri://app, l’overlay, le menu et les handlers IPC.
-- src/preload.js expose l’API Renderer principale; les autres preloads sont isolés par page.
-- Les fenêtres activent contextIsolation et sandbox, désactivent nodeIntegration.
-- src/main/electron-security.js bloque les popups et les navigations hors de capri://app/.
-- Le protocole local sert aussi les sons utilisateur.
-- Tous les handlers IPC principaux ne valident pas encore uniformément l’identité de la fenêtre appelante. Une compromission d’un Renderer local aurait donc une surface de capacités importante; voir le rapport.
+- `src/main/main.js` starts the application, the `capri://app` protocol, the overlay, the menu, and the IPC handlers.
+- `src/preload.js` exposes the main Renderer API; the other preloads are isolated by page.
+- Windows enable `contextIsolation` and `sandbox`, while disabling `nodeIntegration`.
+- `src/main/electron-security.js` blocks popups and navigations outside `capri://app/`.
+- The local protocol also serves user-provided sounds.
+- Not all main IPC handlers consistently validate the identity of the calling window yet. A compromised local Renderer would therefore have access to a significant range of capabilities; see the security audit.
 
-### Fonctions Main importantes
+### Important Main Functions
 
-| Fonction | Rôle et échanges |
+| Function | Role and Interactions |
 |---|---|
-| main() | Verrouille l’instance puis installe les garde-fous, protocole, IPC et fenêtres. |
-| registerIpc() | Enregistre les commandes de chat, configuration, apps, permissions, fichiers, voix et automatisation. |
-| rendererConfig() / updateConfig(patch) | Exclut les clés secrètes de la configuration Renderer et diffuse les changements. |
-| serveProtocol() | Sert les ressources locales et refuse les chemins sortant de la racine résolue. |
-| createIncomingCall(...) | Gère l’appel entrant et n’accepte les transcriptions qu’après acceptation. |
-| createChessWindow(...) | Maintient une partie et limite les IPC au renderer concerné. |
-| createTextDocument({filename, content, directory}) | Crée exclusivement un document puis relit son contenu. |
-| openVideoSearch({creator, browser}) | Construit une recherche YouTube triée par date. |
-| createBridge({port, onEvent, onDebug}) | Reçoit des hooks en boucle locale, limite la taille et refuse les requêtes Origin. |
-| checkAllPermissions(...) / requestAutomationTarget(...) | Retourne les seuls états macOS vérifiables; l’automatisation nécessite une action explicite. |
-| createMusicController(...) | Sélectionne un adaptateur de lecteur et retourne succès, erreur ou ambiguïté. |
+| `main()` | Locks the application instance, then installs security guards, the protocol, IPC, and windows. |
+| `registerIpc()` | Registers commands for chat, configuration, applications, permissions, files, voice, and automation. |
+| `rendererConfig()` / `updateConfig(patch)` | Excludes secret keys from Renderer configuration and broadcasts changes. |
+| `serveProtocol()` | Serves local resources and rejects paths outside the resolved root directory. |
+| `createIncomingCall(...)` | Handles incoming calls and only accepts transcriptions after the call has been accepted. |
+| `createChessWindow(...)` | Maintains a chess game and restricts IPC to the relevant Renderer. |
+| `createTextDocument({filename, content, directory})` | Creates a document exclusively and then reads its content back. |
+| `openVideoSearch({creator, browser})` | Builds a YouTube search sorted by date. |
+| `createBridge({port, onEvent, onDebug})` | Receives hooks through the local loopback interface, limits request size, and rejects requests containing an Origin header. |
+| `checkAllPermissions(...)` / `requestAutomationTarget(...)` | Returns only verifiable macOS permission states; automation requires explicit user action. |
+| `createMusicController(...)` | Selects a media player adapter and returns success, an error, or an ambiguity result. |
 
-## Interface et logique métier
+## Interface and Business Logic
 
-- src/renderer/js/app.js relie événements Main, composants, chat et voix.
-- capri.js, acting.js, sprite.js, fx.js et fx-life.js portent la mascotte, ses sprites et effets Canvas.
-- panel.js, ring.js, ring-tabs.js, ring-ui.js et themes.js composent conversation, menu radial et réglages.
-- chat.js route les demandes explicites vers les actions disponibles et laisse les autres au fournisseur IA.
-- hands.js prépare les contrôles de fenêtres et les messages; les actions sensibles suivent un flux de confirmation.
-- brain.js, mood.js, heart.js, bond.js, life.js et mission.js composent personnalité, humeur et comportements autonomes.
-- ears.js, speech.js, voice.js et rhythm.js relient microphone, reconnaissance, synthèse et audio.
+- `src/renderer/js/app.js` connects Main events, components, chat, and voice.
+- `capri.js`, `acting.js`, `sprite.js`, `fx.js`, and `fx-life.js` handle the mascot, its sprites, and Canvas effects.
+- `panel.js`, `ring.js`, `ring-tabs.js`, `ring-ui.js`, and `themes.js` compose the conversation interface, radial menu, and settings.
+- `chat.js` routes explicit requests to available actions and delegates other requests to the AI provider.
+- `hands.js` prepares window controls and messages; sensitive actions follow a confirmation flow.
+- `brain.js`, `mood.js`, `heart.js`, `bond.js`, `life.js`, and `mission.js` compose personality, mood, and autonomous behaviors.
+- `ears.js`, `speech.js`, `voice.js`, and `rhythm.js` connect the microphone, recognition, synthesis, and audio systems.
 
 ## Services
 
-- IA : llm.js sélectionne le fournisseur; anthropic.js et ollama.js portent des clients dédiés; les autres fournisseurs peuvent être compatibles OpenAI.
-- Applications : launch.js découvre/résout les applications; apps.js interroge et ferme les applications actives.
-- Fenêtres : windows.js, mover.js, control.js et mac-permissions.js assurent les actions selon l’OS.
-- Audio : stt.js, tts.js, piper.js, chatterbox.js et music-control.js relient interfaces et moteurs.
-- Fichiers : documents.js crée sans écrasement; cleanup.js ne retire que les éléments recensés comme appartenant à Capri.
-- Configuration : config.js utilise Electron userData. setup.js chiffre les nouvelles clés avec safeStorage; les anciennes valeurs non chiffrées restent lisibles par compatibilité.
+- **AI:** `llm.js` selects the provider; `anthropic.js` and `ollama.js` provide dedicated clients; other providers may be OpenAI-compatible.
+- **Applications:** `launch.js` discovers and resolves applications; `apps.js` queries and closes active applications.
+- **Windows:** `windows.js`, `mover.js`, `control.js`, and `mac-permissions.js` handle OS-dependent operations.
+- **Audio:** `stt.js`, `tts.js`, `piper.js`, `chatterbox.js`, and `music-control.js` connect interfaces to audio engines.
+- **Files:** `documents.js` creates files without overwriting existing ones; `cleanup.js` only removes items identified as belonging to Capri.
+- **Configuration:** `config.js` uses Electron's `userData` directory. `setup.js` encrypts new keys using `safeStorage`; legacy unencrypted values remain readable for compatibility.
 
-## Terminal, appel et échecs
+## Terminal, Calls, and Chess
 
-Le parseur est src/main/terminal.js; la page et son historique sont src/renderer/terminal.html et src/renderer/js/terminal.js. HELP_COMMANDS liste les commandes. Les services partagés comprennent musique, échecs, documents, recherche vidéo et démonstrations.
+The terminal parser is `src/main/terminal.js`; its page and history are handled by `src/renderer/terminal.html` and `src/renderer/js/terminal.js`. `HELP_COMMANDS` lists the available commands. Shared services include music, chess, documents, video search, and demonstrations.
 
-L’appel utilise incoming-call.js, call.html, call-ui.js et call.css. Accepter démarre les services microphone existants; la conversation reprend les textes réellement transcrits et envoyés à la synthèse. Les échecs utilisent chess-game.js pour les règles et chess-window.js pour l’état/IPC. Le bot n’a pas de classement Elo calibré.
+The calling feature uses `incoming-call.js`, `call.html`, `call-ui.js`, and `call.css`. Accepting a call starts the existing microphone services; the conversation uses the text that was actually transcribed and sent to speech synthesis.
 
-## Ressources, traductions, tests et scripts
+Chess uses `chess-game.js` for the rules and `chess-window\.js` for game state and IPC. The bot does not have a calibrated Elo rating.
 
-- assets/ contient sprites, illustrations, icônes, sons, polices et licences; docs/ contient des images de guide.
-- Les chaînes principales sont dans labels.js, hub-lines.js, prepare-lines.js, renderer/js/lines.js et lines-life.js; certaines fenêtres ont leurs tables locales.
-- tests/ contient les tests Node; tests/fixtures/ contient faux exécutables et données.
-- scripts/ contient les outils npm de démonstration, installation et diagnostic; tools/ reconstruit des ressources hors démarrage normal.
-- .github/workflows/release.yml publie; build/installer.nsh personnalise l’installeur Windows.
+## Assets, Translations, Tests, and Scripts
 
-## Index individuel des fichiers suivis
+- `assets/` contains sprites, illustrations, icons, sounds, fonts, and licenses; `docs/` contains guide images.
+- The main strings are located in `labels.js`, `hub-lines.js`, `prepare-lines.js`, `renderer/js/lines.js`, and `lines-life.js`; some windows have their own local string tables.
+- `tests/` contains Node.js tests; `tests/fixtures/` contains mock executables and test data.
+- `scripts/` contains npm tools for demonstrations, installation, and diagnostics; `tools/` rebuilds resources outside normal application startup.
+- `.github/workflows/release.yml` handles releases; `build/installer.nsh` customizes the Windows installer.
 
-Les 244 fichiers suivis sont répertoriés individuellement. Les binaires sont décrits comme ressources; node_modules est externe et exclu.
+## Individual Index of Tracked Files
 
-| Chemin | Rôle |
+All 244 tracked files are listed individually. Binary files are described as resources; `node_modules` is external and excluded.
+
+| Path | Purpose |
 |---|---|
-| **STRUCTURE.md** | Ce document : architecture, arborescence et index des fichiers. |
-| **SECURITY_AUDIT.md** | Méthode, constats de sécurité, correction et risques restants. |
-| **src/main/electron-security.js** | Garde-fous globaux contre navigation externe et fenêtres enfants Electron. |
-| **tests/electron-security.test.js** | Teste le refus des popups et navigations non Capri. |
-| **.gitattributes** | Attributs Git. |
-| **.github/RELEASE_NEWS.md** | Notes de publication. |
-| **.github/workflows/release.yml** | Configuration GitHub. |
-| **.gitignore** | Exclusions Git. |
-| **INFO.md** | Attributions et dépôts de référence. |
-| **LICENSE** | Licence MIT du code; les ressources gardent leurs licences. |
-| **README.md** | Présentation, installation, configuration et fonctionnalités. |
-| **assets/capri-calling-image.png** | Ressource binaire de l’interface ou du paquet. |
-| **assets/capri/capri-cutout.png** | Image ou frame de la mascotte. |
-| **assets/capri/capri-face.png** | Image ou frame de la mascotte. |
-| **assets/capri/capri-full.png** | Image ou frame de la mascotte. |
-| **assets/capri/cutin-eyes.png** | Image ou frame de la mascotte. |
-| **assets/capri/cutin-grin.png** | Image ou frame de la mascotte. |
-| **assets/capri/cutin-laugh.png** | Image ou frame de la mascotte. |
-| **assets/capri/cutin-look.png** | Image ou frame de la mascotte. |
-| **assets/capri/cutin-many.png** | Image ou frame de la mascotte. |
-| **assets/capri/face-aside.png** | Image ou frame de la mascotte. |
-| **assets/capri/face-calm.png** | Image ou frame de la mascotte. |
-| **assets/capri/face-laugh.png** | Image ou frame de la mascotte. |
-| **assets/capri/face-look.png** | Image ou frame de la mascotte. |
-| **assets/capri/face-many.png** | Image ou frame de la mascotte. |
-| **assets/capri/face-smug.png** | Image ou frame de la mascotte. |
-| **assets/capri/face-wide.png** | Image ou frame de la mascotte. |
-| **assets/capri/intro-grab.webp** | Image ou frame de la mascotte. |
-| **assets/capri/intro-happy.webp** | Image ou frame de la mascotte. |
-| **assets/capri/intro-mouth1.webp** | Image ou frame de la mascotte. |
-| **assets/capri/intro-mouth2.webp** | Image ou frame de la mascotte. |
-| **assets/capri/intro-mouth3.webp** | Image ou frame de la mascotte. |
-| **assets/capri/intro-smear.webp** | Image ou frame de la mascotte. |
-| **assets/capri/intro-wave1.webp** | Image ou frame de la mascotte. |
-| **assets/capri/intro-wave2.webp** | Image ou frame de la mascotte. |
-| **assets/capri/intro-wave3.webp** | Image ou frame de la mascotte. |
-| **assets/fonts/LICENSE-chakra-petch.txt** | Police embarquée ou licence. |
-| **assets/fonts/LICENSE-jetbrains-mono.txt** | Police embarquée ou licence. |
-| **assets/fonts/chakra-petch-latin-600-normal.woff2** | Police embarquée ou licence. |
-| **assets/fonts/chakra-petch-latin-700-normal.woff2** | Police embarquée ou licence. |
-| **assets/fonts/jetbrains-mono-cyrillic-400-normal.woff2** | Police embarquée ou licence. |
-| **assets/fonts/jetbrains-mono-cyrillic-600-normal.woff2** | Police embarquée ou licence. |
-| **assets/fonts/jetbrains-mono-latin-400-normal.woff2** | Police embarquée ou licence. |
-| **assets/fonts/jetbrains-mono-latin-600-normal.woff2** | Police embarquée ou licence. |
-| **assets/icons/capri.ico** | Icône d’application ou de zone de notification. |
-| **assets/icons/capri.png** | Icône d’application ou de zone de notification. |
-| **assets/icons/tray.png** | Icône d’application ou de zone de notification. |
-| **assets/songs/phone-call.mp3** | Ressource audio. |
-| **assets/voice-default/README.md** | Présentation, installation, configuration et fonctionnalités. |
-| **build/installer.nsh** | Personnalisation NSIS Windows. |
-| **docs/ai.png** | Capture ou illustration du guide. |
-| **docs/bond.png** | Capture ou illustration du guide. |
-| **docs/dance.png** | Capture ou illustration du guide. |
-| **docs/done.png** | Capture ou illustration du guide. |
-| **docs/faces.png** | Capture ou illustration du guide. |
-| **docs/guide.png** | Capture ou illustration du guide. |
-| **docs/intro.png** | Capture ou illustration du guide. |
-| **docs/life.png** | Capture ou illustration du guide. |
-| **docs/moods.png** | Capture ou illustration du guide. |
-| **docs/peek.png** | Capture ou illustration du guide. |
-| **docs/point.png** | Capture ou illustration du guide. |
-| **docs/possess.png** | Capture ou illustration du guide. |
-| **docs/ring.png** | Capture ou illustration du guide. |
-| **docs/senses.png** | Capture ou illustration du guide. |
-| **docs/sit.png** | Capture ou illustration du guide. |
-| **docs/sleep.png** | Capture ou illustration du guide. |
-| **docs/star.png** | Capture ou illustration du guide. |
-| **docs/teleport.png** | Capture ou illustration du guide. |
-| **docs/themes.png** | Capture ou illustration du guide. |
-| **docs/victory.png** | Capture ou illustration du guide. |
-| **hooks/capri-agy-hook.js** | Hook d’assistant qui transmet un événement au service local Capri. |
-| **hooks/capri-codex-hook.js** | Hook d’assistant qui transmet un événement au service local Capri. |
-| **hooks/capri-hook.js** | Hook d’assistant qui transmet un événement au service local Capri. |
-| **package-lock.json** | Versions exactes des paquets résolus. |
-| **package.json** | Métadonnées, scripts npm, dépendances et Electron Builder. |
-| **scripts/check-llm.js** | Script de développement, installation, diagnostic ou démonstration. |
-| **scripts/demo-sequence.js** | Script de développement, installation, diagnostic ou démonstration. |
-| **scripts/demo.js** | Script de développement, installation, diagnostic ou démonstration. |
-| **scripts/install-codex-hooks.js** | Script de développement, installation, diagnostic ou démonstration. |
-| **scripts/install-hooks-agy.js** | Script de développement, installation, diagnostic ou démonstration. |
-| **scripts/install-hooks.js** | Script de développement, installation, diagnostic ou démonstration. |
-| **scripts/install-node.ps1** | Script de développement, installation, diagnostic ou démonstration. |
-| **scripts/release-notes.js** | Script de développement, installation, diagnostic ou démonstration. |
-| **scripts/voice-demo.js** | Script de développement, installation, diagnostic ou démonstration. |
-| **src/hub-preload.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/mac-permissions-preload.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/main/anthropic.js** | Client API Anthropic pour conversation et vision. |
-| **src/main/app-aliases.js** | Dictionnaire centralisé d’alias multilingues d’applications. |
-| **src/main/apps.js** | Énumère, recherche et ferme les applications actives. |
-| **src/main/assistants.js** | Catalogue des assistants de code. |
-| **src/main/bridge.js** | Serveur HTTP local des événements de hooks. |
-| **src/main/chatterbox-server.py** | Serveur local de synthèse vocale compatible OpenAI. |
-| **src/main/chatterbox-setup.js** | Détecte Python et prépare l’environnement Chatterbox. |
-| **src/main/chatterbox.js** | Supervise Chatterbox local. |
-| **src/main/chess-game.js** | Règles locales et stratégie de bot d’échecs approximative. |
-| **src/main/chess-window.js** | Fenêtre d’échecs, état de partie et IPC limité. |
-| **src/main/cleanup.js** | Nettoie les composants recensés comme appartenant à Capri. |
-| **src/main/config.js** | Charge, met en cache et écrit la configuration utilisateur. |
-| **src/main/control.js** | Opérations et saisie sur Windows. |
-| **src/main/documents.js** | Validation, création exclusive et vérification de fichiers texte. |
-| **src/main/farewell.js** | Séquence d’au revoir et fermeture. |
-| **src/main/fetch-files.js** | Téléchargement et extraction d’archives avec garde contre traversée de chemins. |
-| **src/main/hardware.js** | Collecte matérielle pour les recommandations. |
-| **src/main/hub-lines.js** | Textes localisés de configuration. |
-| **src/main/hub.js** | Fenêtre principale de configuration. |
-| **src/main/incoming-call.js** | Cycle de vie d’appel et validation IPC/transcriptions. |
-| **src/main/installed.js** | Inventaire des composants installés par Capri. |
-| **src/main/labels.js** | Libellés et langues du menu. |
-| **src/main/launch.js** | Découvre les applications, résout noms et alias, puis ouvre les applications/sites. |
-| **src/main/llm.js** | Catalogue des fournisseurs et routage IA. |
-| **src/main/mac-permissions.js** | États macOS, demandes Apple Events, réglages et fenêtres. |
-| **src/main/main.js** | Point d’entrée Electron Main : fenêtres, menu, configuration, services, cycle de vie et IPC. |
-| **src/main/media-control.ps1** | Contrôle multimédia Windows. |
-| **src/main/media.js** | Surveille les métadonnées multimédias. |
-| **src/main/media.ps1** | Métadonnées multimédias Windows. |
-| **src/main/mover.js** | Coordonne le déplacement d’une fenêtre. |
-| **src/main/mover.ps1** | Aide PowerShell au déplacement de fenêtres. |
-| **src/main/music-control.js** | Sélection du lecteur et adaptateurs système. |
-| **src/main/node-check.js** | Détecte et installe Node.js avec validation d’empreinte. |
-| **src/main/ollama-host.js** | Localise et supervise le processus Ollama. |
-| **src/main/ollama.js** | Client du serveur local Ollama. |
-| **src/main/piper.js** | Moteur vocal local Piper. |
-| **src/main/prepare-lines.js** | Textes localisés de préparation. |
-| **src/main/prepare.js** | Fenêtre de préparation et progression. |
-| **src/main/proc.js** | Utilitaires de processus et découverte de Python. |
-| **src/main/profiles.js** | Profils de ressources et recommandations de modèles/voix. |
-| **src/main/provision.js** | Orchestre la préparation des dépendances locales. |
-| **src/main/screen.js** | Capture d’écran pour le service de vision. |
-| **src/main/setup.js** | Prépare Ollama et chiffre les nouvelles clés via safeStorage. |
-| **src/main/stacking.js** | Rétablissement de l’overlay au premier plan. |
-| **src/main/stt.js** | Transcription par moteur cloud ou serveur compatible. |
-| **src/main/terminal.js** | Interprète les commandes du terminal et délègue aux services Main. |
-| **src/main/tts.js** | Route la synthèse vocale. |
-| **src/main/tune.js** | Adaptation des requêtes selon modèle et mesures locales. |
-| **src/main/video-search.js** | Recherche YouTube triée par date. |
-| **src/main/voice-sample.js** | Validation et gestion d’échantillon vocal. |
-| **src/main/windows.js** | Observe les fenêtres système. |
-| **src/main/windows.ps1** | Collecte des fenêtres Windows. |
-| **src/preload.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/prepare-preload.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/renderer/call-ui.js** | États, contrôles et transcriptions d’appel. |
-| **src/renderer/call.css** | Styles de l’interface correspondante. |
-| **src/renderer/call.html** | Structure d’une page Electron avec scripts et styles locaux. |
-| **src/renderer/chess-ui.js** | Échiquier, coups et promotion. |
-| **src/renderer/chess.css** | Styles de l’interface correspondante. |
-| **src/renderer/chess.html** | Structure d’une page Electron avec scripts et styles locaux. |
-| **src/renderer/hub.html** | Structure d’une page Electron avec scripts et styles locaux. |
-| **src/renderer/index.html** | Structure d’une page Electron avec scripts et styles locaux. |
-| **src/renderer/js/acting.js** | Poses et lecture d’animations. |
-| **src/renderer/js/app.js** | Assemble événements, chat, voix et état de Capri. |
-| **src/renderer/js/bond.js** | Préférences mémorisées. |
-| **src/renderer/js/brain-providers.js** | Catalogue des fournisseurs IA. |
-| **src/renderer/js/brain.js** | Réactions aux assistants et conversation. |
-| **src/renderer/js/capri-satellite-test.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/renderer/js/capri.js** | Mascotte : géométrie, posture, déplacements et réactions. |
-| **src/renderer/js/chat.js** | Interprétation des demandes explicites et orchestration du chat. |
-| **src/renderer/js/chip.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/renderer/js/custom.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/renderer/js/ears.js** | Microphone et transcription. |
-| **src/renderer/js/eyes.js** | Requêtes visuelles. |
-| **src/renderer/js/fx-life.js** | Effets des comportements autonomes. |
-| **src/renderer/js/fx.js** | Effets Canvas, salutation et texte animé. |
-| **src/renderer/js/guide.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/renderer/js/hands.js** | Interprétation du contrôle et préparation des actions. |
-| **src/renderer/js/heart.js** | Expression émotionnelle. |
-| **src/renderer/js/hub.js** | Fenêtre principale de configuration. |
-| **src/renderer/js/ledges.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/renderer/js/life.js** | Planification autonome. |
-| **src/renderer/js/lines-life.js** | Répliques autonomes localisées. |
-| **src/renderer/js/lines.js** | Répliques localisées. |
-| **src/renderer/js/mac-permissions.js** | États macOS, demandes Apple Events, réglages et fenêtres. |
-| **src/renderer/js/mission.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/renderer/js/mood.js** | Humeur et classification émotionnelle. |
-| **src/renderer/js/panel.js** | Bulle de conversation et actions. |
-| **src/renderer/js/pointer-life.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/renderer/js/possession.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/renderer/js/prepare.js** | Fenêtre de préparation et progression. |
-| **src/renderer/js/rhythm.js** | Analyse rythmique et animation. |
-| **src/renderer/js/ring-tabs.js** | Sections et réglages du menu. |
-| **src/renderer/js/ring-ui.js** | Composants DOM communs. |
-| **src/renderer/js/ring.js** | Géométrie du menu radial. |
-| **src/renderer/js/satellite-wait.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/renderer/js/setup.js** | Prépare Ollama et chiffre les nouvelles clés via safeStorage. |
-| **src/renderer/js/speech.js** | Synthèse vocale Renderer. |
-| **src/renderer/js/sprite.js** | Chargement et dessin des images. |
-| **src/renderer/js/steps-view.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/renderer/js/terminal.js** | Interprète les commandes du terminal et délègue aux services Main. |
-| **src/renderer/js/themes.js** | Palettes de thèmes. |
-| **src/renderer/js/util.js** | Code JavaScript du composant désigné par le chemin. |
-| **src/renderer/js/voice.js** | Choix des voix et périphériques. |
-| **src/renderer/mac-permissions.html** | Structure d’une page Electron avec scripts et styles locaux. |
-| **src/renderer/prepare.html** | Structure d’une page Electron avec scripts et styles locaux. |
-| **src/renderer/styles/capri.css** | Styles de l’interface correspondante. |
-| **src/renderer/styles/hub.css** | Styles de l’interface correspondante. |
-| **src/renderer/styles/mac-permissions.css** | Styles de l’interface correspondante. |
-| **src/renderer/styles/prepare.css** | Styles de l’interface correspondante. |
-| **src/renderer/styles/ring.css** | Styles de l’interface correspondante. |
-| **src/renderer/styles/terminal.css** | Styles de l’interface correspondante. |
-| **src/renderer/terminal.html** | Structure d’une page Electron avec scripts et styles locaux. |
-| **src/terminal-preload.js** | Code JavaScript du composant désigné par le chemin. |
-| **tests/acting.test.js** | Tests du domaine acting; services système simulés si nécessaire. |
-| **tests/anthropic.test.js** | Tests du domaine anthropic; services système simulés si nécessaire. |
-| **tests/bond.test.js** | Tests du domaine bond; services système simulés si nécessaire. |
-| **tests/character.test.js** | Tests du domaine character; services système simulés si nécessaire. |
-| **tests/chat.test.js** | Tests du domaine chat; services système simulés si nécessaire. |
-| **tests/chatterbox.test.js** | Tests du domaine chatterbox; services système simulés si nécessaire. |
-| **tests/chess-game.test.js** | Tests du domaine chess game; services système simulés si nécessaire. |
-| **tests/claudecode.test.js** | Tests du domaine claudecode; services système simulés si nécessaire. |
-| **tests/cleanup.test.js** | Tests du domaine cleanup; services système simulés si nécessaire. |
-| **tests/config.test.js** | Tests du domaine config; services système simulés si nécessaire. |
-| **tests/documents.test.js** | Tests du domaine documents; services système simulés si nécessaire. |
-| **tests/farewell.test.js** | Tests du domaine farewell; services système simulés si nécessaire. |
-| **tests/fixtures/build-stub-wheel.py** | Faux programme ou donnée isolée de test. |
-| **tests/fixtures/fake-ollama.js** | Faux programme ou donnée isolée de test. |
-| **tests/fixtures/fake-piper.js** | Faux programme ou donnée isolée de test. |
-| **tests/hardware.test.js** | Tests du domaine hardware; services système simulés si nécessaire. |
-| **tests/heart.test.js** | Tests du domaine heart; services système simulés si nécessaire. |
-| **tests/hooks.test.js** | Tests du domaine hooks; services système simulés si nécessaire. |
-| **tests/hub.test.js** | Tests du domaine hub; services système simulés si nécessaire. |
-| **tests/incoming-call.test.js** | Tests du domaine incoming call; services système simulés si nécessaire. |
-| **tests/labels.test.js** | Tests du domaine labels; services système simulés si nécessaire. |
-| **tests/launch-resolver.test.js** | Tests du domaine launch resolver; services système simulés si nécessaire. |
-| **tests/ledges.test.js** | Tests du domaine ledges; services système simulés si nécessaire. |
-| **tests/mac-permissions.test.js** | Tests du domaine mac permissions; services système simulés si nécessaire. |
-| **tests/mover.test.js** | Tests du domaine mover; services système simulés si nécessaire. |
-| **tests/music-control.test.js** | Tests du domaine music control; services système simulés si nécessaire. |
-| **tests/node-check.test.js** | Tests du domaine node check; services système simulés si nécessaire. |
-| **tests/ollama-host.test.js** | Tests du domaine ollama host; services système simulés si nécessaire. |
-| **tests/openai.test.js** | Tests du domaine openai; services système simulés si nécessaire. |
-| **tests/piper.test.js** | Tests du domaine piper; services système simulés si nécessaire. |
-| **tests/possession.test.js** | Tests du domaine possession; services système simulés si nécessaire. |
-| **tests/prepare.e2e.test.js** | Tests du domaine prepare.e2e; services système simulés si nécessaire. |
-| **tests/profiles.test.js** | Tests du domaine profiles; services système simulés si nécessaire. |
-| **tests/provision.test.js** | Tests du domaine provision; services système simulés si nécessaire. |
-| **tests/release.test.js** | Tests du domaine release; services système simulés si nécessaire. |
-| **tests/ring.test.js** | Tests du domaine ring; services système simulés si nécessaire. |
-| **tests/satellite-wait.test.js** | Tests du domaine satellite wait; services système simulés si nécessaire. |
-| **tests/screen-capture.test.js** | Tests du domaine screen capture; services système simulés si nécessaire. |
-| **tests/senses.test.js** | Tests du domaine senses; services système simulés si nécessaire. |
-| **tests/stacking.test.js** | Tests du domaine stacking; services système simulés si nécessaire. |
-| **tests/terminal.test.js** | Tests du domaine terminal; services système simulés si nécessaire. |
-| **tests/tune.test.js** | Tests du domaine tune; services système simulés si nécessaire. |
-| **tests/video-search.test.js** | Tests du domaine video search; services système simulés si nécessaire. |
-| **tests/voice-demo.test.js** | Tests du domaine voice demo; services système simulés si nécessaire. |
-| **tests/voice-sample.test.js** | Tests du domaine voice sample; services système simulés si nécessaire. |
-| **tools/build-cutins.py** | Constructeur de ressource utilisé pendant le développement. |
-| **tools/build-intro.py** | Constructeur de ressource utilisé pendant le développement. |
-| **tools/build-sprite.py** | Constructeur de ressource utilisé pendant le développement. |
+| **`STRUCTURE.md`** | This document: architecture, directory tree, and file index. |
+| **`SECURITY_AUDIT.md`** | Security methodology, findings, fixes, and remaining risks. |
+| **`src/main/electron-security.js`** | Global security guards against external navigation and Electron child windows. |
+| **`tests/electron-security.test.js`** | Tests the rejection of popups and non-Capri navigations. |
+| **`.gitattributes`** | Git attributes. |
+| **`.github/RELEASE_NEWS.md`** | Release notes. |
+| **`.github/workflows/release.yml`** | GitHub workflow configuration. |
+| **`.gitignore`** | Git exclusions. |
+| **`INFO.md`** | Attributions and reference repositories. |
+| **`LICENSE`** | MIT license for the code; assets retain their own licenses. |
+| **`README.md`** | Overview, installation, configuration, and features. |
+| **`assets/capri-calling-image.png`** | Binary resource for the interface or package. |
+| **`assets/capri/capri-cutout.png`** | Mascot image or animation frame. |
+| **`assets/capri/capri-face.png`** | Mascot image or animation frame. |
+| **`assets/capri/capri-full.png`** | Mascot image or animation frame. |
+| **`assets/capri/cutin-eyes.png`** | Mascot image or animation frame. |
+| **`assets/capri/cutin-grin.png`** | Mascot image or animation frame. |
+| **`assets/capri/cutin-laugh.png`** | Mascot image or animation frame. |
+| **`assets/capri/cutin-look.png`** | Mascot image or animation frame. |
+| **`assets/capri/cutin-many.png`** | Mascot image or animation frame. |
+| **`assets/capri/face-aside.png`** | Mascot image or animation frame. |
+| **`assets/capri/face-calm.png`** | Mascot image or animation frame. |
+| **`assets/capri/face-laugh.png`** | Mascot image or animation frame. |
+| **`assets/capri/face-look.png`** | Mascot image or animation frame. |
+| **`assets/capri/face-many.png`** | Mascot image or animation frame. |
+| **`assets/capri/face-smug.png`** | Mascot image or animation frame. |
+| **`assets/capri/face-wide.png`** | Mascot image or animation frame. |
+| **`assets/capri/intro-grab.webp`** | Mascot image or animation frame. |
+| **`assets/capri/intro-happy.webp`** | Mascot image or animation frame. |
+| **`assets/capri/intro-mouth1.webp`** | Mascot image or animation frame. |
+| **`assets/capri/intro-mouth2.webp`** | Mascot image or animation frame. |
+| **`assets/capri/intro-mouth3.webp`** | Mascot image or animation frame. |
+| **`assets/capri/intro-smear.webp`** | Mascot image or animation frame. |
+| **`assets/capri/intro-wave1.webp`** | Mascot image or animation frame. |
+| **`assets/capri/intro-wave2.webp`** | Mascot image or animation frame. |
+| **`assets/capri/intro-wave3.webp`** | Mascot image or animation frame. |
+| **`assets/fonts/LICENSE-chakra-petch.txt`** | Embedded font or license. |
+| **`assets/fonts/LICENSE-jetbrains-mono.txt`** | Embedded font or license. |
+| **`assets/fonts/chakra-petch-latin-600-normal.woff2`** | Embedded font or license. |
+| **`assets/fonts/chakra-petch-latin-700-normal.woff2`** | Embedded font or license. |
+| **`assets/fonts/jetbrains-mono-cyrillic-400-normal.woff2`** | Embedded font or license. |
+| **`assets/fonts/jetbrains-mono-cyrillic-600-normal.woff2`** | Embedded font or license. |
+| **`assets/fonts/jetbrains-mono-latin-400-normal.woff2`** | Embedded font or license. |
+| **`assets/fonts/jetbrains-mono-latin-600-normal.woff2`** | Embedded font or license. |
+| **`assets/icons/capri.ico`** | Application or system tray icon. |
+| **`assets/icons/capri.png`** | Application or system tray icon. |
+| **`assets/icons/tray.png`** | Application or system tray icon. |
+| **`assets/songs/phone-call.mp3`** | Audio resource. |
+| **`assets/voice-default/README.md`** | Overview, installation, configuration, and features. |
+| **`build/installer.nsh`** | Windows NSIS installer customization. |
+| **`docs/ai.png`** | Guide screenshot or illustration. |
+| **`docs/bond.png`** | Guide screenshot or illustration. |
+| **`docs/dance.png`** | Guide screenshot or illustration. |
+| **`docs/done.png`** | Guide screenshot or illustration. |
+| **`docs/faces.png`** | Guide screenshot or illustration. |
+| **`docs/guide.png`** | Guide screenshot or illustration. |
+| **`docs/intro.png`** | Guide screenshot or illustration. |
+| **`docs/life.png`** | Guide screenshot or illustration. |
+| **`docs/moods.png`** | Guide screenshot or illustration. |
+| **`docs/peek.png`** | Guide screenshot or illustration. |
+| **`docs/point.png`** | Guide screenshot or illustration. |
+| **`docs/possess.png`** | Guide screenshot or illustration. |
+| **`docs/ring.png`** | Guide screenshot or illustration. |
+| **`docs/senses.png`** | Guide screenshot or illustration. |
+| **`docs/sit.png`** | Guide screenshot or illustration. |
+| **`docs/sleep.png`** | Guide screenshot or illustration. |
+| **`docs/star.png`** | Guide screenshot or illustration. |
+| **`docs/teleport.png`** | Guide screenshot or illustration. |
+| **`docs/themes.png`** | Guide screenshot or illustration. |
+| **`docs/victory.png`** | Guide screenshot or illustration. |
+| **`hooks/capri-agy-hook.js`** | Assistant hook that sends an event to the local Capri service. |
+| **`hooks/capri-codex-hook.js`** | Assistant hook that sends an event to the local Capri service. |
+| **`hooks/capri-hook.js`** | Assistant hook that sends an event to the local Capri service. |
+| **`package-lock.json`** | Exact versions of resolved packages. |
+| **`package.json`** | Metadata, npm scripts, dependencies, and Electron Builder configuration. |
+| **`scripts/check-llm.js`** | Development, installation, diagnostic, or demonstration script. |
+| **`scripts/demo-sequence.js`** | Development, installation, diagnostic, or demonstration script. |
+| **`scripts/demo.js`** | Development, installation, diagnostic, or demonstration script. |
+| **`scripts/install-codex-hooks.js`** | Development, installation, diagnostic, or demonstration script. |
+| **`scripts/install-hooks-agy.js`** | Development, installation, diagnostic, or demonstration script. |
+| **`scripts/install-hooks.js`** | Development, installation, diagnostic, or demonstration script. |
+| **`scripts/install-node.ps1`** | Development, installation, diagnostic, or demonstration script. |
+| **`scripts/release-notes.js`** | Development, installation, diagnostic, or demonstration script. |
+| **`scripts/voice-demo.js`** | Development, installation, diagnostic, or demonstration script. |
+| **`src/hub-preload.js`** | JavaScript code for the component identified by the path. |
+| **`src/mac-permissions-preload.js`** | JavaScript code for the component identified by the path. |
+| **`src/main/anthropic.js`** | Anthropic API client for conversation and vision. |
+| **`src/main/app-aliases.js`** | Centralized multilingual application alias dictionary. |
+| **`src/main/apps.js`** | Lists, searches, and closes active applications. |
+| **`src/main/assistants.js`** | Catalog of coding assistants. |
+| **`src/main/bridge.js`** | Local HTTP server for hook events. |
+| **`src/main/chatterbox-server.py`** | OpenAI-compatible local text-to-speech server. |
+| **`src/main/chatterbox-setup.js`** | Detects Python and prepares the Chatterbox environment. |
+| **`src/main/chatterbox.js`** | Manages the local Chatterbox process. |
+| **`src/main/chess-game.js`** | Local chess rules and approximate bot strategy. |
+| **`src/main/chess-window\.js`** | Chess window, game state, and restricted IPC. |
+| **`src/main/cleanup.js`** | Cleans up components identified as belonging to Capri. |
+| **`src/main/config.js`** | Loads, caches, and writes user configuration. |
+| **`src/main/control.js`** | Windows operations and input handling. |
+| **`src/main/documents.js`** | Validation, exclusive file creation, and text file verification. |
+| **`src/main/farewell.js`** | Goodbye sequence and application shutdown. |
+| **`src/main/fetch-files.js`** | Downloads and extracts archives with path traversal protection. |
+| **`src/main/hardware.js`** | Collects hardware information for recommendations. |
+| **`src/main/hub-lines.js`** | Localized configuration text. |
+| **`src/main/hub.js`** | Main configuration window. |
+| **`src/main/incoming-call.js`** | Call lifecycle and IPC/transcription validation. |
+| **`src/main/installed.js`** | Inventory of components installed by Capri. |
+| **`src/main/labels.js`** | Menu labels and languages. |
+| **`src/main/launch.js`** | Discovers applications, resolves names and aliases, then opens applications or websites. |
+| **`src/main/llm.js`** | AI provider catalog and routing. |
+| **`src/main/mac-permissions.js`** | macOS permission states, Apple Events requests, settings, and windows. |
+| **`src/main/main.js`** | Electron Main entry point: windows, menu, configuration, services, lifecycle, and IPC. |
+| **`src/main/media-control.ps1`** | Windows media control. |
+| **`src/main/media.js`** | Monitors media metadata. |
+| **`src/main/media.ps1`** | Windows media metadata. |
+| **`src/main/mover.js`** | Coordinates window movement. |
+| **`src/main/mover.ps1`** | PowerShell helper for moving windows. |
+| **`src/main/music-control.js`** | Media player selection and system adapters. |
+| **`src/main/node-check.js`** | Detects and installs Node.js with checksum verification. |
+| **`src/main/ollama-host.js`** | Locates and manages the Ollama process. |
+| **`src/main/ollama.js`** | Client for the local Ollama server. |
+| **`src/main/piper.js`** | Local Piper speech engine. |
+| **`src/main/prepare-lines.js`** | Localized preparation text. |
+| **`src/main/prepare.js`** | Preparation window and progress tracking. |
+| **`src/main/proc.js`** | Process utilities and Python discovery. |
+| **`src/main/profiles.js`** | Resource profiles and model/voice recommendations. |
+| **`src/main/provision.js`** | Orchestrates the setup of local dependencies. |
+| **`src/main/screen.js`** | Screen capture for the vision service. |
+| **`src/main/setup.js`** | Prepares Ollama and encrypts new keys using `safeStorage`. |
+| **`src/main/stacking.js`** | Restores the overlay to the foreground. |
+| **`src/main/stt.js`** | Transcription through a cloud engine or compatible server. |
+| **`src/main/terminal.js`** | Parses terminal commands and delegates them to Main services. |
+| **`src/main/tts.js`** | Routes speech synthesis. |
+| **`src/main/tune.js`** | Adapts requests according to the model and local measurements. |
+| **`src/main/video-search.js`** | YouTube search sorted by date. |
+| **`src/main/voice-sample.js`** | Voice sample validation and management. |
+| **`src/main/windows.js`** | Observes system windows. |
+| **`src/main/windows.ps1`** | Collects Windows window information. |
+| **`src/preload.js`** | JavaScript code for the component identified by the path. |
+| **`src/prepare-preload.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/call-ui.js`** | Call states, controls, and transcriptions. |
+| **`src/renderer/call.css`** | Styles for the corresponding interface. |
+| **`src/renderer/call.html`** | Structure of an Electron page with local scripts and styles. |
+| **`src/renderer/chess-ui.js`** | Chessboard, moves, and promotion. |
+| **`src/renderer/chess.css`** | Styles for the corresponding interface. |
+| **`src/renderer/chess.html`** | Structure of an Electron page with local scripts and styles. |
+| **`src/renderer/hub.html`** | Structure of an Electron page with local scripts and styles. |
+| **`src/renderer/index.html`** | Structure of an Electron page with local scripts and styles. |
+| **`src/renderer/js/acting.js`** | Poses and animation playback. |
+| **`src/renderer/js/app.js`** | Combines events, chat, voice, and Capri's state. |
+| **`src/renderer/js/bond.js`** | Stored preferences. |
+| **`src/renderer/js/brain-providers.js`** | AI provider catalog. |
+| **`src/renderer/js/brain.js`** | Reactions to assistants and conversation. |
+| **`src/renderer/js/capri-satellite-test.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/capri.js`** | Mascot: geometry, posture, movement, and reactions. |
+| **`src/renderer/js/chat.js`** | Interprets explicit requests and orchestrates chat. |
+| **`src/renderer/js/chip.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/custom.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/ears.js`** | Microphone and transcription. |
+| **`src/renderer/js/eyes.js`** | Visual queries. |
+| **`src/renderer/js/fx-life.js`** | Effects for autonomous behaviors. |
+| **`src/renderer/js/fx.js`** | Canvas effects, greetings, and animated text. |
+| **`src/renderer/js/guide.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/hands.js`** | Interprets controls and prepares actions. |
+| **`src/renderer/js/heart.js`** | Emotional expression. |
+| **`src/renderer/js/hub.js`** | Main configuration window. |
+| **`src/renderer/js/ledges.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/life.js`** | Autonomous planning. |
+| **`src/renderer/js/lines-life.js`** | Localized autonomous dialogue. |
+| **`src/renderer/js/lines.js`** | Localized dialogue. |
+| **`src/renderer/js/mac-permissions.js`** | macOS permission states, Apple Events requests, settings, and windows. |
+| **`src/renderer/js/mission.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/mood.js`** | Mood and emotional classification. |
+| **`src/renderer/js/panel.js`** | Conversation bubble and actions. |
+| **`src/renderer/js/pointer-life.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/possession.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/prepare.js`** | Preparation window and progress tracking. |
+| **`src/renderer/js/rhythm.js`** | Rhythm analysis and animation. |
+| **`src/renderer/js/ring-tabs.js`** | Menu sections and settings. |
+| **`src/renderer/js/ring-ui.js`** | Shared DOM components. |
+| **`src/renderer/js/ring.js`** | Radial menu geometry. |
+| **`src/renderer/js/satellite-wait.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/setup.js`** | Prepares Ollama and encrypts new keys using `safeStorage`. |
+| **`src/renderer/js/speech.js`** | Renderer speech synthesis. |
+| **`src/renderer/js/sprite.js`** | Image loading and rendering. |
+| **`src/renderer/js/steps-view\.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/terminal.js`** | Parses terminal commands and delegates them to Main services. |
+| **`src/renderer/js/themes.js`** | Theme palettes. |
+| **`src/renderer/js/util.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/voice.js`** | Voice and device selection. |
+| **`src/renderer/mac-permissions.html`** | Structure of an Electron page with local scripts and styles. |
+| **`src/renderer/prepare.html`** | Structure of an Electron page with local scripts and styles. |
+| **`src/renderer/styles/capri.css`** | Styles for the corresponding interface. |
+| **`src/renderer/styles/hub.css`** | Styles for the corresponding interface. |
+| **`src/renderer/styles/mac-permissions.css`** | Styles for the corresponding interface. |
+| **`src/renderer/styles/prepare.css`** | Styles for the corresponding interface. |
+| **`src/renderer/styles/ring.css`** | Styles for the corresponding interface. |
+| **`src/renderer/styles/terminal.css`** | Styles for the corresponding interface. |
+| **`src/renderer/terminal.html`** | Structure of an Electron page with local scripts and styles. |
+| **`src/terminal-preload.js`** | JavaScript code for the component identified by the path. |
+| **`tests/acting.test.js`** | Tests for the acting domain; system services are mocked when necessary. |
+| **`tests/anthropic.test.js`** | Tests for the anthropic domain; system services are mocked when necessary. |
+| **`tests/bond.test.js`** | Tests for the bond domain; system services are mocked when necessary. |
+| **`tests/character.test.js`** | Tests for the character domain; system services are mocked when necessary. |
+| **`tests/chat.test.js`** | Tests for the chat domain; system services are mocked when necessary. |
+| **`tests/chatterbox.test.js`** | Tests for the chatterbox domain; system services are mocked when necessary. |
+| **`tests/chess-game.test.js`** | Tests for the chess game domain; system services are mocked when necessary. |
+| **`tests/claudecode.test.js`** | Tests for the claudecode domain; system services are mocked when necessary. |
+| **`tests/cleanup.test.js`** | Tests for the cleanup domain; system services are mocked when necessary. |
+| **`tests/config.test.js`** | Tests for the config domain; system services are mocked when necessary. |
+| **`tests/documents.test.js`** | Tests for the documents domain; system services are mocked when necessary. |
+| **`tests/farewell.test.js`** | Tests for the farewell domain; system services are mocked when necessary. |
+| **`tests/fixtures/build-stub-wheel.py`** | Mock program or isolated test data. |
+| **`tests/fixtures/fake-ollama.js`** | Mock program or isolated test data. |
+| **`tests/fixtures/fake-piper.js`** | Mock program or isolated test data. |
+| **`tests/hardware.test.js`** | Tests for the hardware domain; system services are mocked when necessary. |
+| **`tests/heart.test.js`** | Tests for the heart domain; system services are mocked when necessary. |
+| **`tests/hooks.test.js`** | Tests for the hooks domain; system services are mocked when necessary. |
+| **`tests/hub.test.js`** | Tests for the hub domain; system services are mocked when necessary. |
+| **`tests/incoming-call.test.js`** | Tests for the incoming call domain; system services are mocked when necessary. |
+| **`tests/labels.test.js`** | Tests for the labels domain; system services are mocked when necessary. |
+| **`tests/launch-resolver.test.js`** | Tests for the launch resolver domain; system services are mocked when necessary. |
+| **`tests/ledges.test.js`** | Tests for the ledges domain; system services are mocked when necessary. |
+| **`tests/mac-permissions.test.js`** | Tests for the macOS permissions domain; system services are mocked when necessary. |
+| **`tests/mover.test.js`** | Tests for the mover domain; system services are mocked when necessary. |
+| **`tests/music-control.test.js`** | Tests for the music control domain; system services are mocked when necessary. |
+| **`tests/node-check.test.js`** | Tests for the Node check domain; system services are mocked when necessary. |
+| **`tests/ollama-host.test.js`** | Tests for the Ollama host domain; system services are mocked when necessary. |
+| **`tests/openai.test.js`** | Tests for the OpenAI domain; system services are mocked when necessary. |
+| **`tests/piper.test.js`** | Tests for the Piper domain; system services are mocked when necessary. |
+| **`tests/possession.test.js`** | Tests for the possession domain; system services are mocked when necessary. |
+| **`tests/prepare.e2e.test.js`** | Tests for the prepare.e2e domain; system services are mocked when necessary. |
+| **`tests/profiles.test.js`** | Tests for the profiles domain; system services are mocked when necessary. |
+| **`tests/provision.test.js`** | Tests for the provision domain; system services are mocked when necessary. |
+| **`tests/release.test.js`** | Tests for the release domain; system services are mocked when necessary. |
+| **`tests/ring.test.js`** | Tests for the ring domain; system services are mocked when necessary. |
+| **`tests/satellite-wait.test.js`** | Tests for the satellite wait domain; system services are mocked when necessary. |
+| **`tests/screen-capture.test.js`** | Tests for the screen capture domain; system services are mocked when necessary. |
+| **`tests/senses.test.js`** | Tests for the senses domain; system services are mocked when necessary. |
+| **`tests/stacking.test.js`** | Tests for the stacking domain; system services are mocked when necessary. |
+| **`tests/terminal.test.js`** | Tests for the terminal domain; system services are mocked when necessary. |
+| **`tests/tune.test.js`** | Tests for the tune domain; system services are mocked when necessary. |
+| **`tests/video-search.test.js`** | Tests for the video search domain; system services are mocked when necessary. |
+| **`tests/voice-demo.test.js`** | Tests for the voice demo domain; system services are mocked when necessary. |
+| **`tests/voice-sample.test.js`** | Tests for the voice sample domain; system services are mocked when necessary. |
+| **`tools/build-cutins.py`** | Resource builder used during development. |
+| **`tools/build-intro.py`** | Resource builder used during development. |
+| **`tools/build-sprite.py`** | Resource builder used during development. |
 
-## Éléments locaux et fichiers non exécutés au démarrage
+## Local Items and Files Not Executed at Startup
 
-- node_modules/ est installé par npm depuis package-lock.json; dépendances externes non détaillées.
-- .env, .private/, .DS_Store, modèles et configuration sont locaux/ignorés dans cette copie; ils ne font pas partie des 244 chemins suivis.
-- FEATURES.md et FEATURES.fr.md sont dans .private/ ignoré, pas dans le corpus public versionné.
-- Les scripts de tools/ reconstruisent les images et ne sont pas nécessaires au démarrage utilisateur.
+- `node_modules/` is installed by npm from `package-lock.json`; external dependencies are not detailed here.
+- `.env`, `.private/`, `.DS_Store`, models, and configuration files are local or ignored in this copy; they are not part of the 244 tracked paths.
+- `FEATURES.md` and `FEATURES.fr.md` are located in the ignored `.private/` directory and are not part of the public version-controlled corpus.
+- Scripts in `tools/` rebuild images and are not required for normal application startup.
