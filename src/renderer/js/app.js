@@ -352,7 +352,6 @@ async function boot() {
   let callActive = false;
   let callId = null;
   let callHasError = false;
-  let callOpenedChat = false;
   chat.onSpokenText = (text) => { if (callActive) host.callTranscript('capri', text, true); };
   brain.onTalk = () => chat.start();
   chat.heart = heart;
@@ -393,7 +392,7 @@ async function boot() {
   ears.onTranscript = (text) => {
     if (callActive) {
       host.callTranscript('user', text, true);
-      if (chat.open) chat.send(text);
+      if (chat.open) chat.say(text);
       return;
     }
     // show what you said and send it to her chat (open it first if need be)
@@ -855,7 +854,6 @@ async function boot() {
         callActive = true;
         callId = cmd.id;
         callHasError = false;
-        callOpenedChat = !chat.open;
         (async () => {
           try {
             host.callUiState('connecting');
@@ -866,7 +864,9 @@ async function boot() {
             capri.wake();
             const status = await host.chatStatus();
             if (!status.ok) throw new Error(status.error === 'offline' ? 'Le service de conversation est hors ligne.' : status.error || 'La conversation IA n’est pas prête.');
-            await chat.start();
+            chat.close();
+            panel.hide();
+            await chat.start({ hidden: true });
             if (!chat.open) throw new Error('Impossible d’ouvrir la conversation de Capri.');
             const greeting = lifeLines(brain.lang).callGreeting;
             host.callTranscript('capri', greeting, true);
@@ -890,8 +890,8 @@ async function boot() {
             ears.endCall();
             chat.speech.callMode = false;
             chat.speech.stop();
-            if (callOpenedChat) chat.close();
-            callOpenedChat = false;
+            chat.close();
+            panel.hide();
             callHasError = true;
             host.callUiState('error', String(error.message || error));
           }
@@ -906,8 +906,8 @@ async function boot() {
         chat.speech.callMode = false;
         chat.speech.stop();
         if (chat.turn) host.chatStop(chat.turn);
-        if (callOpenedChat) chat.close();
-        callOpenedChat = false;
+        chat.close();
+        panel.hide();
         break;
       case 'callCancelled':
         break;

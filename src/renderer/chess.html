@@ -6,15 +6,95 @@
   <title>Capri // Chess</title>
   <link rel="stylesheet" href="styles/capri.css">
   <link rel="stylesheet" href="chess.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <main class="chess">
-    <header class="chess__header"><div><small>CAPRI // DUEL</small><h1 id="title">Échecs avec Capri</h1></div><button id="close" aria-label="Fermer">×</button></header>
-    <p id="status" class="chess__status" aria-live="polite">Chargement…</p>
-    <div class="board" id="board" role="grid" aria-label="Échiquier"></div>
-    <div id="promotion" class="promotion" hidden aria-label="Choisir une promotion"></div>
-    <footer class="chess__actions"><button id="new">Nouvelle partie</button><button id="resign">Abandonner</button><button id="help">Aide</button></footer>
-    <p id="message" aria-live="polite"></p>
+    <!-- HEADER -->
+    <header class="chess__header">
+      <div class="chess__brand">
+        <div class="chess__logo">C</div>
+        <div class="chess__brand-name">
+          CAPRI <span>//</span> JEUX
+        </div>
+      </div>
+      <nav class="chess__navigation" aria-label="Jeux">
+        <span class="active">ÉCHECS</span>
+        <span>PAWNS</span>
+        <span>OCTO</span>
+      </nav>
+      <button id="close" aria-label="Fermer">×</button>
+    </header>
+
+    <!-- CONTENU PRINCIPAL -->
+    <section class="chess__layout">
+      <!-- ÉCHIQUIER -->
+      <section class="chess__board-area">
+        <div>
+          <div
+            class="board"
+            id="board"
+            role="grid"
+            aria-label="Échiquier">
+          </div>
+          <div
+            id="promotion"
+            class="promotion"
+            hidden
+            aria-label="Choisir une promotion">
+          </div>
+        </div>
+      </section>
+
+      <!-- PANNEAU CAPRI -->
+      <aside class="chess__side">
+        <!-- Avatar et message -->
+        <div class="chess__profile">
+          <div class="chess__avatar" aria-label="Capri">
+            C
+          </div>
+          <div class="chess__quote" id="quote">
+            Les blancs sont à toi.
+            Voyons ce dont tu es capable.
+          </div>
+        </div>
+
+        <!-- Statut de la partie -->
+        <div
+          id="status"
+          class="chess__turn"
+          aria-live="polite">
+          Chargement…
+        </div>
+        <!-- Actions -->
+        <div class="chess__actions">
+          <button id="new">
+            NOUVELLE PARTIE
+          </button>
+          <button id="resign">
+            ABANDONNER
+          </button>
+          <button id="help">
+            AIDE
+          </button>
+        </div>
+
+        <!-- Difficulté -->
+        <div class="chess__difficulty">
+          DIFFICULTÉ : NORMALE
+        </div>
+
+        <!-- Messages -->
+        <p id="message" aria-live="polite"></p>
+
+        <!-- Statistiques -->
+        <div class="chess__record" id="record">
+          Échecs avec Capri
+        </div>
+      </aside>
+    </section>
   </main>
   <script src="chess-ui.js"></script>
 </body>

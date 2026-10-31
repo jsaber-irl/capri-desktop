@@ -40,6 +40,7 @@
   const applyState = (state, message = '') => {
     currentState = state;
     card.dataset.state = state;
+    card.classList.toggle('is-connected', state !== 'incoming');
     const labels = { incoming: text('incoming'), connecting: text('connecting'), listening: text('listening'), processing: text('processing'), speaking: text('speaking'), error: text('error') };
     status.textContent = labels[state] || labels.incoming;
     detail.hidden = !message;

@@ -134,12 +134,12 @@ export class Chat {
 
   // Opens her chat. Asked twice before it's open (a tap on her and your voice at once, a second thing you
   // said while the first is still being heard): the same opening, not a second one on top of it.
-  start() {
-    this.starting ||= this.begin().finally(() => { this.starting = null; });
+  start(options = {}) {
+    this.starting ||= this.begin(options).finally(() => { this.starting = null; });
     return this.starting;
   }
 
-  async begin() {
+  async begin({ hidden = false } = {}) {
     const { capri, host, t } = this;
     if (this.open) {
       this.panel.chatInput.focus();
@@ -198,7 +198,7 @@ export class Chat {
     this.listApps();
     const shortModel = status.model.replace(/:latest$/, '').replace(/^models\//, ''); // Ollama's tag, Gemini's prefix
     const tiny = status.provider === 'ollama' && TINY.test(status.model) && this.onBetterModel;
-    const shown = this.panel.say({
+    const shown = hidden || this.panel.say({
       kind: 'chat',
       face: 'look',
       badge: t.badge,
@@ -225,7 +225,7 @@ export class Chat {
     // in the line above, and gives the keyboard back as it goes)
     host.focusOverlay(true);
     this.open = true;
-    setTimeout(() => this.panel.chatInput.focus(), 150); // once the overlay has the keyboard
+    if (!hidden) setTimeout(() => this.panel.chatInput.focus(), 150); // once the overlay has the keyboard
     capri.perform('hop');
     capri.nextMove = capri.nextGaze = performance.now() + STAY_MS;
   }

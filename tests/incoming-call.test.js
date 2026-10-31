@@ -16,6 +16,7 @@ function fixture() {
   class FakeWindow {
     constructor(options) {
       this.options = options;
+      this.bounds = { width: options.width, height: options.height };
       this.events = new Map();
       this.isDead = false;
       this.webContents = { sent: [], send: (...args) => this.webContents.sent.push(args) };
@@ -26,6 +27,8 @@ function fixture() {
     loadURL(url) { this.url = url; }
     show() { this.shown = true; }
     focus() { this.focused = true; }
+    getBounds() { return this.bounds; }
+    setPosition(x, y) { this.position = { x, y }; }
     isDestroyed() { return this.isDead; }
     close() { this.isDead = true; this.events.get('closed')?.(); }
   }
@@ -33,7 +36,7 @@ function fixture() {
     handle(name, fn) { handlers.set(name, fn); },
     on(name, fn) { listeners.set(name, fn); },
   };
-  const call = createIncomingCall({ BrowserWindow: FakeWindow, ipcMain, preload: '/safe/preload.js', protocolUrl: 'capri://app/src/renderer/call.html', sendCommand: (...args) => commands.push(args), getOverlayWebContents: () => overlayWebContents });
+  const call = createIncomingCall({ BrowserWindow: FakeWindow, ipcMain, preload: '/safe/preload.js', protocolUrl: 'capri://app/src/renderer/call.html', sendCommand: (...args) => commands.push(args), screen: { getPrimaryDisplay: () => ({ workArea: { x: 0, y: 0, width: 1440, height: 900 } }) }, getOverlayWebContents: () => overlayWebContents });
   return { call, handlers, listeners, commands, windows, overlayWebContents };
 }
 
@@ -117,4 +120,21 @@ test('call transcript UI uses asymmetrical speaker bubbles and never mirrors inv
   assert.match(css, /\.message--user \{ align-self: end;/);
   assert.match(ui, /onCallTranscript\(addTranscript\)/);
   assert.match(ui, /textContent = String\(line\)\.trim\(\)/);
+  assert.match(ui, /classList\.toggle\('is-connected', state !== 'incoming'\)/);
+  assert.match(css, /\.call-card\.is-connected \.portrait-wrap \{ display: none; \}/);
+  assert.match(css, /background: transparent/);
+  assert.match(css, /\.conversation \{ width: calc\(100% \+ 20px\)/);
+  assert.match(css, /\.message \{ max-width: 94%/);
+});
+
+test('call window is transparent, centered before acceptance, then moves top-right', async () => {
+  const f = fixture();
+  f.call.show();
+  assert.equal(f.windows[0].options.transparent, true);
+  assert.equal(f.windows[0].options.backgroundColor, '#00000000');
+  assert.equal(f.windows[0].position.x, 525);
+  assert.equal(f.windows[0].position.y, 145);
+  await f.handlers.get('call:accept')({ sender: f.windows[0].webContents });
+  assert.equal(f.windows[0].position.x, 1030);
+  assert.equal(f.windows[0].position.y, 20);
 });

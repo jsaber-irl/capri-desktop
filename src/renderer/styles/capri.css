@@ -139,7 +139,7 @@ body {
   left: 0;
   top: 0;
   z-index: 3;
-  width: clamp(290px, 21vw, 380px);
+  width: clamp(350px, 26vw, 460px);
   color: var(--paper);
   filter: drop-shadow(6px 6px 0 var(--violet));
   will-change: transform;
@@ -378,7 +378,7 @@ html[data-motion='reduced'] .panel__bar {
 
 /* Claude's whole answer, when you weren't on its window to read it: wider panel, scrolls */
 .panel.has-reply {
-  width: clamp(340px, 30vw, 520px);
+  width: clamp(390px, 30vw, 540px);
 }
 
 .panel__reply {
@@ -503,7 +503,7 @@ html[data-motion='reduced'] .panel__bar {
 .panel[data-kind='report'] { --accent: var(--green); }
 
 .panel.has-report {
-  width: clamp(340px, 26vw, 440px);
+  width: clamp(370px, 27vw, 470px);
 }
 
 .panel__report {
@@ -672,14 +672,22 @@ html[data-motion='reduced'] .panel__bar {
 .panel[data-kind='chat'] { --accent: var(--green); }
 
 .panel.is-chat {
-  width: clamp(360px, 27vw, 460px);
+  width: clamp(390px, 30vw, 500px);
 }
 
 @media (max-width: 640px) {
-  .panel.is-chat { width: min(calc(100vw - 24px), 380px); }
-  .panel__meta { gap: 5px; letter-spacing: 0.09em; }
-}
+  .panel,
+  .panel.has-reply,
+  .panel.has-report,
+  .panel.is-chat {
+    width: min(calc(100vw - 24px), 440px);
+  }
 
+  .panel__meta {
+    gap: 5px;
+    letter-spacing: 0.09em;
+  }
+}
 /* your line up top like a prompt, her answer under it */
 .panel.is-chat .panel__body {
   display: flex;

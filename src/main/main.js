@@ -106,7 +106,8 @@ const farewell = createFarewell({
 const toOverlay = (channel, payload) => { if (overlay && !overlay.isDestroyed()) overlay.webContents.send(channel, payload); };
 const incomingCall = createIncomingCall({
   BrowserWindow, ipcMain, preload: path.join(__dirname, '..', 'preload.js'),
-  protocolUrl: 'capri://app/src/renderer/call.html', sendCommand, getOverlayWebContents: () => overlay?.webContents,
+  protocolUrl: 'capri://app/src/renderer/call.html', sendCommand, screen,
+  getOverlayWebContents: () => overlay?.webContents,
 });
 const chessWindow = createChessWindow({ BrowserWindow, ipcMain, preload: path.join(__dirname, '..', 'preload.js'), lang: () => resolveLang(config.load().lang) });
 // the recording she was given as her voice, if any (voice-sample.js): in her own data folder
@@ -1234,23 +1235,8 @@ async function refreshMacWindows() {
 
     const result = await listMacWindows();
 
-    console.log('[CAPRI WINDOW DEBUG] Résultat AppleScript :', result);
-
     if (result.ok) {
         const bounds = overlay.getBounds();
-
-        console.log('[CAPRI WINDOW DEBUG] Bounds overlay :', bounds);
-
-        console.log('[CAPRI WINDOW DEBUG] Fenêtres détectées :',
-            result.windows.map(win => ({
-                app: win.app,
-                title: win.title,
-                x: win.x,
-                y: win.y,
-                w: win.w,
-                h: win.h
-            }))
-        );
 
         // Exclure Capri et toutes les applications Electron.
         const filteredWindows = result.windows.filter(win => {
@@ -1260,8 +1246,6 @@ async function refreshMacWindows() {
                    appName !== 'capri' &&
                    appName !== 'capri helper';
         });
-
-        console.log('[CAPRI WINDOW DEBUG] Nombre après exclusion :', filteredWindows.length);
 
         const wins = filteredWindows
             .map(win => ({
@@ -1277,8 +1261,6 @@ async function refreshMacWindows() {
                 win.y + win.h > 0
             );
 
-        console.log('[CAPRI WINDOW DEBUG] Nombre après filtrage spatial :', wins.length);
-
         lastWindows = {
             fg: null,
             taskbar: false,
@@ -1286,8 +1268,6 @@ async function refreshMacWindows() {
             wins
         };
     } else {
-        console.error('[CAPRI WINDOW DEBUG] Échec :', result.error);
-
         lastWindows = {
             fg: null,
             taskbar: false,

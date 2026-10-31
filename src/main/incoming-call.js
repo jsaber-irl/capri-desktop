@@ -1,7 +1,7 @@
 'use strict';
 
 // Owns the simulated incoming/active call window. Only this window can answer its call controls.
-function createIncomingCall({ BrowserWindow, ipcMain, preload, protocolUrl, sendCommand, getOverlayWebContents = () => null }) {
+function createIncomingCall({ BrowserWindow, ipcMain, preload, protocolUrl, sendCommand, screen = null, getOverlayWebContents = () => null }) {
   let win = null;
   let accepted = false;
   let serial = 0;
@@ -16,10 +16,19 @@ function createIncomingCall({ BrowserWindow, ipcMain, preload, protocolUrl, send
     if (win && !win.isDestroyed()) win.webContents.send('call:uiState', { state, message });
   };
   const fromWindow = (event) => Boolean(win && !win.isDestroyed() && event.sender === win.webContents);
+  const place = (position) => {
+    if (!win || win.isDestroyed() || !screen?.getPrimaryDisplay) return;
+    const area = screen.getPrimaryDisplay().workArea;
+    const bounds = win.getBounds?.() || { width: 390, height: 610 };
+    const x = position === 'top-right' ? area.x + area.width - bounds.width - 20 : area.x + Math.round((area.width - bounds.width) / 2);
+    const y = position === 'top-right' ? area.y + 20 : area.y + Math.round((area.height - bounds.height) / 2);
+    win.setPosition(x, y);
+  };
 
   ipcMain.handle('call:accept', (event) => {
     if (!fromWindow(event) || accepted) return false;
     accepted = true;
+    place('top-right');
     tell('connecting');
     sendCommand('callAccepted', { id: serial });
     return true;
@@ -61,11 +70,13 @@ function createIncomingCall({ BrowserWindow, ipcMain, preload, protocolUrl, send
       serial += 1;
       const ownSerial = serial;
       win = new BrowserWindow({
-        width: 390, height: 610, minWidth: 340, minHeight: 450,
+        width: 390, height: 610,
+        minWidth: 340, minHeight: 450,
         title: 'Capri', frame: false, resizable: false, show: false,
-        backgroundColor: '#11131b', autoHideMenuBar: true,
+        transparent: true, backgroundColor: '#00000000', hasShadow: false, autoHideMenuBar: true,
         webPreferences: { preload, contextIsolation: true, nodeIntegration: false, sandbox: true, autoplayPolicy: 'no-user-gesture-required' },
       });
+      place('center');
       win.once('ready-to-show', () => { if (serial === ownSerial) win?.show(); });
       win.on('closed', () => {
         if (serial !== ownSerial) return;
