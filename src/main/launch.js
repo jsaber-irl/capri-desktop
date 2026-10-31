@@ -7,9 +7,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { spawn, execFile } = require('node:child_process');
-const { shell } = require('electron');
+const { app, shell } = require('electron');
 const { powershell } = require('./apps');
 const { APP_ALIASES } = require('./app-aliases');
+const { randomUUID } = require('node:crypto');
 
 const WIN = process.platform === 'win32';
 // not things to open from a chat: uninstallers, help pages and the like
@@ -18,7 +19,7 @@ const STEAM_SKIP = /redistributable|dedicated server|steamworks/i;
 // Words that do not distinguish apps in a user's short request (e.g. "Roblox Player").
 const FILLER = new Set(['player', 'launcher', 'app', 'application', 'the', 'for', 'windows', 'desktop', 'client', 'x64', 'x86', 'beta']);
 const CACHE_MS = 10 * 60 * 1000; // installed apps hardly change
-
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 let cache = null; // { at, items }
 
 const plain = (text) => String(text || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
@@ -232,6 +233,65 @@ async function macApplications() {
     if (safari) safari.isDefaultBrowser = true;
   }
   return apps;
+}
+
+// Recherche un jeu Roblox et le lance directement.
+async function roblox(query) {
+  const q = String(query || '').trim().slice(0, 100);
+  if (!q) return null;
+
+  let game = null;
+
+  try {
+    const url =
+      `https://apis.roblox.com/search-api/omni-search` +
+      `?searchQuery=${encodeURIComponent(q)}` +
+      `&pageType=all&sessionId=${randomUUID()}`;
+
+    const res = await fetch(url, {
+      headers: {
+        'user-agent': UA,
+        accept: 'application/json'
+      },
+      signal: AbortSignal.timeout(8000)
+    });
+
+    if (!res.ok) return null;
+
+    const body = await res.json();
+
+    game = (body.searchResults || [])
+      .filter(r => r.contentGroupType === 'Game')
+      .flatMap(r => r.contents || [])[0] || null;
+
+  } catch (error) {
+    console.error('[Roblox] Search error:', error);
+    return null;
+  }
+
+  if (!game?.rootPlaceId) {
+    return { name: null };
+  }
+
+  const installed = Boolean(
+    app.getApplicationNameForProtocol('roblox://')
+  );
+
+  const url = installed
+    ? `roblox://experiences/start?placeId=${game.rootPlaceId}`
+    : `https://www.roblox.com/games/${game.rootPlaceId}`;
+
+  await shell.openExternal(url);
+
+  const name = String(game.name || '')
+    .replace(/\[[^\]]*\]\s*/g, '')
+    .replace(/[\p{Extended_Pictographic}️]/gu, '')
+    .trim();
+
+  return {
+    name: name || game.name,
+    app: installed
+  };
 }
 
 async function macDefaultBrowserId() {
@@ -455,4 +515,4 @@ async function site(address) {
   return true;
 }
 
-module.exports = { launchables, match, find, resolve, normalizeRequest, resolveInCatalog, macApplications, linuxApplications, openApplicationItem, launch, media, music, site, siteUrl };
+module.exports = { launchables, match, find, resolve, normalizeRequest, resolveInCatalog, macApplications, linuxApplications, openApplicationItem, launch, media, music, site, siteUrl, roblox };

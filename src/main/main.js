@@ -1377,6 +1377,14 @@ function registerIpc() {
     if (event.sender !== overlay?.webContents || !terminalWin || terminalWin.isDestroyed()) return;
     terminalWin.webContents.send('terminal:demoLog', String(message || '').slice(0, 400));
   });
+
+  // Lancement d'un jeu Roblox
+  ipcMain.handle('launch:roblox', (_e, query) =>
+    launch.roblox(query).catch((err) => ({
+      name: null,
+      error: err.message
+    }))
+  );
   ipcMain.on('terminal:close', () => terminalWin?.close());
   ipcMain.on('terminal:compact', (_e, target) => toggleTerminalCompact(target));
   ipcMain.handle('terminal:toggleCompact', (_e, target) => toggleTerminalCompact(target));
@@ -1547,6 +1555,7 @@ function registerIpc() {
   ipcMain.handle('music:command', (_e, request) => musicControl.command(request || {}));
   ipcMain.handle('apps:music', (_e, query) => launch.music(query).catch(() => false));
   ipcMain.handle('apps:site', (_e, address) => launch.site(address).catch(() => false));
+  ipcMain.handle('apps:roblox', (_e, query) => launch.roblox(query).catch((err) => ({ name: null, error: err.message })));
   ipcMain.handle('apps:videoSearch', (_e, request) => performVideoSearch(request || {}));
   ipcMain.handle('documents:createText', async (_e, request) => {
     if (!request || typeof request.filename !== 'string' || typeof request.content !== 'string' || request.filename.length > 120 || request.content.length > 100000) {

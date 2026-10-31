@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld('host', {
   resolveLaunch: (text) => ipcRenderer.invoke('apps:resolveLaunch', text),
   findLaunch: (text) => ipcRenderer.invoke('apps:resolveLaunch', text).then((result) => result?.status === 'found' ? result.item : null),
   launch: (item) => ipcRenderer.invoke('apps:launch', item),
+  launchRoblox: (query) => { return ipcRenderer.invoke('launch:roblox', query); },
   media: (action) => ipcRenderer.invoke('apps:media', action),
   musicControl: (request) => ipcRenderer.invoke('music:command', request),
   createTextDocument: (request) => ipcRenderer.invoke('documents:createText', request || {}),

@@ -4,6 +4,7 @@
 // control what's playing, open a website, close an app. She spots what you want in what you wrote,
 // or the model asks for it with a tag in its answer. Music right away; an app you named yourself
 // right away; anything only the model asked for, a website, and closing an app behind a button.
+// doNow
 
 import { pick, fmt } from './util.js';
 import { ASSISTANT_NAMES } from './lines.js';
@@ -392,6 +393,26 @@ export class Chat {
   asked(whole) {
     const text = whole.length > ASK_MAX ? whole.slice(0, ASK_MAX) : whole; // (a command is a few words: a pasted page is not read for one)
     const count = text.trim().split(/\s+/).length;
+    // Roblox : détecter les demandes de lancement de jeux avant la recherche d'applications locales.
+    const asksRoblox =
+      /\broblox\b/i.test(text) &&
+      (OPEN_ASK.test(text) || PLAY.test(text));
+
+    if (asksRoblox) {
+      const game = text
+        .replace(/\b(?:sur|dans|on|in)\s+roblox\b/gi, '')
+        .replace(/\broblox\b/gi, '')
+        .replace(
+          /^\s*(?:s'il te plaît|stp|please)?\s*(?:lance(?:r)?|ouvre(?:r)?|joue(?:r)?(?:\s+à)?|play|launch|start|open)\s+/i,
+          ''
+        )
+        .replace(/^\s*(?:(?:le|la|the)\s+)?(?:jeu|game)\s+/i, '')
+        .replace(/[.!?]+$/g, '')
+        .trim();
+
+      if (game) return { kind: 'roblox', query: game };
+    }
+
     const name = NAME_ASK.exec(text)?.[1];
     if (name) return { kind: 'name', name };
     const memo = MEMO_ASK.exec(text)?.[1]?.trim();
@@ -479,6 +500,34 @@ export class Chat {
       if (!result?.ok) return { line: result?.error || (fr ? 'Je n’ai pas pu ouvrir la recherche YouTube.' : ru ? 'Не удалось открыть поиск YouTube.' : 'I could not open YouTube search.'), face: 'aside' };
       return { line: fr ? `Recherche YouTube triée par date ouverte pour ${asked.creator}${asked.browser ? ` dans ${asked.browser}` : ''}. Vérifie les résultats : je ne peux pas confirmer ici lequel est réellement le plus récent.` : ru ? `Поиск YouTube с сортировкой по дате открыт для ${asked.creator}. Проверь результаты: я не могу подтвердить, какое видео самое новое.` : `Date-sorted YouTube search opened for ${asked.creator}${asked.browser ? ` in ${asked.browser}` : ''}. Check the results: I cannot verify here which video is actually newest.`, face: 'smug' };
     }
+    if (asked.kind === 'roblox') {
+      this.zap();
+
+      const result = await this.host.launchRoblox?.(asked.query);
+      const fr = this.brain.lang === 'fr';
+      const ru = this.brain.lang === 'ru';
+
+      if (!result?.name || result.error) {
+        return {
+          line: result?.error ||
+            (fr
+              ? `Je n'ai pas trouvé le jeu Roblox « ${asked.query} ».`
+              : ru
+                ? `Не удалось найти игру Roblox « ${asked.query} ».`
+                : `I couldn't find the Roblox game "${asked.query}".`),
+          face: 'aside'
+        };
+      }
+
+      return {
+        line: fr
+          ? `${result.name} a été lancé ${result.app ? 'dans Roblox' : 'sur le site Roblox'}.`
+          : ru
+            ? `${result.name} запущена ${result.app ? 'в Roblox' : 'на сайте Roblox'}.`
+            : `${result.name} has been launched ${result.app ? 'in Roblox' : 'on the Roblox website'}.`,
+        face: 'laugh'
+      };
+    }
     if (asked.kind === 'createText') {
       const result = await this.host.createTextDocument?.({ filename: asked.filename, content: asked.content });
       const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
@@ -535,7 +584,17 @@ export class Chat {
   async after(raw, answer, asked, early, text) {
     const { t } = this;
     const done = early && (await early);
-    if (done) return this.addLine(answer, done.line, done.face);
+    if (done) {
+      // Pour Roblox, afficher uniquement le résultat réel du lancement.
+      if (asked?.kind === 'roblox') {
+        this.shown = done.line;
+        this.panel.stream(done.line, { done: true });
+        if (done.face) this.panel.setFace(done.face);
+        return;
+      }
+
+      return this.addLine(answer, done.line, done.face);
+    }
     if (asked?.kind === 'close') return this.offerClose(asked.name, answer);
     // a message in a messenger: she typed it out, now she waits for your yes (hands.js)
     if (asked?.kind === 'hands' && asked.intent.kind === 'message') {
