@@ -53,6 +53,8 @@ uniform float uManeSat;
 uniform float uManeVal;
 uniform vec3 uTint;
 uniform float uTintAmt;
+uniform float uClipEnabled;
+uniform float uClipY;
 uniform float uPx; // sprite pixels per screen pixel
 
 // landmarks, in sprite pixels (capri-full.png is 240x420, see tools/build-sprite.py)
@@ -277,6 +279,9 @@ vec2 settle(vec2 p) {
 
 void main() {
   vec2 p = vPx;
+  if (uClipEnabled > 0.5 && p.y > uClipY) {
+    discard;
+  }
 
   if (uDissolve > 0.0) {
     vec2 g = rot(p, vec2(110.0, 210.0), 0.55);
@@ -334,6 +339,7 @@ const UNIFORMS = [
   'uSmear', 'uEcho', 'uGlitch', 'uGlitchSeed',
   'uSplit', 'uCollapse', 'uDissolve', 'uSparkle', 'uGrade', 'uSil', 'uMisreg', 'uRim', 'uAlpha', 'uPx',
   'uHue', 'uHueMix', 'uManeSat', 'uManeVal', 'uTint', 'uTintAmt',
+  'uClipEnabled', 'uClipY',
 ];
 
 export const SPRITE = {
@@ -467,6 +473,8 @@ export class SpriteRenderer {
     gl.uniform3f(u.uTint, tint[0], tint[1], tint[2]);
     gl.uniform1f(u.uTintAmt, s.tintAmt || 0);
     gl.uniform1f(u.uAlpha, s.alpha);
+    gl.uniform1f(u.uClipEnabled, s.clipEnabled ? 1 : 0);
+    gl.uniform1f(u.uClipY, s.clipY ?? 300);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 }

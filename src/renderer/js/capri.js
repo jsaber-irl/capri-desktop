@@ -105,7 +105,11 @@ export class Capri {
       glitch: 0, glitchSeed: 0, split: 0, collapse: 0, dissolve: 0, sparkle: 1, grade: 1,
       sil: INK, silAmount: 0, misreg: [-2.6, 2.2], alpha: 1,
       hue: 0.968, hueMix: 0.6, maneSat: 1, maneVal: 1, rim: [0.48, 0.24, 1.0], tint: [1, 1, 1], tintAmt: 0,
+
+      clipEnabled: false,
+      clipY: 300,
     };
+
     this.bob = 0;
     this.tilt = 0;
     this.sx = 1;
@@ -435,6 +439,8 @@ export class Capri {
   // Pick the drawing: the stance's cycle underneath, the current act on top.
   animate(now) {
     const p = this.p;
+    p.clipEnabled = this.stance === 'handstand';
+    p.clipY = 245;  
     p.seed = Math.random() * 100; // a fresh drawing, so the line boils
 
     const under = this.base.sample(now);
