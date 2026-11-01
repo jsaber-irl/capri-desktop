@@ -80,6 +80,13 @@ test('chess requests from French and English chat are routed to the shared game 
   assert.deepEqual(chat.asked('Let’s play chess.'), { kind: 'chess' });
 });
 
+test('local file and folder requests are routed to the safe open path action', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
+  assert.deepEqual(chat.asked('Capri, ouvre le fichier "/tmp/notes.txt".'), { kind: 'openPath', path: '/tmp/notes.txt' });
+  assert.deepEqual(chat.asked('Open the folder "/tmp/projects".'), { kind: 'openPath', path: '/tmp/projects' });
+});
+
 test('latest YouTube video requests open a date-sorted search instead of choosing an arbitrary video', async () => {
   const { Chat } = await load('chat.js');
   const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });

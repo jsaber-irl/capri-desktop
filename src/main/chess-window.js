@@ -16,7 +16,7 @@ function createChessWindow({ BrowserWindow, ipcMain, preload, protocolUrl = 'cap
     win.on('closed', () => { win = null; });
     win.loadURL(protocolUrl);
   };
-  const command = (request = {}) => {
+  const command = async (request = {}) => {
     const action = String(request.action || 'start').toLowerCase();
     if (action === 'help') return { ok: true, lines: [tr('Clique une pièce puis sa destination, ou saisis /chess move e2e4.', 'Select a piece then its destination, or enter /chess move e2e4.', 'Выбери фигуру и клетку назначения или введи /chess move e2e4.'), tr('/chess new recommence · /chess resign abandonne.', '/chess new starts over · /chess resign resigns.', '/chess new начинает заново · /chess resign сдаётся.')] };
     if (action === 'start' || action === 'new') {
@@ -26,7 +26,7 @@ function createChessWindow({ BrowserWindow, ipcMain, preload, protocolUrl = 'cap
     }
     if (action === 'resign') { const state = game.resign(); publish(); return { ok: true, state, lines: [tr('Partie abandonnée. Capri gagne.', 'Game resigned. Capri wins.', 'Ты сдался. Победила Capri.')] }; }
     if (action === 'move') {
-      const result = game.play(request.move);
+      const result = await game.playAsync(request.move);
       publish();
       return result.ok ? { ok: true, state: result.state, lines: [result.botMove ? tr(`Coup de Capri : ${result.botMove}.`, `Capri played ${result.botMove}.`, `Ход Capri: ${result.botMove}.`) : tr(`Coup joué. État : ${result.state.status}.`, `Move played. Status: ${result.state.status}.`, `Ход сделан. Статус: ${result.state.status}.`)] } : { ok: false, error: result.error, state: game.state() };
     }

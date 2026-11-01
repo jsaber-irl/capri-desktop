@@ -22,6 +22,7 @@ const TRAY = {
     possess: 'Possess my windows', possessMove: 'Move them while she has them', lang: 'Language', auto: 'Automatic (system)', startup: 'Start with Windows',
     hooksOn: 'Claude Code hooks: installed', hooksOff: 'Install Claude Code hooks',
     hooksRemove: 'Remove Claude Code hooks', forget: 'Forget our conversations', farewell: 'Say goodbye to Capri', quit: 'Quit',
+    discord: 'Discord', discordPresence: 'Use Discord Rich Presence',
     version: 'About Capri', macPermissions: 'macOS permissions…',
   },
   ru: {
@@ -43,6 +44,7 @@ const TRAY = {
     possess: 'Вселяться в мои окна', possessMove: 'Двигать окна, в которые вселилась', lang: 'Язык', auto: 'Автоматически (системный)', startup: 'Запускать вместе с Windows',
     hooksOn: 'Хуки Claude Code: установлены', hooksOff: 'Установить хуки Claude Code',
     hooksRemove: 'Удалить хуки Claude Code', forget: 'Забыть наши разговоры', farewell: 'Попрощаться с Capri', quit: 'Выйти',
+    discord: 'Discord', discordPresence: 'Использовать Discord Rich Presence',
     version: 'О Capri', macPermissions: 'Разрешения macOS…',
   },
   fr: {
@@ -62,6 +64,7 @@ const TRAY = {
     size: 'Taille', small: 'Petite', medium: 'Moyenne', large: 'Grande', sound: 'Son', mute: 'Muet',
     soundsDir: 'Ouvrir le dossier des sons personnalisés', screen: 'Écran utilisé par Capri', screenDescription: 'Choisissez l’écran de Capri. « Regarder mon écran » capture cet écran ; le sélectionner ne déclenche aucune capture.', wander: 'Se promener au repos',
     possess: 'Posséder mes fenêtres', possessMove: 'Les déplacer pendant qu’elle les possède', lang: 'Langue', auto: 'Automatique (système)', startup: 'Démarrer avec Windows',
+    discord: 'Discord', discordPresence: 'Utiliser Discord Rich Presence',
     version: 'À propos de Capri', macPermissions: 'Autorisations macOS…',
     hooksOn: 'Hooks Claude Code : installés', hooksOff: 'Installer les hooks Claude Code',
     hooksRemove: 'Supprimer les hooks Claude Code', forget: 'Oublier nos conversations', farewell: 'Dire au revoir à Capri', quit: 'Quitter',

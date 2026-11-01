@@ -11,7 +11,8 @@ const HELP_COMMANDS = [
   ['/version', 'Afficher la version de Capri.', 'Show Capri version.'],
   ['/status', 'Afficher l’état général de Capri.', 'Show general Capri status.'],
   ['/open app/<nom>', 'Ouvrir une application connue de Capri.', 'Open a known application.'],
-  ['/open file/<chemin>', 'Ouvrir un fichier local existant.', 'Open an existing local file.'],
+  ['/open file/<chemin>', 'Ouvrir un fichier, dossier ou document local existant.', 'Open an existing local file, folder, or document.'],
+  ['/open folder/<chemin>', 'Ouvrir un dossier local existant.', 'Open an existing local folder.'],
   ['/download <url>', 'Télécharger une URL HTTP(S) dans Téléchargements.', 'Download an HTTP(S) URL to Downloads.'],
   ['/system info', 'Afficher les informations du système.', 'Show system information.'],
   ['/network status', 'Afficher l’état réseau du système.', 'Show system network status.'],
@@ -65,13 +66,25 @@ function validUrl(value) {
   }
 }
 
+async function safeOpenPath(file, shell) {
+  const requested = String(file || '').trim();
+  if (!requested || requested.includes('\0')) return false;
+  const target = path.resolve(requested.startsWith('~') ? path.join(os.homedir(), requested.slice(1)) : requested);
+  try {
+    await fs.stat(target);
+    return !(await shell.openPath(target));
+  } catch {
+    return false;
+  }
+
+}
+
 async function safeOpenFile(file, shell) {
   const requested = String(file || '').trim();
   if (!requested || requested.includes('\0')) return false;
   const target = path.resolve(requested.startsWith('~') ? path.join(os.homedir(), requested.slice(1)) : requested);
   try {
-    const stat = await fs.stat(target);
-    if (!stat.isFile()) return false;
+    if (!(await fs.stat(target)).isFile()) return false;
     return !(await shell.openPath(target));
   } catch {
     return false;
@@ -266,7 +279,7 @@ function createTerminal({
     }
 
     if (command === '/open') {
-      const match = /^(app|file)\/(.+)$/i.exec(fullArg);
+      const match = /^(app|file|folder)\/(.+)$/i.exec(fullArg);
       if (!match) {
         return error(tr('Usage : /open app/<nom> ou /open file/<chemin>.', 'Usage: /open app/<name> or /open file/<path>.'));
       }
@@ -301,15 +314,15 @@ function createTerminal({
         }
       }
 
-      if (targetType === 'file') {
+      if (targetType === 'file' || targetType === 'folder') {
         if (!openFile) {
           return error(tr('Ouverture de fichiers indisponible.', 'Opening files is unavailable.'));
         }
         try {
           const ok = await openFile(targetValue);
           return ok
-            ? response([tr(`Fichier ouvert : ${targetValue}`, `File opened: ${targetValue}`)])
-            : error(tr('Fichier introuvable ou chemin non autorisé.', 'File not found or path not allowed.'));
+            ? response([tr(`${targetType === 'folder' ? 'Dossier' : 'Fichier'} ouvert : ${targetValue}`, `${targetType === 'folder' ? 'Folder' : 'File'} opened: ${targetValue}`)])
+            : error(tr('Fichier ou dossier introuvable ou chemin non autorisé.', 'File or folder not found, or path not allowed.'));
         } catch (err) {
           return error(`${tr('Échec de l’ouverture :', 'Open failed:')} ${err.message}`);
         }
@@ -487,5 +500,6 @@ module.exports = {
   tokenize,
   validUrl,
   safeOpenFile,
+  safeOpenPath,
   createTerminal,
 };

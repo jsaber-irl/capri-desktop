@@ -42,3 +42,13 @@ test('resignation, new game, and SAN notation remain coherent', () => {
   assert.equal(game.play('e2e4').ok, false);
   assert.equal(game.newGame().status, 'playing');
 });
+
+test('online play uses a legal move from the free Lichess cloud evaluation when available', async () => {
+  const game = new ChessGame({
+    random: () => 0,
+    fetchEval: async () => ({ ok: true, json: async () => ({ pvs: [{ moves: 'e7e5' }] }) }),
+  });
+  const result = await game.playAsync('e2e4');
+  assert.equal(result.ok, true);
+  assert.equal(result.botMove, 'e7e5');
+});

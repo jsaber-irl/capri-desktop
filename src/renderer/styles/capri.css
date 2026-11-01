@@ -309,6 +309,7 @@ body {
   line-height: 1.5;
   color: var(--paper-2);
   display: -webkit-box;
+  line-clamp: 3;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
@@ -401,6 +402,7 @@ html[data-motion='reduced'] .panel__bar {
 /* her welcome / help panel: the explanation is read whole, and it has buttons */
 .panel.is-guide .panel__quote {
   display: block;
+  line-clamp: unset;
   -webkit-line-clamp: unset;
   overflow: visible;
   white-space: pre-line; /* one idea per line */
@@ -702,6 +704,7 @@ html[data-motion='reduced'] .panel__bar {
   margin: 0 0 8px;
   padding-left: 0;
   border-left: 0;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
 }
 

@@ -55,6 +55,13 @@ body {
   gap: 16px;
   padding: 0 10px 13px;
   border-bottom: 1px solid #ff215233;
+  -webkit-app-region: drag;
+}
+
+.chess__header button,
+.chess__header nav,
+.chess__header .chess__brand {
+  -webkit-app-region: no-drag;
 }
 
 .chess__brand {
@@ -118,6 +125,11 @@ body {
   background: transparent;
   border: 0;
   font-size: 24px;
+}
+
+button,
+.square {
+  -webkit-app-region: no-drag;
 }
 
 #close:hover {

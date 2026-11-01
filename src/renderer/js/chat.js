@@ -31,6 +31,7 @@ const CLOSE_ASK = /\b(close|shut|quit|kill|exit|ferme|quitte)\b|закр|вык�
 const TAG = /\[\[\s*(open|music|media|site)\s*:\s*([^\]]*)\]\]/i;
 // "open", "launch", "открой"...
 const OPEN_ASK = /\b(open|launch|start|run|ouvre|lance|démarre)\b|открой|запусти/i;
+const OPEN_PATH_ASK = /\b(?:open|ouvre|lance|démarre)\b\s+(?:(?:the|le|la|un|une)\s+)?(?:file|fichier|folder|dossier|directory|répertoire|image|document)\s+(?:called\s+|nommé\s+|named\s+)?["“]?(.+?)["”]?\s*$/iu;
 const CHESS_ASK = /\b(?:play|let'?s play|chess)\b|\b(?:jouons|jouer|partie|échecs|echecs)\b|шахмат/iu;
 const LATEST_VIDEO_ASK = /\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b.*\b(?:video|vid[eé]o)\b|\b(?:video|vid[eé]o)\b.*\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b/iu;
 const DOCUMENT_CREATE = /(?:create|crée|cree|créer).*?(?:new\s+)?(?:text\s+)?(?:file|document|fichier).*?(?:write|écris|ecris|écrire)\s+["“]([\s\S]*?)["”]/iu;
@@ -426,6 +427,14 @@ export class Chat {
       if (creator) return { kind: 'videoSearch', creator, browser };
     }
     if (CHESS_ASK.test(text)) return { kind: 'chess' };
+    const pathMatch = OPEN_PATH_ASK.exec(text);
+    if (pathMatch) {
+      const requestedPath = pathMatch[1].trim()
+        .replace(/["”]\s*[.!?]*$/u, '')
+        .replace(/^["“]/u, '')
+        .replace(/[.!?]$/u, '');
+      return { kind: 'openPath', path: requestedPath };
+    }
     const documentContent = DOCUMENT_CREATE.exec(text)?.[1];
     if (documentContent !== undefined) {
       const filename = /(?:named|called|nommé|nommee|nommée)\s+["“]?([^"”\s]+)["”]?/iu.exec(text)?.[1] || 'Note.txt';
@@ -493,6 +502,13 @@ export class Chat {
       const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
       if (!result?.ok) return { line: result?.error || (fr ? 'Je n’ai pas pu ouvrir la partie d’échecs.' : ru ? 'Не удалось открыть шахматную партию.' : 'I could not open the chess game.'), face: 'aside' };
       return { line: fr ? 'L’échiquier est prêt. Tu joues les blancs ; les coups sont aussi disponibles dans le terminal Capri.' : ru ? 'Шахматная доска готова. Ты играешь белыми; ходы доступны и в терминале Capri.' : 'The board is ready. You play White; moves are also available in the Capri terminal.', face: 'smug' };
+    }
+    if (asked.kind === 'openPath') {
+      const result = await this.host.openPath?.(asked.path);
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      return result?.ok
+        ? { line: fr ? `J’ai ouvert « ${asked.path} ».` : ru ? `Я открыла « ${asked.path}».` : `I opened "${asked.path}".`, face: 'laugh' }
+        : { line: result?.error || (fr ? `Je n’ai pas trouvé « ${asked.path} ».` : ru ? `Не удалось найти « ${asked.path}».` : `I could not find "${asked.path}".`), face: 'aside' };
     }
     if (asked.kind === 'videoSearch') {
       const result = await this.host.videoSearch?.({ creator: asked.creator, browser: asked.browser });

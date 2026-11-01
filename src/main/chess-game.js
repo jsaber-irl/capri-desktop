@@ -176,7 +176,11 @@ function negamax(p, depth, alpha, beta) {
 }
 
 class ChessGame {
-  constructor({ random = Math.random } = {}) { this.random = random; this.newGame(); }
+  constructor({ random = Math.random, fetchEval = globalThis.fetch } = {}) {
+    this.random = random;
+    this.fetchEval = fetchEval;
+    this.newGame();
+  }
   newGame() { this.position = parseFen(); this.history = [key(this.position)]; this.resigned = false; return this.state(); }
   play(value) {
     if (this.resigned || this.outcome()) return { ok: false, error: 'La partie est terminée.' };
@@ -189,6 +193,43 @@ class ChessGame {
     const reply = this.chooseBotMove();
     if (reply) { this.position = applyMove(this.position, reply); this.history.push(key(this.position)); }
     return { ok: true, userState, state: this.state(), botMove: reply ? `${square(reply.from)}${square(reply.to)}${reply.promotion || ''}` : '' };
+  }
+  async playAsync(value) {
+    if (this.resigned || this.outcome()) return { ok: false, error: 'La partie est terminée.' };
+    if (this.position.turn !== 'w') return { ok: false, error: 'Capri réfléchit à son coup.' };
+    const move = parseUserMove(this.position, value);
+    if (!move) return { ok: false, error: 'Coup illégal ou notation non reconnue.' };
+    this.position = applyMove(this.position, move); this.history.push(key(this.position));
+    const userState = this.state();
+    if (userState.status !== 'playing') return { ok: true, userState, state: userState };
+    const reply = await this.chooseBotMoveOnline();
+    if (reply) { this.position = applyMove(this.position, reply); this.history.push(key(this.position)); }
+    return { ok: true, userState, state: this.state(), botMove: reply ? `${square(reply.from)}${square(reply.to)}${reply.promotion || ''}` : '' };
+  }
+  async chooseBotMoveOnline() {
+    const remote = await this.remoteMove();
+    return remote || this.chooseBotMove();
+  }
+  async remoteMove() {
+    if (typeof this.fetchEval !== 'function') return null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
+    try {
+      const url = `https://lichess.org/api/cloud-eval?fen=${encodeURIComponent(toFen(this.position))}&multiPv=3`;
+      const response = await this.fetchEval(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
+      if (!response.ok) return null;
+      const data = await response.json();
+      const candidates = (data.pvs || []).map((pv) => String(pv.moves || '').split(/\s+/)[0]).filter(Boolean);
+      const legal = legalMoves(this.position);
+      const choices = candidates.map((uci) => legal.find((move) => `${square(move.from)}${square(move.to)}${move.promotion || ''}` === uci)).filter(Boolean);
+      if (!choices.length) return null;
+      // Pick among the three principal variations so the free cloud service stays near a beginner level.
+      return choices[Math.min(choices.length - 1, Math.floor(this.random() * Math.min(3, choices.length)))];
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
   }
   chooseBotMove() {
     const moves = legalMoves(this.position);

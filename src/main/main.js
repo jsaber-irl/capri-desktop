@@ -48,8 +48,9 @@ const vision = require('./screen');
 const control = require('./control');
 const { startMediaWatch } = require('./media');
 const { createMusicController } = require('./music-control');
-const { createTerminal, safeOpenFile } = require('./terminal');
+const { createTerminal, safeOpenFile, safeOpenPath } = require('./terminal');
 const { ASSISTANTS, assistant } = require('./assistants');
+const { startDiscordPresence, stopDiscordPresence } = require('./discord-presence');
 const activeAssistant = () => assistant(config.load().assistant); // Claude Code or Codex
 const activeHooks = () => activeAssistant().hooks;
 const demoSteps = require('../../scripts/demo-sequence');
@@ -573,7 +574,7 @@ const terminal = createTerminal({
     await launch.launch(result.item);
     return { ok: true, name: result.item.name };
   },
-  openFile: (file) => safeOpenFile(file, shell),
+  openFile: (file) => safeOpenPath(file, shell),
   download: downloadTerminalFile,
   musicControl: (request) => musicControl.command(request),
   chess: (request) => chessWindow.command(request),
@@ -625,6 +626,16 @@ function updateConfig(patch) {
   if (did('chatModel', 'provider')) { applyTuning(); tuneSoon(); } // (another model: another measurement)
   if (did('ollamaDir')) ollamaHost.stop(false);
   if (did('piperDir')) piper.stop(false);
+  if (did('discordPresence')) {
+    if (config.load().discordPresence !== false) {
+      startDiscordPresence({
+        details: process.argv.includes('--dev') ? 'Improving Capri' : 'Playing with Capri',
+        state: 'Your personal AI assistant',
+      });
+    } else {
+      stopDiscordPresence();
+    }
+  }
   // picking Ollama, Chatterbox or Piper (here, in her menu or in her ring), or a language that needs another Piper voice,
   // gets what they need ready, by herself
   const voice = config.load().ttsEngine;
@@ -742,6 +753,12 @@ function buildTray() {
     { label: t.custom, click: () => sendCommand('customize') },
     { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     { type: 'separator' },
+    {
+      label: t.discord,
+      submenu: [
+        { label: t.discordPresence, type: 'checkbox', checked: cfg.discordPresence !== false, click: (item) => updateConfig({ discordPresence: item.checked }) },
+      ],
+    },
     {
       label: t.size,
       submenu: [[t.small, 0.45], [t.medium, 0.6], [t.large, 0.8]].map(([label, scale]) => ({
@@ -1535,6 +1552,8 @@ function registerIpc() {
   ipcMain.handle('music:command', (_e, request) => musicControl.command(request || {}));
   ipcMain.handle('apps:music', (_e, query) => launch.music(query).catch(() => false));
   ipcMain.handle('apps:site', (_e, address) => launch.site(address).catch(() => false));
+  ipcMain.handle('apps:openPath', (_e, target) => safeOpenPath(target, shell)
+    .then((ok) => ok ? { ok: true } : { ok: false, error: 'Fichier, dossier ou document introuvable.' }));
   ipcMain.handle('apps:roblox', (_e, query) => launch.roblox(query).catch((err) => ({ name: null, error: err.message })));
   ipcMain.handle('apps:videoSearch', (_e, request) => performVideoSearch(request || {}));
   ipcMain.handle('documents:createText', async (_e, request) => {
@@ -1852,6 +1871,14 @@ function main() {
       return isCapri(contents) && ownOrigin && permission === 'media' && audioOnly;
     });
     if (!['codex', 'claude'].includes(config.load().assistant)) config.save({ assistant: activeAssistant().id });
+    if (config.load().discordPresence !== false) {
+      startDiscordPresence({
+        details: process.argv.includes('--dev')
+          ? 'Improving Capri'
+          : 'Playing with Capri',
+        state: 'Your personal AI assistant'
+      });
+    }
     serveProtocol();
     registerIpc();
     createOverlay();
@@ -1931,6 +1958,10 @@ function main() {
     // after sleep or a locked screen, once Windows has settled
     powerMonitor.on('resume', () => setTimeout(rearmOverlay, 2000));
     powerMonitor.on('unlock-screen', () => setTimeout(rearmOverlay, 1000));
+  });
+
+  app.on('before-quit', () => {
+    stopDiscordPresence();
   });
 
   app.on('will-quit', () => {
