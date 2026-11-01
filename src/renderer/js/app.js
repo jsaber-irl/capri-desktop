@@ -20,7 +20,7 @@ import { Hands } from './hands.js';
 import { Ears } from './ears.js';
 import { Bond } from './bond.js';
 import { Ring } from './ring.js';
-import { applyTheme, resolveTheme, askedTheme } from './themes.js';
+import { applyTheme, applyWindowTheme, resolveTheme, askedTheme } from './themes.js';
 import { classify } from './mood.js';
 import { linesFor } from './lines.js';
 import { lifeLines } from './lines-life.js';
@@ -113,7 +113,8 @@ async function boot() {
   // Her feelings (heart.js, mood.js): what she shows, and her colours when they follow her mood.
   const heart = new Heart({ capri, panel, voice, brain, host });
   brain.heart = heart;
-  let themeSetting = config.theme || 'classic';
+  applyWindowTheme(config.theme || 'classic');
+  let themeSetting = config.colourTheme || 'classic';
   let themeShown = applyTheme(resolveTheme(themeSetting, heart.state.mood), { capri });
   heart.onMood = (state) => {
     host.moodState({ mood: state.mood, level: state.level });
@@ -619,9 +620,10 @@ async function boot() {
     host.senseState({ eyes: eyes.enabled, ears: ears.enabled, listening: false });
     showSenses();
     capri.lang = cfg.lang;
-    if ((cfg.theme || 'classic') !== themeSetting) {
+    applyWindowTheme(cfg.theme || 'classic');
+    if ((cfg.colourTheme || 'classic') !== themeSetting) {
       // new colours: a twirl to show them off (and a word, unless her chat already said one)
-      themeSetting = cfg.theme || 'classic';
+      themeSetting = cfg.colourTheme || 'classic';
       const next = resolveTheme(themeSetting, heart.state.mood);
       if (next !== themeShown) {
         themeShown = applyTheme(next, { capri });

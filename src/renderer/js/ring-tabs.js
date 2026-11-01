@@ -3,7 +3,7 @@
 // character, her colours, her voice, and the rest. Each tab is { sub?, render(ctx) }: ctx comes from
 // ring.js (settings, `set` to change one, the bond, the ears...).
 
-import { THEMES, THEME_IDS } from './themes.js';
+import { THEMES, THEME_IDS, WINDOW_THEME_IDS } from './themes.js';
 import { lifeLines } from './lines-life.js';
 import { fmt } from './util.js';
 import { plural, dateOf } from './bond.js';
@@ -562,7 +562,7 @@ const colours = {
     const root = el('div');
     root.append(note(k.hint, true));
     const grid = el('div', 'ring__swatches');
-    const current = cfg.theme || 'classic';
+    const current = cfg.colourTheme || 'classic';
     for (const id of THEME_IDS) {
       const b = el('button', `ring__swatch${id === current ? ' is-on' : ''}`);
       b.type = 'button';
@@ -573,7 +573,7 @@ const colours = {
       b.append(el('span', 'ring__swatch-chip'), document.createTextNode(k.themes[id] || id));
       b.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (id !== current) c.set({ theme: id });
+        if (id !== current) c.set({ colourTheme: id });
       });
       grid.append(b);
     }
@@ -743,6 +743,10 @@ const more = {
     root.append(row(m.rest, seg([{ id: 'corner', label: m.corner }, { id: 'taskbar', label: m.taskbar }], cfg.rest || 'corner', (id) => c.set({ rest: id }))));
     root.append(row(m.lang, null));
     root.append(seg(LANGS.map(([id, name]) => ({ id, label: name || m.auto })), cfg.langSetting ?? cfg.lang ?? 'auto', (id) => c.set({ lang: id })));
+    root.append(row(m.theme, seg(WINDOW_THEME_IDS.map((id) => ({
+      id,
+      label: m[`theme${id === 'nightcity' ? 'NightCity' : 'Classic'}`],
+    })), cfg.theme || 'classic', (id) => c.set({ theme: id }))));
     root.append(heading(''));
     root.append(buttons(
       go(c, m.teleport, 'teleport'),

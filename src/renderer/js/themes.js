@@ -45,6 +45,7 @@ export const THEMES = {
 };
 
 export const THEME_IDS = [...Object.keys(THEMES), 'mood'];
+export const WINDOW_THEME_IDS = ['classic', 'nightcity'];
 
 // 'mood': the colours of how she feels
 const BY_MOOD = { angry: 'classic', annoyed: 'classic', sad: 'netrunner', shy: 'sakura', happy: 'gold', bored: 'ghost', calm: 'classic' };
@@ -62,15 +63,18 @@ export function applyTheme(id, { capri, root = document.documentElement } = {}) 
   const theme = THEMES[id] || THEMES.classic;
   const key = THEMES[id] ? id : 'classic';
   if (applied !== key) {
-    // back to the stylesheet's own colours first, then this theme's
-    for (const name of ['--red', '--violet', '--ink', '--ink-2']) root.style.removeProperty(name);
-    for (const [name, value] of Object.entries(theme.css)) root.style.setProperty(name, value);
     root.dataset.theme = key;
     Object.assign(COLORS, THEMES.classic.fx, theme.fx);
     applied = key;
   }
   capri?.setTheme(theme);
   return key;
+}
+
+export function applyWindowTheme(id, { root = document.documentElement } = {}) {
+    const key = WINDOW_THEME_IDS.includes(id) ? id : 'classic';
+    root.dataset.windowTheme = key;
+    return key;
 }
 
 // What she understands in her chat: "перекрасься в синий", "turn pink", "make yourself gold"...

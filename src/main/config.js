@@ -29,7 +29,7 @@ const DEFAULTS = {
   claudeMode: 'default', // Claude Code's permission mode in her chat: 'default' only reads, 'acceptEdits' edits without asking
   claude: true,      // she watches Claude Code (off: she just keeps you company, no word of it)
   rest: 'corner',    // where she rests when nothing's going on: 'corner', or 'taskbar' (sitting on it)
-  theme: 'classic',    // her windows: 'nightcity' (the cyberpunk.net HUD) or 'classic' (her first ones, violet)
+  theme: 'classic',    // her window style: 'nightcity' (cyberpunk.net) or 'classic'
   motion: 'auto',    // her animations: 'auto' (like Windows' animation effects), 'full' or 'reduced'
   motionAsked: false, // she asked once, Windows' animations being off, whether to move anyway
   render: 'auto',   // how her window is drawn: 'auto', 'gl' (OpenGL) or 'software' (no graphics card), for PCs that show it black
@@ -43,7 +43,7 @@ const DEFAULTS = {
   lookAsked: false,  // she told you what looking means (where the picture goes) and you said yes
   // her character (mood.js, life.js, themes.js, speech.js)
   emotions: true,    // she has moods: she gets angry, laughs, sulks, gets flustered
-  theme: 'classic',  // her colours: a key of themes.js THEMES, or 'mood' (they follow how she feels)
+  colourTheme: 'classic', // her colours: a key of themes.js THEMES, or 'mood'
   life: true,        // she finds things to do on her own (hacking, games, graffiti...)
   dj: true,          // DJ mode: while music plays she skips a track herself now and then
   musicAware: true,  // she knows what's playing (title and artist, from Windows' media controls)
@@ -109,7 +109,15 @@ function load(fresh = false) {
   if (fresh) flush(); // (a change not written yet would be lost to the read)
   if (cache && (!fresh || pending)) return cache; // (pending still: the write failed, the file is older than what we hold)
   try {
-    cache = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(file(), 'utf8')) };
+    const saved = JSON.parse(fs.readFileSync(file(), 'utf8'));
+    const legacyColours = saved.theme && !['classic', 'nightcity'].includes(saved.theme)
+      ? saved.theme
+      : null;
+    cache = {
+      ...DEFAULTS,
+      ...saved,
+      ...(legacyColours ? { theme: 'classic', colourTheme: legacyColours } : {}),
+    };
   } catch {
     cache = { ...DEFAULTS };
   }

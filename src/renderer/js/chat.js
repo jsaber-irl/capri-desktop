@@ -556,7 +556,7 @@ export class Chat {
     }
     if (asked.kind === 'theme') {
       // her new colours: the config comes back around and puts them on (app.js)
-      await this.host.setConfig({ theme: asked.theme });
+      await this.host.setConfig({ colourTheme: asked.theme });
       this.capri.twitch();
       const tt = lifeLines(this.brain.lang).theme;
       return { line: asked.theme === 'mood' ? tt.mood : pick(tt.done), face: 'smug' };

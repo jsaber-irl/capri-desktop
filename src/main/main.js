@@ -87,6 +87,7 @@ function performVideoSearch(request = {}) {
 }
 // her colours (renderer themes.js), in the order of her menu
 const THEMES = ['classic', 'netrunner', 'toxic', 'violet', 'gold', 'sakura', 'ghost', 'mood'];
+const WINDOW_THEMES = ['classic', 'nightcity'];
 // which saved key each voice engine uses (OpenAI's is the same one as her chat's)
 const TTS_KEYS = { openai: 'openai', elevenlabs: 'elevenlabs', custom: 'tts' };
 // her voice (Chatterbox) and her mind (Ollama), models on this PC: she finds their folders next to her, starts
@@ -815,6 +816,15 @@ function buildTray() {
     { label: t.musicPlayer, click: () => musicPlayer.show() },
     { label: t.translator, click: () => translationWindow.show() },
     { label: t.terminal, click: openTerminal },
+    {
+      label: t.theme,
+      submenu: WINDOW_THEMES.map((theme) => ({
+        label: t[`theme${theme === 'nightcity' ? 'NightCity' : 'Classic'}`],
+        type: 'radio',
+        checked: (cfg.theme || 'classic') === theme,
+        click: () => updateConfig({ theme }),
+      })),
+    },
     { label: t.help, click: () => sendCommand('welcome') },
     { label: t.hub, click: () => hub?.show() },
     ...(macPermissionsItem ? [macPermissionsItem] : []),
@@ -841,7 +851,7 @@ function buildTray() {
     {
       label: t.colors,
       submenu: THEMES.map((theme) => ({
-        label: t.themes[theme], type: 'radio', checked: (cfg.theme || 'classic') === theme, click: () => updateConfig({ theme }),
+        label: t.themes[theme], type: 'radio', checked: (cfg.colourTheme || 'classic') === theme, click: () => updateConfig({ colourTheme: theme }),
       })),
     },
     {
