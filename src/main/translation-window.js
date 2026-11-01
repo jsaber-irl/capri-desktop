@@ -2,9 +2,13 @@
 
 function createTranslationWindow({ BrowserWindow, ipcMain, dialog, preload, protocolUrl, translateSource, getSettings, getTranslationOptions, setSettings }) {
   let win = null;
-  const owns = (event) => Boolean(win && !win.isDestroyed() && event.sender === win.webContents && event.senderFrame === win.webContents.mainFrame);
-  const show = () => {
-    if (win && !win.isDestroyed()) { win.show(); win.focus(); return; }
+  const owns = (event) => Boolean(win && !win.isDestroyed() && event.sender === win.webContents
+    && (!event.senderFrame || event.senderFrame === win.webContents.mainFrame));
+  const show = (source = null) => {
+    if (win && !win.isDestroyed()) {
+      if (source) win.webContents.send('translation:source', source);
+      win.show(); win.focus(); return;
+    }
     win = new BrowserWindow({
       width: 900, height: 700, minWidth: 620, minHeight: 480, title: 'Capri // Translator',
       backgroundColor: '#0d0a14', frame: false, show: false, autoHideMenuBar: true,
@@ -12,6 +16,7 @@ function createTranslationWindow({ BrowserWindow, ipcMain, dialog, preload, prot
     });
     win.removeMenu?.();
     win.once('ready-to-show', () => win?.show());
+    win.webContents.once('did-finish-load', () => { if (source) win?.webContents.send('translation:source', source); });
     win.on('closed', () => { win = null; });
     win.loadURL(protocolUrl);
   };
@@ -43,7 +48,7 @@ function createTranslationWindow({ BrowserWindow, ipcMain, dialog, preload, prot
   });
   ipcMain.handle('translation:close', (event) => {
     if (!owns(event)) return { ok: false, error: 'Access denied.' };
-    win.close();
+    win.destroy();
     return { ok: true };
   });
   return { show, close: () => win?.close() };

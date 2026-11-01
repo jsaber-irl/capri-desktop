@@ -97,6 +97,19 @@ test('macOS Spotify adapter uses explicit AppleScript commands and reports its m
   assert.ok(calls.some(([file, args]) => file === 'osascript' && args.includes('tell application "Spotify" to next track')));
 });
 
+test('macOS Deezer adapter detects track and playlist metadata', async () => {
+  const execFile = (file, args, _options, callback) => {
+    if (file === 'pgrep') return callback(null, '42', '');
+    if (file === 'osascript') return callback(null, 'playing¦Track D¦Artist D¦Album D¦My Playlist', '');
+    callback(null, '', '');
+  };
+  const controller = createMusicController({ platform: 'darwin', adapters: createPlatformAdapters('darwin', { execFile }) });
+  const current = await controller.command({ action: 'current', service: 'deezer' });
+  assert.equal(current.session.title, 'Track D');
+  assert.equal(current.session.playlist, 'My Playlist');
+  assert.equal((await controller.command({ action: 'next', service: 'deezer' })).ok, true);
+});
+
 test('Linux MPRIS adapter discovers a web session, classifies its service from its URL, and controls it by player id', async () => {
   const calls = [];
   const execFile = (file, args, _options, callback) => {

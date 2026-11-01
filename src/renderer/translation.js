@@ -21,6 +21,17 @@ function setMode(next) {
   input.hidden = next !== 'text';
   fileName.hidden = next !== 'file';
 }
+function loadSource(source) {
+  if (!source || typeof source !== 'object') return;
+  if (source.kind === 'file' && source.value) {
+    file = source.value;
+    fileName.textContent = file;
+    setMode('file');
+  } else if (source.kind === 'url' && source.value) {
+    url.value = source.value;
+    setMode('url');
+  }
+}
 for (const id of ['urlMode', 'fileMode', 'textMode']) document.getElementById(id).addEventListener('click', () => setMode(id.replace('Mode', '')));
 document.getElementById('chooseFile').addEventListener('click', async () => {
   const result = await host.translationChooseFile();
@@ -45,3 +56,4 @@ host.translationSettings().then((settings) => {
   apiUrl.value = settings.apiUrl || '';
   setMode('url');
 });
+host.onTranslationSource?.(loadSource);

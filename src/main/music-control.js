@@ -29,6 +29,7 @@ function normalizeSession(raw, adapter) {
     id: String(raw.id || ''), adapter, service,
     app, mode: raw.mode || (/browser|chrome|chromium|firefox|msedge|edge|brave|vivaldi|opera/i.test(app) ? 'web' : 'native'),
     title: String(raw.title || ''), artist: String(raw.artist || ''), album: String(raw.album || ''),
+    playlist: String(raw.playlist || ''),
     playing: raw.playing === true || /^playing$/i.test(String(raw.status || '')), status: raw.playing === true || /^playing$/i.test(String(raw.status || '')) ? 'playing' : 'paused',
     volume: Number.isFinite(raw.volume) ? raw.volume : null,
     canVolume: raw.canVolume === true,
@@ -142,7 +143,35 @@ function createPlatformAdapters(platform, { execFile = cp.execFile } = {}) {
         return { ok: true };
       },
     };
-    return [spotify];
+    const deezer = {
+      name: 'deezer-macos',
+      async list() {
+        try { await execFileAsync(execFile, 'pgrep', ['-x', 'Deezer']); }
+        catch (error) {
+          if (error.code === 1) return [];
+          throw new Error(`Impossible de vérifier si Deezer est ouvert : ${error.message}`);
+        }
+        const script = 'tell application "Deezer" to (player state as text) & "¦" & (name of current track) & "¦" & (artist of current track) & "¦" & (album of current track) & "¦" & (playlist of current track)';
+        let metadata;
+        try {
+          metadata = await execFileAsync(execFile, 'osascript', ['-e', script]);
+        } catch {
+          const fallback = 'tell application "Deezer" to (player state as text) & "¦" & (name of current track) & "¦" & (artist of current track) & "¦" & (album of current track)';
+          metadata = await execFileAsync(execFile, 'osascript', ['-e', fallback]);
+        }
+        const [state, title, artist, album, playlist = ''] = metadata.split('¦');
+        return /^(playing|paused)$/i.test(state) ? [{ id: 'deezer-native', service: 'deezer', app: 'Deezer', mode: 'native', status: state, title, artist, album, playlist }] : [];
+      },
+      async control(_session, action) {
+        const verbs = { play: 'play', pause: 'pause', next: 'next track', previous: 'previous track' };
+        if (action === 'toggle') action = 'playpause';
+        const verb = action === 'playpause' ? 'playpause' : verbs[action];
+        if (!verb) throw new Error(`Action indisponible : ${action}`);
+        await execFileAsync(execFile, 'osascript', ['-e', `tell application "Deezer" to ${verb}`]);
+        return { ok: true };
+      },
+    };
+    return [spotify, deezer];
   }
 
   if (platform === 'linux') {

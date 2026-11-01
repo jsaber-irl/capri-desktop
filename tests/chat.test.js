@@ -66,6 +66,21 @@ test('plain French app-opening commands from text or voice enter the shared app 
   assert.deepEqual(voiceRequest, { kind: 'open', text: 'Ouvre l’application météo' });
 });
 
+test('French mini-player requests from chat open the integrated music player', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
+  assert.deepEqual(chat.asked('Ouvre le mini lecteur de musique.'), { kind: 'musicPlayer' });
+  assert.deepEqual(chat.asked('Affiche le mini-lecteur.'), { kind: 'musicPlayer' });
+});
+
+test('translation requests from chat open the translator with a file or web page', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
+  assert.deepEqual(chat.asked('Traduis le fichier "/tmp/notes.txt".'), { kind: 'translation', source: { kind: 'file', value: '/tmp/notes.txt' } });
+  assert.deepEqual(chat.asked('Translate this web page https://example.com/help.'), { kind: 'translation', source: { kind: 'url', value: 'https://example.com/help' } });
+  assert.deepEqual(chat.asked('Ouvre la page de traduction.'), { kind: 'translation', source: null });
+});
+
 test('natural TextEdit document requests preserve the quoted text for the verified document action', async () => {
   const { Chat } = await load('chat.js');
   const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });

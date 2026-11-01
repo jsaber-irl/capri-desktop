@@ -246,6 +246,7 @@ const musicPlayer = createMusicPlayer({
   lang: () => resolveLang(config.load().lang),
   playTrack: playMusicTrack,
   media: (request) => musicControl.command(request),
+  listMedia: () => musicControl.list(),
 });
 const translationWindow = createTranslationWindow({
   BrowserWindow,
@@ -1625,6 +1626,10 @@ function registerIpc() {
   ipcMain.handle('apps:launch', (_e, item) => launch.launch(item).then(() => ({ ok: true }), (err) => ({ ok: false, error: err.message })));
   ipcMain.handle('apps:media', async (_e, action) => (await musicControl.command({ action })).ok);
   ipcMain.handle('music:command', (_e, request) => musicControl.command(request || {}));
+  ipcMain.handle('translation:open', (_e, source) => {
+    translationWindow.show(source || null);
+    return { ok: true };
+  });
   ipcMain.handle('music-player:open', () => {
     musicPlayer.show();
     return { ok: true };

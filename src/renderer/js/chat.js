@@ -33,7 +33,8 @@ const TAG = /\[\[\s*(open|music|media|site)\s*:\s*([^\]]*)\]\]/i;
 const OPEN_ASK = /\b(open|launch|start|run|ouvre|lance|démarre)\b|открой|запусти/i;
 const OPEN_PATH_ASK = /\b(?:open|ouvre|ouvrir|lance|démarre)\b\s+(?:(?:the|le|la|l'|un|une|des|les)\s+)?(?:files?|fichiers?|folders?|dossiers?|directories|répertoires?|images?|documents?)\s+(?:called\s+|nommé(?:e)?\s+|named\s+)?["“]?(.+?)["”]?(?:\s+(?:dans|with|in)\s+(?:finder|explorer|file explorer|le gestionnaire de fichiers))?\s*[.!?]*$/iu;
 const OPEN_DIRECT_PATH_ASK = /\b(?:open|ouvre|ouvrir|lance|démarre)\b\s+(.+)/iu;
-const MUSIC_PLAYER_ASK = /\b(?:open|launch|start|show|ouvre|ouvrir|lance|affiche)\b.*\b(?:music|musique)\s+(?:player|lecteur)\b|\b(?:music|musique)\s+(?:player|lecteur)\b.*\b(?:open|ouvre|lance)\b/i;
+const MUSIC_PLAYER_ASK = /\b(?:open|launch|start|show|ouvre|ouvrir|lance|affiche)\b.*\b(?:(?:mini\s+)?(?:music|musique)\s+(?:player|lecteur)|mini[-\s]?lecteur)\b|\b(?:(?:mini\s+)?(?:music|musique)\s+(?:player|lecteur)|mini[-\s]?lecteur)\b.*\b(?:open|ouvre|lance|affiche)\b/i;
+const TRANSLATION_ASK = /\b(?:translate|traduire|traduis|translation|traduction)\b.*\b(?:file|fichier|document|page|web|site|url)\b|\b(?:file|fichier|document|page|web|site|url)\b.*\b(?:translate|traduire|traduis|translation|traduction)\b/i;
 const CHESS_ASK = /\b(?:play|let'?s play|chess)\b|\b(?:jouons|jouer|partie|échecs|echecs)\b|шахмат/iu;
 const LATEST_VIDEO_ASK = /\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b.*\b(?:video|vid[eé]o)\b|\b(?:video|vid[eé]o)\b.*\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b/iu;
 const WEB_SEARCH_ASK = /\b(?:search|look\s+up|find|recherche|rechercher|cherche|trouve)\b.*\b(?:online|on the web|sur internet|en ligne|sur le web)\b/iu;
@@ -493,6 +494,12 @@ export class Chat {
       if (query) return { kind: 'webSearch', query };
     }
     if (MUSIC_PLAYER_ASK.test(text)) return { kind: 'musicPlayer' };
+    if (TRANSLATION_ASK.test(text)) {
+      const url = /(https?:\/\/[^\s"'<>]+)/i.exec(text)?.[1]?.replace(/[.,!?;:]+$/u, '');
+      const quotedPath = /["“]([^"”]+)["”]/u.exec(text)?.[1];
+      const path = quotedPath || (/\b(?:file|fichier|document)\b\s+(.+?)(?:\s+(?:into|en|vers)\s+\w+)?[.!?]*$/iu.exec(text)?.[1]?.trim());
+      return { kind: 'translation', source: url ? { kind: 'url', value: url } : path ? { kind: 'file', value: path } : null };
+    }
     const directPath = OPEN_DIRECT_PATH_ASK.exec(text)?.[1]?.trim();
     if (directPath && /(?:^|[\s"'“])(?:~|\/|[A-Za-z]:[\\/])/.test(directPath)) {
       return { kind: 'openPath', path: cleanRequestedPath(directPath) };
@@ -585,6 +592,13 @@ export class Chat {
       return result?.ok
         ? { line: fr ? 'Le mini-lecteur de musique est ouvert.' : ru ? 'Мини-плеер музыки открыт.' : 'The music player is open.', face: 'smug' }
         : { line: fr ? 'Je n’ai pas pu ouvrir le mini-lecteur.' : ru ? 'Не удалось открыть мини-плеер.' : 'I could not open the music player.', face: 'aside' };
+    }
+    if (asked.kind === 'translation') {
+      const result = await this.host.translationOpen?.(asked.source);
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      return result?.ok
+        ? { line: fr ? 'La page de traduction est ouverte.' : ru ? 'Страница перевода открыта.' : 'The translation page is open.', face: 'smug' }
+        : { line: fr ? 'Je n’ai pas pu ouvrir la page de traduction.' : ru ? 'Не удалось открыть страницу перевода.' : 'I could not open the translation page.', face: 'aside' };
     }
     if (asked.kind === 'videoSearch') {
       const result = await this.host.videoSearch?.({ creator: asked.creator, browser: asked.browser });
