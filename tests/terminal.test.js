@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { createTerminal, tokenize, validUrl, safeOpenFile, HELP } = require('../src/main/terminal');
+const { createTerminal, tokenize, validUrl, safeOpenFile, safeOpenPath, HELP } = require('../src/main/terminal');
 
 test('tokenizes quoted arguments and validates URLs', () => {
   assert.deepEqual(tokenize('/decrypt "red data"'), ['/decrypt', 'red data']);
@@ -278,4 +278,18 @@ test('safeOpenFile validates files and prevents unsafe traversal', async () => {
   const pkgPath = path.resolve(__dirname, '../package.json');
   assert.equal(await safeOpenFile(pkgPath, mockShell), true);
   assert.equal(openedTarget, pkgPath);
+});
+
+test('safeOpenPath opens existing files and folders with the default application', async () => {
+  let openedTarget = null;
+  const mockShell = {
+    openPath: async (target) => {
+      openedTarget = target;
+      return '';
+    },
+  };
+  assert.equal(await safeOpenPath(`"${path.resolve(__dirname, '../package.json')}"`, mockShell), true);
+  assert.equal(openedTarget, path.resolve(__dirname, '../package.json'));
+  assert.equal(await safeOpenPath(__dirname, mockShell), true);
+  assert.equal(openedTarget, __dirname);
 });

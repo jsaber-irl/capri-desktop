@@ -85,6 +85,8 @@ test('local file and folder requests are routed to the safe open path action', a
   const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
   assert.deepEqual(chat.asked('Capri, ouvre le fichier "/tmp/notes.txt".'), { kind: 'openPath', path: '/tmp/notes.txt' });
   assert.deepEqual(chat.asked('Open the folder "/tmp/projects".'), { kind: 'openPath', path: '/tmp/projects' });
+  assert.deepEqual(chat.asked('Capri, ouvrir les images "C:\\Users\\Capri\\Pictures\\photo.png".'), { kind: 'openPath', path: 'C:\\Users\\Capri\\Pictures\\photo.png' });
+  assert.deepEqual(chat.asked('Ouvre le document "C:\\Users\\Capri\\Documents\\rapport.pdf".'), { kind: 'openPath', path: 'C:\\Users\\Capri\\Documents\\rapport.pdf' });
 });
 
 test('latest YouTube video requests open a date-sorted search instead of choosing an arbitrary video', async () => {

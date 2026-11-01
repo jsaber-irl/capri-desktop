@@ -67,9 +67,13 @@ function validUrl(value) {
 }
 
 async function safeOpenPath(file, shell) {
-  const requested = String(file || '').trim();
+  const requested = String(file || '').trim()
+    .replace(/^["“]|["”]$/gu, '');
   if (!requested || requested.includes('\0')) return false;
-  const target = path.resolve(requested.startsWith('~') ? path.join(os.homedir(), requested.slice(1)) : requested);
+  const expanded = requested
+    .replace(/^~(?=$|[\\/])/, os.homedir())
+    .replace(/^%USERPROFILE%(?=$|[\\/])/i, process.env.USERPROFILE || os.homedir());
+  const target = path.resolve(expanded);
   try {
     await fs.stat(target);
     return !(await shell.openPath(target));

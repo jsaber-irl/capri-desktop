@@ -31,7 +31,7 @@ const CLOSE_ASK = /\b(close|shut|quit|kill|exit|ferme|quitte)\b|закр|вык�
 const TAG = /\[\[\s*(open|music|media|site)\s*:\s*([^\]]*)\]\]/i;
 // "open", "launch", "открой"...
 const OPEN_ASK = /\b(open|launch|start|run|ouvre|lance|démarre)\b|открой|запусти/i;
-const OPEN_PATH_ASK = /\b(?:open|ouvre|lance|démarre)\b\s+(?:(?:the|le|la|un|une)\s+)?(?:file|fichier|folder|dossier|directory|répertoire|image|document)\s+(?:called\s+|nommé\s+|named\s+)?["“]?(.+?)["”]?\s*$/iu;
+const OPEN_PATH_ASK = /\b(?:open|ouvre|ouvrir|lance|démarre)\b\s+(?:(?:the|le|la|l'|un|une|des|les)\s+)?(?:files?|fichiers?|folders?|dossiers?|directories|répertoires?|images?|documents?)\s+(?:called\s+|nommé(?:e)?\s+|named\s+)?["“]?(.+?)["”]?\s*$/iu;
 const CHESS_ASK = /\b(?:play|let'?s play|chess)\b|\b(?:jouons|jouer|partie|échecs|echecs)\b|шахмат/iu;
 const LATEST_VIDEO_ASK = /\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b.*\b(?:video|vid[eé]o)\b|\b(?:video|vid[eé]o)\b.*\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b/iu;
 const DOCUMENT_CREATE = /(?:create|crée|cree|créer).*?(?:new\s+)?(?:text\s+)?(?:file|document|fichier).*?(?:write|écris|ecris|écrire)\s+["“]([\s\S]*?)["”]/iu;
