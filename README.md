@@ -1,4 +1,4 @@
-## **Project Capricorn (2.1.6)**
+## **Project Capricorn (2.1.7)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -20,6 +20,7 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 - **Model tuning**: settings are adapted for conversation, notes, and screen analysis according to model size, language, and measured performance on your computer.
 - **Custom voice**: Chatterbox can use a voice sample lasting 5 to 30 seconds.
 - **Cleanup**: the menu shows how much space downloaded components occupy and lets you remove items that belong to Capri.
+- **Structured memory**: the bond panel can export and import local Markdown memory. Entries remain on this computer, can be removed selectively, and are not transmitted unless you explicitly send them to a provider.
 
 ## Table of contents
 

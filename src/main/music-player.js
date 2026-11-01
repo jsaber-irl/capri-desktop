@@ -35,6 +35,9 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
     win.destroy();
     return { ok: true };
   });
+  ipcMain.on('music-player:close-window', (event) => {
+    if (win && !win.isDestroyed() && event.sender === win.webContents) win.destroy();
+  });
   return { show, close: () => win?.close(), isOpen: () => Boolean(win && !win.isDestroyed()) };
 }
 

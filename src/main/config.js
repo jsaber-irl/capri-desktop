@@ -29,9 +29,18 @@ const DEFAULTS = {
   claudeMode: 'default', // Claude Code's permission mode in her chat: 'default' only reads, 'acceptEdits' edits without asking
   claude: true,      // she watches Claude Code (off: she just keeps you company, no word of it)
   rest: 'corner',    // where she rests when nothing's going on: 'corner', or 'taskbar' (sitting on it)
+  theme: 'classic',    // her windows: 'nightcity' (the cyberpunk.net HUD) or 'classic' (her first ones, violet)
   motion: 'auto',    // her animations: 'auto' (like Windows' animation effects), 'full' or 'reduced'
   motionAsked: false, // she asked once, Windows' animations being off, whether to move anyway
   render: 'auto',   // how her window is drawn: 'auto', 'gl' (OpenGL) or 'software' (no graphics card), for PCs that show it black
+  follow: true,      // with several screens, she follows the pointer to the one you're on
+  jealous: true,     // she gets jealous when she sees you on another AI (bond.js)
+  closePages: true,  // jealous, she closes their pages in your browser, and pages to download them
+  reminders: [],     // the reminders she keeps: [{ id, at, text, made }] (reminders.js)
+  bond: null,        // how close she is to you: { xp, first, last, days, streak, caps } (bond.js)
+  pcReact: true,     // she reacts to your PC: the processor at full tilt, the battery, the network, a USB stick, a game (pc.js)
+  watchScreen: false, // she looks at your screen now and then and says something about it (look.js)
+  lookAsked: false,  // she told you what looking means (where the picture goes) and you said yes
   // her character (mood.js, life.js, themes.js, speech.js)
   emotions: true,    // she has moods: she gets angry, laughs, sulks, gets flustered
   theme: 'classic',  // her colours: a key of themes.js THEMES, or 'mood' (they follow how she feels)

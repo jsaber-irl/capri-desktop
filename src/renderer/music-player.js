@@ -82,9 +82,6 @@ document.getElementById('next').addEventListener('click', async () => {
   await openSelected();
 });
 document.getElementById('heart').addEventListener('click', (event) => { event.currentTarget.classList.toggle('is-liked'); });
-document.getElementById('close').addEventListener('click', async () => {
-  const result = await host.musicPlayerClose();
-  if (!result?.ok) console.error('Unable to close music player:', result?.error || 'unknown error');
-});
+document.getElementById('close').addEventListener('click', () => host.musicPlayerClose());
 render();
 detectSessions().catch((error) => console.error('Unable to detect music sessions:', error));

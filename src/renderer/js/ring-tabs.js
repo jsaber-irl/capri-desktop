@@ -103,6 +103,35 @@ const bond = {
     }
     if (!any) root.append(note(b.empty, true));
 
+    root.append(buttons(
+      button('Exporter la mémoire', async () => {
+        const result = await c.host?.structuredMemoryExport?.();
+        if (result?.ok) c.actions.run?.('toast', `Mémoire exportée : ${result.count} entrée(s).`);
+      }),
+      button('Importer Markdown', async () => {
+        const result = await c.host?.structuredMemoryImport?.();
+        if (result?.ok) c.actions.run?.('toast', `Mémoire importée : ${result.count} entrée(s).`);
+      }),
+    ));
+    const structured = el('div', 'ring__structured-memory');
+    structured.append(heading('Mémoire structurée'), note('Stockée uniquement sur cet ordinateur.', true));
+    c.host?.structuredMemoryList?.().then((entries) => {
+      if (!Array.isArray(entries) || !entries.length) {
+        structured.append(note('Aucune entrée structurée.', true));
+        return;
+      }
+      for (const entry of entries) {
+        const line = el('div', 'ring__row');
+        line.append(el('span', 'ring__label-text', `${entry.category} : ${entry.content}`));
+        line.append(button('Supprimer', async () => {
+          const result = await c.host.structuredMemoryRemove(entry.id);
+          if (result?.ok) { line.remove(); }
+        }, { danger: true }));
+        structured.append(line);
+      }
+    }).catch(() => structured.append(note('Mémoire structurée indisponible.', true)));
+    root.append(structured);
+
     // write one yourself
     if (state.adding) {
       const kinds = [['facts', b.facts], ['likes', b.likes], ['dislikes', b.dislikes]].map(([id, label]) => ({ id, label }));

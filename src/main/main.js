@@ -41,6 +41,7 @@ const { createIncomingCall } = require('./incoming-call');
 const { createChessWindow } = require('./chess-window');
 const { createMusicPlayer } = require('./music-player');
 const { createTranslationWindow } = require('./translation-window');
+const { createStructuredMemory } = require('./structured-memory');
 const { translateSource } = require('./translator');
 const { createTextDocument } = require('./documents');
 const { openVideoSearch } = require('./video-search');
@@ -282,6 +283,7 @@ let pttKey = null;      // the push-to-talk shortcut currently registered
 let restLevel = 'awake'; // how deeply she rests (rest()): 'awake', 'sleep' or 'deep'
 
 const userSoundsDir = () => path.join(app.getPath('userData'), 'sounds');
+const structuredMemory = createStructuredMemory({ file: path.join(app.getPath('userData'), 'structured-memory.json') });
 
 // Her memory of your chats, across restarts: { history: [{ role, content }], claude: Claude Code's session }
 const memoryFile = () => path.join(app.getPath('userData'), 'memory.json');
@@ -1565,6 +1567,18 @@ function registerIpc() {
     };
   });
   ipcMain.handle('chat:memory', () => readMemory().history || []);
+  ipcMain.handle('structured-memory:list', (_e, category) => structuredMemory.list(String(category || '')));
+  ipcMain.handle('structured-memory:add', (_e, request) => structuredMemory.add(request || {}));
+  ipcMain.handle('structured-memory:remove', (_e, id) => structuredMemory.remove(id));
+  ipcMain.handle('structured-memory:export', async () => {
+    const result = await dialog.showSaveDialog({ title: 'Exporter la mémoire structurée', defaultPath: 'capri-memory.md', filters: [{ name: 'Markdown', extensions: ['md'] }] });
+    return result.canceled || !result.filePath ? { ok: false, canceled: true } : structuredMemory.exportMarkdown(result.filePath);
+  });
+  ipcMain.handle('structured-memory:import', async () => {
+    const result = await dialog.showOpenDialog({ title: 'Importer une mémoire Markdown', properties: ['openFile'], filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }] });
+    if (result.canceled || !result.filePaths[0]) return { ok: false, canceled: true };
+    try { return structuredMemory.importMarkdown(result.filePaths[0]); } catch (error) { return { ok: false, error: error.message }; }
+  });
   // her bond with you (bond.js): load, save, and a line in her notebook from your last chats, written
   // by your chat model in one quiet go (never Claude Code: it would be working in your project)
   ipcMain.handle('bond:load', () => readBond());

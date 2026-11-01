@@ -51,6 +51,9 @@ function createTranslationWindow({ BrowserWindow, ipcMain, dialog, preload, prot
     win.destroy();
     return { ok: true };
   });
+  ipcMain.on('translation:close-window', (event) => {
+    if (win && !win.isDestroyed() && event.sender === win.webContents) win.destroy();
+  });
   return { show, close: () => win?.close() };
 }
 
