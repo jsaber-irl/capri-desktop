@@ -66,6 +66,7 @@ const LINES = {
     'cloudName-openai': 'OpenAI',
     'cloudName-mistral': 'Mistral',
     'cloudName-deepseek': 'DeepSeek',
+    'cloudName-nvidia': 'NVIDIA Build',
     'cloudName-custom': 'Свой сервер',
     // 2. the voice
     voiceTitle: '2. Чем она говорит',
@@ -279,6 +280,7 @@ const LINES = {
     'cloudName-openai': 'OpenAI',
     'cloudName-mistral': 'Mistral',
     'cloudName-deepseek': 'DeepSeek',
+    'cloudName-nvidia': 'NVIDIA Build',
     'cloudName-custom': 'Your own server',
     voiceTitle: '2. What she talks with',
     voiceSub: 'The voice that reads her lines.',
@@ -490,6 +492,7 @@ const LINES = {
     'cloudName-openai': 'OpenAI',
     'cloudName-mistral': 'Mistral',
     'cloudName-deepseek': 'DeepSeek',
+    'cloudName-nvidia': 'NVIDIA Build',
     'cloudName-custom': 'Mon propre serveur',
     voiceTitle: '2. Avec quelle voix je parle',
     voiceSub: 'La voix utilisée pour prononcer mes répliques.',

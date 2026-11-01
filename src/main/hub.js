@@ -26,6 +26,7 @@ const CLOUD = [
   { id: 'openai', tag: 'paid', key: true },
   { id: 'mistral', tag: 'paid', key: true },
   { id: 'deepseek', tag: 'paid', key: true },
+  { id: 'nvidia', tag: 'paid', key: true },
   { id: 'custom', tag: 'own', key: false, url: true },
 ];
 const VOICES = ['piper', 'chatterbox', 'system', 'openai', 'elevenlabs'];

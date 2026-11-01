@@ -744,6 +744,16 @@ const more = {
         host.openMenu();
       }),
     ));
+    root.append(buttons(
+      button(m.goodbye, () => {
+        c.hide();
+        host.farewellStart?.();
+      }),
+      button(m.quit, () => {
+        c.hide();
+        host.quit?.();
+      }, { danger: true }),
+    ));
     return root;
   },
 };

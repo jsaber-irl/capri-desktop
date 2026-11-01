@@ -486,14 +486,20 @@ async function media(action) {
     .then(() => true, () => false);
 }
 
-// A Spotify search for it: in the app if it's installed, else on the web.
-async function music(query) {
+// A service search for a track: in the app when its URI handler is available, else on the web.
+async function music(query, service = 'spotify') {
   const q = String(query || '').trim().slice(0, 200);
   if (!q) return false;
+  const provider = String(service || 'spotify').toLowerCase();
+  const urls = {
+    spotify: [`spotify:search:${encodeURIComponent(q)}`, `https://open.spotify.com/search/${encodeURIComponent(q)}`],
+    deezer: [`deezer://www.deezer.com/search/${encodeURIComponent(q)}`, `https://www.deezer.com/search/${encodeURIComponent(q)}`],
+  };
+  const [appUrl, webUrl] = urls[provider] || urls.spotify;
   try {
-    await shell.openExternal(`spotify:search:${encodeURIComponent(q)}`);
+    await shell.openExternal(appUrl);
   } catch {
-    await shell.openExternal(`https://open.spotify.com/search/${encodeURIComponent(q)}`);
+    await shell.openExternal(webUrl);
   }
   return true;
 }

@@ -16,6 +16,7 @@ export const PROVIDERS = {
   openai: { name: 'OpenAI', group: 'cloud', key: true },
   mistral: { name: 'Mistral', group: 'cloud', key: true },
   deepseek: { name: 'DeepSeek', group: 'cloud', key: true },
+  nvidia: { name: 'NVIDIA Build', group: 'cloud', key: true },
   custom: { name: 'Custom', group: 'own' },
 };
 

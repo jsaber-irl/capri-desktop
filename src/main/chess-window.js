@@ -2,11 +2,21 @@
 
 const { ChessGame } = require('./chess-game');
 
-function createChessWindow({ BrowserWindow, ipcMain, preload, protocolUrl = 'capri://app/src/renderer/chess.html', lang = () => 'fr' }) {
+function createChessWindow({
+  BrowserWindow,
+  ipcMain,
+  preload,
+  protocolUrl = 'capri://app/src/renderer/chess.html',
+  lang = () => 'fr',
+  getCommandWebContents = () => null,
+}) {
   let win = null;
   const game = new ChessGame();
   const tr = (fr, en, ru) => (lang() === 'en' ? en : lang() === 'ru' ? ru : fr);
   const owns = (event) => Boolean(win && !win.isDestroyed() && event.sender === win.webContents && event.senderFrame === win.webContents.mainFrame);
+  const mayStart = (event, request) => event.sender === getCommandWebContents()
+    && event.senderFrame === event.sender.mainFrame
+    && ['start', 'new'].includes(String(request?.action || 'start').toLowerCase());
   const publish = () => { if (win && !win.isDestroyed()) win.webContents.send('chess:state', game.state()); };
   const show = () => {
     if (win && !win.isDestroyed()) { win.show(); win.focus(); publish(); return; }
@@ -33,7 +43,10 @@ function createChessWindow({ BrowserWindow, ipcMain, preload, protocolUrl = 'cap
     return { ok: false, error: tr('Commande échecs inconnue. Utilise /chess help.', 'Unknown chess command. Use /chess help.', 'Неизвестная шахматная команда. Используй /chess help.') };
   };
   ipcMain.handle('chess:getState', (event) => owns(event) ? { state: game.state(), lang: typeof lang === 'function' ? lang() : lang } : null);
-  ipcMain.handle('chess:command', (event, request) => { if (!owns(event)) return { ok: false, error: 'Accès refusé.' }; return command(request); });
+  ipcMain.handle('chess:command', (event, request) => {
+    if (!owns(event) && !mayStart(event, request)) return { ok: false, error: 'Accès refusé.' };
+    return command(request);
+  });
   return { show, command, get state() { return game.state(); }, isOpen: () => Boolean(win && !win.isDestroyed()), close: () => { if (win && !win.isDestroyed()) win.close(); } };
 }
 

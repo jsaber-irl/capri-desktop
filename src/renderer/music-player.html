@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capri // Music</title>
+  <link rel="stylesheet" href="music-player.css">
+</head>
+<body>
+  <main class="player">
+    <header class="player__header">
+      <div class="player__brand"><span class="player__mark">♫</span><span>CAPRI // MUSIC</span></div>
+      <button id="close" class="player__close" type="button" aria-label="Fermer">×</button>
+    </header>
+    <section class="player__content">
+      <img class="player__art" src="../../assets/capri/capri-face.png" alt="">
+      <div class="player__info">
+        <p class="player__eyebrow">MINI PLAYER</p>
+        <h1 id="title">Choisis un morceau</h1>
+        <p id="artist">YouTube · Spotify · Deezer</p>
+        <input id="progress" type="range" min="0" max="100" value="0" aria-label="Progression">
+        <div class="player__times"><span id="current">--:--</span><span>CAPRI RADIO</span><span id="duration">--:--</span></div>
+      </div>
+    </section>
+    <section class="player__controls">
+      <select id="service" aria-label="Service">
+        <option value="auto">AUTO</option>
+        <option value="youtube">YOUTUBE</option>
+        <option value="spotify">SPOTIFY</option>
+        <option value="deezer">DEEZER</option>
+      </select>
+      <button id="previous" type="button" aria-label="Précédent">◀◀</button>
+      <button id="toggle" class="player__play" type="button" aria-label="Lecture">▶</button>
+      <button id="next" type="button" aria-label="Suivant">▶▶</button>
+      <button id="heart" class="player__heart" type="button" aria-label="Favori">♥</button>
+    </section>
+    <label class="player__playlist">PLAYLIST
+      <select id="track"></select>
+    </label>
+  </main>
+  <script src="music-player.js"></script>
+</body>
+</html>

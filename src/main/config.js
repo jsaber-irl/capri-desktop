@@ -83,6 +83,9 @@ const DEFAULTS = {
   micMeter: true,    // the live level in the mic badge by the clock
   audioOut: '',      // where her sounds and voice go ('' the system's default; her ring menu › Voice › Output)
   discordPresence: true, // she shows a Discord Rich Presence while Capri is running
+  translationProvider: 'mymemory', // translation API; MyMemory is free and needs no key
+  translationApiKey: '',
+  translationApiUrl: '',
 };
 
 let cache = null;

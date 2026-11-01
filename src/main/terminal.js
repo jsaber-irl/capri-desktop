@@ -33,12 +33,14 @@ const HELP_COMMANDS = [
   ['/capri stow', 'Replier ou déployer Capri de son biochip.', 'Stow or restore Capri in biochip.'],
   ['/test demoSatellite', 'Tester la reconnexion satellite de Capri.', 'Test Capri satellite reconnection.'],
   ['/music <action>', 'Contrôler le lecteur multimédia actif (status, play, pause, toggle, next, previous, current, volume).', 'Control the active media player.'],
+  ['/music player', 'Ouvrir le mini-lecteur de musique intégré.', 'Open the integrated mini music player.'],
   ['/music spotify <action>', 'Cibler explicitement Spotify (ou deezer).', 'Target Spotify (or deezer) explicitly.'],
   ['/chess', 'Ouvrir une partie d’échecs contre Capri.', 'Open a chess game against Capri.'],
   ['/chess move <coup>', 'Jouer un coup en notation e2e4 ou algébrique.', 'Play a move in UCI or algebraic notation.'],
   ['/chess new | resign | help', 'Recommencer, abandonner ou afficher les commandes.', 'Start a new game, resign, or show help.'],
   ['/document create <nom> "<texte>"', 'Créer un nouveau fichier texte sans remplacer un fichier existant.', 'Create a new text file without overwriting existing files.'],
   ['/search videos <chaîne> [in Safari]', 'Ouvrir une recherche YouTube triée par date.', 'Open a YouTube search sorted by date.'],
+  ['/search web <requête>', 'Rechercher une information en ligne dans le navigateur.', 'Search the web in the browser.'],
 ];
 
 const HELP = HELP_COMMANDS.map(([name, fr]) => [name, fr]);
@@ -73,7 +75,8 @@ async function safeOpenPath(file, shell) {
   const expanded = requested
     .replace(/^~(?=$|[\\/])/, os.homedir())
     .replace(/^%USERPROFILE%(?=$|[\\/])/i, process.env.USERPROFILE || os.homedir());
-  const target = path.resolve(expanded);
+  const target = await resolveOpenTarget(expanded);
+  if (!target) return false;
   try {
     await fs.stat(target);
     return !(await shell.openPath(target));
@@ -81,6 +84,32 @@ async function safeOpenPath(file, shell) {
     return false;
   }
 
+}
+
+async function resolveOpenTarget(requested) {
+  const direct = path.resolve(requested);
+  try {
+    await fs.stat(direct);
+    return direct;
+  } catch {}
+  if (path.isAbsolute(requested) || path.dirname(requested) !== '.') return null;
+  const home = os.homedir();
+  const roots = [
+    path.join(home, 'Desktop'),
+    path.join(home, 'Bureau'),
+    path.join(home, 'Documents'),
+    path.join(home, 'Downloads'),
+    home,
+    process.cwd(),
+  ];
+  for (const root of roots) {
+    const candidate = path.join(root, requested);
+    try {
+      await fs.stat(candidate);
+      return candidate;
+    } catch {}
+  }
+  return null;
 }
 
 async function safeOpenFile(file, shell) {
@@ -106,9 +135,11 @@ function createTerminal({
   network = null,
   mascot = null,
   musicControl = null,
+  openMusicPlayer = null,
   chess = null,
   createTextDocument = null,
   videoSearch = null,
+  webSearch = null,
   random = Math.random
 } = {}) {
   const history = [];
@@ -162,6 +193,11 @@ function createTerminal({
     const fullArg = rest.join(' ').trim();
 
     if (command === '/music') {
+      if (['player', 'open'].includes(rest[0]?.toLowerCase())) {
+        if (!openMusicPlayer) return error(tr('Le mini-lecteur est indisponible.', 'The music player is unavailable.'));
+        openMusicPlayer();
+        return response([tr('Mini-lecteur de musique ouvert.', 'Music player opened.')]);
+      }
       const service = ['spotify', 'deezer'].includes(rest[0]?.toLowerCase()) ? rest.shift().toLowerCase() : null;
       const action = (rest.shift() || 'status').toLowerCase();
       if (!['status', 'current', 'play', 'pause', 'toggle', 'next', 'previous', 'volume', 'volup', 'voldown'].includes(action)) {
@@ -213,6 +249,19 @@ function createTerminal({
         if (!found?.ok) return error(found?.error || tr('La recherche n’a pas pu être ouverte.', 'The search could not be opened.'));
         return response([tr(`Recherche YouTube triée par date ouverte pour « ${creator} »${browser ? ` dans ${browser}` : ''}. Vérifie les résultats : Capri ne peut pas confirmer le classement de YouTube sans accès à ses données.`, `Date-sorted YouTube search opened for “${creator}”${browser ? ` in ${browser}` : ''}. Check the results: Capri cannot verify YouTube’s ranking without access to its data.`)]);
       } catch (err) { return error(`${tr('Erreur de recherche vidéo :', 'Video search error:')} ${err.message}`); }
+    }
+
+    if (command === '/search' && rest[0]?.toLowerCase() === 'web') {
+      const query = rest.slice(1).join(' ').trim();
+      if (!query) return error(tr('Usage : /search web <requête>.', 'Usage: /search web <query>.'));
+      if (!webSearch) return error(tr('La recherche en ligne n’est pas disponible.', 'Web search is unavailable.'));
+      try {
+        const found = await webSearch({ query });
+        if (!found?.ok) return error(found?.error || tr('La recherche n’a pas pu être ouverte.', 'The search could not be opened.'));
+        return response([tr(`Recherche en ligne ouverte pour « ${query} ».`, `Web search opened for “${query}”.`)]);
+      } catch (err) {
+        return error(`${tr('Erreur de recherche :', 'Search error:')} ${err.message}`);
+      }
     }
 
     // 1. General commands
@@ -505,5 +554,6 @@ module.exports = {
   validUrl,
   safeOpenFile,
   safeOpenPath,
+  resolveOpenTarget,
   createTerminal,
 };

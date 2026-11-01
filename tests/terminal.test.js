@@ -190,6 +190,14 @@ test('music commands share the central controller and report status, ambiguity, 
   assert.equal((await terminal.execute('/music volume 101')).kind, 'error');
 });
 
+test('opens the integrated music player from the terminal', async () => {
+  let opened = 0;
+  const terminal = createTerminal({ openMusicPlayer: () => { opened += 1; } });
+  const result = await terminal.execute('/music player');
+  assert.equal(result.kind, 'response');
+  assert.equal(opened, 1);
+});
+
 test('chess and document commands call their real shared services', async () => {
   const chessCalls = [];
   const documents = [];
@@ -216,6 +224,15 @@ test('video search terminal command calls the shared search service', async () =
   assert.deepEqual(calls, [{ creator: 'MrBeast', browser: 'Safari' }]);
   assert.match(result.lines.join(' '), /triée par date/i);
   assert.equal((await createTerminal().execute('/search videos MrBeast')).kind, 'error');
+});
+
+test('web search terminal command calls the shared search service', async () => {
+  const calls = [];
+  const terminal = createTerminal({ webSearch: async (request) => { calls.push(request); return { ok: true }; } });
+  const result = await terminal.execute('/search web météo Paris');
+  assert.equal(result.kind, 'response');
+  assert.deepEqual(calls, [{ query: 'météo Paris' }]);
+  assert.equal((await terminal.execute('/search web')).kind, 'error');
 });
 
 test('handles mascot control commands', async () => {
@@ -292,4 +309,10 @@ test('safeOpenPath opens existing files and folders with the default application
   assert.equal(openedTarget, path.resolve(__dirname, '../package.json'));
   assert.equal(await safeOpenPath(__dirname, mockShell), true);
   assert.equal(openedTarget, __dirname);
+});
+
+test('safeOpenPath resolves a relative file from the desktop or standard user folders', async () => {
+  const { resolveOpenTarget } = require('../src/main/terminal');
+  const target = await resolveOpenTarget('package.json');
+  assert.ok(target.endsWith('/package.json'));
 });

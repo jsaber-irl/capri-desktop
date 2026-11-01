@@ -73,6 +73,23 @@ test('natural TextEdit document requests preserve the quoted text for the verifi
   assert.deepEqual(chat.asked('Crée un fichier nommé test.txt et écris "Hello World!" dedans.'), { kind: 'createText', filename: 'test.txt', content: 'Hello World!', openIn: '' });
 });
 
+test('verified automatic actions replace the model answer instead of appending to it', async () => {
+  const { Chat } = await load('chat.js');
+  const rendered = [];
+  const chat = Object.assign(Object.create(Chat.prototype), {
+    open: true,
+    turn: 0,
+    brain: { t: { chat: {} } },
+    panel: {
+      stream: (line, options) => rendered.push({ line, options }),
+      setFace: () => {},
+    },
+    addLine: () => assert.fail('the unverified model answer must not be kept'),
+  });
+  await chat.after('[[open: Weather]] Je ne peux pas ouvrir Weather.', 'Je ne peux pas ouvrir Weather.', { kind: 'open' }, Promise.resolve({ line: 'Weather est ouvert.', face: 'laugh' }), 'Ouvre Weather');
+  assert.deepEqual(rendered, [{ line: 'Weather est ouvert.', options: { done: true } }]);
+});
+
 test('chess requests from French and English chat are routed to the shared game action', async () => {
   const { Chat } = await load('chat.js');
   const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
@@ -94,6 +111,28 @@ test('latest YouTube video requests open a date-sorted search instead of choosin
   const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
   assert.deepEqual(chat.asked('Ouvre la dernière vidéo de Mister Beast sur YouTube depuis Safari.'), { kind: 'videoSearch', creator: 'MrBeast', browser: 'Safari' });
   assert.deepEqual(chat.asked('Ouvre YouTube.'), { kind: 'open', text: 'Ouvre YouTube.' });
+});
+
+test('online research requests are routed to the shared web search action', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
+  assert.deepEqual(chat.asked('Capri, recherche en ligne les horaires du Louvre.'), { kind: 'webSearch', query: 'les horaires du Louvre' });
+  assert.deepEqual(chat.asked('Search for the latest Node.js release online.'), { kind: 'webSearch', query: 'the latest Node.js release' });
+  assert.deepEqual(chat.asked('Quelles sont les informations actuelles sur le trafic à Paris ?'), { kind: 'webSearch', query: 'Quelles sont les informations actuelles sur le trafic à Paris' });
+});
+
+test('local paths take priority and preserve Finder or Explorer destinations', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
+  assert.deepEqual(chat.asked('Ouvre le fichier "/tmp/rapport actuel.pdf" dans Finder.'), { kind: 'openPath', path: '/tmp/rapport actuel.pdf' });
+  assert.deepEqual(chat.asked('Open the folder "C:\\Users\\Capri\\My Projects" with Explorer.'), { kind: 'openPath', path: 'C:\\Users\\Capri\\My Projects' });
+  assert.deepEqual(chat.asked('Ouvre le fichier test.pdf qui est sur mon bureau.'), { kind: 'openPath', path: 'test.pdf' });
+});
+
+test('current Swiss time is answered locally without opening a browser search', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } }, brain: { lang: 'fr' } });
+  assert.deepEqual(chat.asked('Quelle heure est-il actuellement en Suisse ?'), { kind: 'currentTime', zone: 'Europe/Zurich' });
 });
 
 test('French text and voice music requests identify actions, current-track requests, and explicit services', async () => {

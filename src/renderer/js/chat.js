@@ -31,9 +31,14 @@ const CLOSE_ASK = /\b(close|shut|quit|kill|exit|ferme|quitte)\b|закр|вык�
 const TAG = /\[\[\s*(open|music|media|site)\s*:\s*([^\]]*)\]\]/i;
 // "open", "launch", "открой"...
 const OPEN_ASK = /\b(open|launch|start|run|ouvre|lance|démarre)\b|открой|запусти/i;
-const OPEN_PATH_ASK = /\b(?:open|ouvre|ouvrir|lance|démarre)\b\s+(?:(?:the|le|la|l'|un|une|des|les)\s+)?(?:files?|fichiers?|folders?|dossiers?|directories|répertoires?|images?|documents?)\s+(?:called\s+|nommé(?:e)?\s+|named\s+)?["“]?(.+?)["”]?\s*$/iu;
+const OPEN_PATH_ASK = /\b(?:open|ouvre|ouvrir|lance|démarre)\b\s+(?:(?:the|le|la|l'|un|une|des|les)\s+)?(?:files?|fichiers?|folders?|dossiers?|directories|répertoires?|images?|documents?)\s+(?:called\s+|nommé(?:e)?\s+|named\s+)?["“]?(.+?)["”]?(?:\s+(?:dans|with|in)\s+(?:finder|explorer|file explorer|le gestionnaire de fichiers))?\s*[.!?]*$/iu;
+const OPEN_DIRECT_PATH_ASK = /\b(?:open|ouvre|ouvrir|lance|démarre)\b\s+(.+)/iu;
+const MUSIC_PLAYER_ASK = /\b(?:open|launch|start|show|ouvre|ouvrir|lance|affiche)\b.*\b(?:music|musique)\s+(?:player|lecteur)\b|\b(?:music|musique)\s+(?:player|lecteur)\b.*\b(?:open|ouvre|lance)\b/i;
 const CHESS_ASK = /\b(?:play|let'?s play|chess)\b|\b(?:jouons|jouer|partie|échecs|echecs)\b|шахмат/iu;
 const LATEST_VIDEO_ASK = /\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b.*\b(?:video|vid[eé]o)\b|\b(?:video|vid[eé]o)\b.*\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b/iu;
+const WEB_SEARCH_ASK = /\b(?:search|look\s+up|find|recherche|rechercher|cherche|trouve)\b.*\b(?:online|on the web|sur internet|en ligne|sur le web)\b/iu;
+const CURRENT_INFO_ASK = /\b(?:current|currently|actual|latest|recent|today|tonight|now|at the moment|en ce moment|actuel(?:le)?s?|actualité(?:s)?|actualités?|aujourd'hui|derni[eè]res?\s+nouvelles?|maintenant|cours actuel|prix actuel|météo|meteo)\b/iu;
+const CURRENT_TIME_ASK = /\b(?:what time is it|what(?:'s| is) the time|heure est-il|quelle heure est-il|quelle heure est-il actuellement|heure actuelle)\b.*\b(?:switzerland|suisse|swiss|zurich|geneva|genève|bern|berne)\b|\b(?:switzerland|suisse|zurich|geneva|genève|bern|berne)\b.*\b(?:what time|heure|time)\b/iu;
 const DOCUMENT_CREATE = /(?:create|crée|cree|créer).*?(?:new\s+)?(?:text\s+)?(?:file|document|fichier).*?(?:write|écris|ecris|écrire)\s+["“]([\s\S]*?)["”]/iu;
 // what to do with the music playing, said plainly (only when it's about music, or said in a few words)
 const MEDIA_ASK = [
@@ -75,6 +80,14 @@ const MEMO_ASK = /^\s*(?:capri,?\s+|stp,?\s+|please,?\s+)?(?:remember(?: that)?|
 const MEMORIES_MAX = 30;
 const simple = (text) => String(text || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
 const ASK_MAX = 600; // how much of a message is read for what you asked plainly
+function cleanRequestedPath(value) {
+  return String(value || '').trim()
+    .replace(/^["“]/u, '')
+    .replace(/["”]\s*[.!?]*$/u, '')
+    .replace(/\s+(?:dans|with|in)\s+(?:finder|explorer|file explorer|le gestionnaire de fichiers)\s*[.!?]*$/iu, '')
+    .replace(/\s+(?:qui\s+est\s+|se trouve\s+|situé\s+|situe\s+)?sur\s+(?:mon|le)\s+(?:bureau|desktop)\s*[.!?]*$/iu, '')
+    .replace(/[.!?]$/u, '');
+}
 // sites asked for by name ("open youtube") when no app on the PC goes by it: the address is hers, not
 // the model's, so it opens right away like an app you named
 const SITES = {
@@ -289,6 +302,20 @@ export class Chat {
     const asked = this.agent ? null : this.asked(text);
     const early = asked && !['close', 'hands'].includes(asked.kind) ? this.doNow(asked)
       : asked?.kind === 'hands' && asked.intent.kind !== 'message' ? this.hands.op(asked.intent) : null;
+    this.actionTurn = Boolean(early);
+    if (asked && ['openPath', 'currentTime'].includes(asked.kind) && early) {
+      const done = await early;
+      this.turn = 0;
+      this.shown = done?.line || '';
+      this.panel.stream(this.shown, { done: true });
+      if (done?.face) this.panel.setFace(done.face);
+      this.remember({ role: 'assistant', content: this.shown });
+      this.panel.setChatBusy(false);
+      this.actionTurn = false;
+      this.sayLater();
+      this.listApps();
+      return;
+    }
     // you asked about the screen: she takes a quiet look first, so her answer is about what's really there
     this.screenNow = '';
     if (!this.agent && this.eyes?.enabled && SCREEN_Q.test(text)) {
@@ -300,7 +327,7 @@ export class Chat {
     // or Claude Code is at work
     const wait = this.agent ? this.t.working : this.cold ? this.t.loading : null;
     const slow = wait && setTimeout(() => {
-      if (this.turn === id && !this.answer) this.panel.stream(wait);
+      if (this.turn === id && !this.answer && !this.actionTurn) this.panel.stream(wait);
     }, LOADING_AFTER_MS);
     let res;
     try {
@@ -312,10 +339,24 @@ export class Chat {
     if (this.turn !== id) {
       // closed meanwhile: your message goes too, or the next answer would answer it as well
       if (this.history.at(-1)?.content === text) this.history.pop();
+      this.actionTurn = false;
       return;
     }
     this.turn = 0;
     if (!res.ok) {
+      if (early) {
+        const done = await early;
+        if (done) {
+          this.shown = done.line;
+          this.panel.stream(done.line, { done: true });
+          if (done.face) this.panel.setFace(done.face);
+          this.remember({ role: 'assistant', content: done.line });
+          this.panel.setChatBusy(false);
+          this.actionTurn = false;
+          this.sayLater();
+          return;
+        }
+      }
       this.history.pop();
       this.panel.setFace('wide');
       // too busy or gone even after trying other models (main.js): said plainly, not the server's JSON
@@ -323,22 +364,29 @@ export class Chat {
       this.panel.stream(known ? this.t[known] : `${this.t.failed} ${res.error}`, { done: true });
       this.panel.setChatBusy(false);
       this.later = ''; // (it would only fail the same way)
+      this.actionTurn = false;
       return;
     }
     const answer = clean(res.text) || '…';
+    const actionOnly = this.actionTurn;
     this.warm = true;
-    this.remember({ role: 'assistant', content: answer });
-    this.panel.stream(answer, { done: true });
+    if (!actionOnly) {
+      this.remember({ role: 'assistant', content: answer });
+      this.panel.stream(answer, { done: true });
+    }
     // the feeling she answered with: her face, her body, and her feelings nudged by it
     const expr = this.heart?.answered(MOOD_TAG.exec(res.text)?.[1], { already: felt.reaction }) || null;
     this.panel.setFace(expr ? this.heart.face(expr) : mood(answer));
     if (!expr && felt.tags.includes('jokeAsk')) this.capri.react('laugh'); // her own joke cracks her up
-    this.onSpokenText?.(answer);
-    this.speech?.say(answer, { mood: expr || this.heart?.mood.mood || 'calm', kind: 'chat' });
+    if (!actionOnly) {
+      this.onSpokenText?.(answer);
+      this.speech?.say(answer, { mood: expr || this.heart?.mood.mood || 'calm', kind: 'chat' });
+    }
     this.panel.setChatBusy(false);
     this.sayLater();
     this.bond?.replied(answer, expr || ''); // your next message tells her how this one landed
     const acted = this.agent ? null : this.after(res.text, answer, asked, early, text);
+    Promise.resolve(acted).catch(() => {}).finally(() => { this.actionTurn = false; });
     if (grew) Promise.resolve(acted).catch(() => {}).then(() => this.closer(grew, answer));
     this.listApps(); // fresh for the next message
     this.bond?.reflect(this.history); // every few messages, a line in her notebook about you
@@ -429,11 +477,25 @@ export class Chat {
     if (CHESS_ASK.test(text)) return { kind: 'chess' };
     const pathMatch = OPEN_PATH_ASK.exec(text);
     if (pathMatch) {
-      const requestedPath = pathMatch[1].trim()
-        .replace(/["”]\s*[.!?]*$/u, '')
-        .replace(/^["“]/u, '')
-        .replace(/[.!?]$/u, '');
+      const requestedPath = cleanRequestedPath(pathMatch[1]);
       return { kind: 'openPath', path: requestedPath };
+    }
+    if (CURRENT_TIME_ASK.test(text)) return { kind: 'currentTime', zone: 'Europe/Zurich' };
+    if ((WEB_SEARCH_ASK.test(text) || (CURRENT_INFO_ASK.test(text) && !OPEN_ASK.test(text))) && !LATEST_VIDEO_ASK.test(text)) {
+      const query = text
+        .replace(/^\s*(?:capri[,\s]*)?(?:(?:can you|could you|please|peux-tu|peux tu|s'il te plaît|s'il te plait)\s*)?/iu, '')
+        .replace(/^\s*capri[,\s]*/iu, '')
+        .replace(/^\s*(?:search|look\s+up|find|find out|recherche|rechercher|cherche|trouve)\b/iu, '')
+        .replace(/^\s*(?:for|about|sur|concernant)\s*/iu, '')
+        .replace(/\b(?:online|on the web|sur internet|en ligne|sur le web)\b/iu, '')
+        .replace(/[.!?]+$/u, '')
+        .trim();
+      if (query) return { kind: 'webSearch', query };
+    }
+    if (MUSIC_PLAYER_ASK.test(text)) return { kind: 'musicPlayer' };
+    const directPath = OPEN_DIRECT_PATH_ASK.exec(text)?.[1]?.trim();
+    if (directPath && /(?:^|[\s"'“])(?:~|\/|[A-Za-z]:[\\/])/.test(directPath)) {
+      return { kind: 'openPath', path: cleanRequestedPath(directPath) };
     }
     const documentContent = DOCUMENT_CREATE.exec(text)?.[1];
     if (documentContent !== undefined) {
@@ -510,11 +572,32 @@ export class Chat {
         ? { line: fr ? `J’ai ouvert « ${asked.path} ».` : ru ? `Я открыла « ${asked.path}».` : `I opened "${asked.path}".`, face: 'laugh' }
         : { line: result?.error || (fr ? `Je n’ai pas trouvé « ${asked.path} ».` : ru ? `Не удалось найти « ${asked.path}».` : `I could not find "${asked.path}".`), face: 'aside' };
     }
+    if (asked.kind === 'currentTime') {
+      const now = new Intl.DateTimeFormat(this.brain.lang === 'fr' ? 'fr-FR' : this.brain.lang === 'ru' ? 'ru-RU' : 'en-US', {
+        timeZone: asked.zone, hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short',
+      }).format(new Date());
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      return { line: fr ? `Il est actuellement ${now} en Suisse.` : ru ? `Сейчас в Швейцарии ${now}.` : `It is currently ${now} in Switzerland.`, face: 'smug' };
+    }
+    if (asked.kind === 'musicPlayer') {
+      const result = await this.host.musicPlayerOpen?.();
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      return result?.ok
+        ? { line: fr ? 'Le mini-lecteur de musique est ouvert.' : ru ? 'Мини-плеер музыки открыт.' : 'The music player is open.', face: 'smug' }
+        : { line: fr ? 'Je n’ai pas pu ouvrir le mini-lecteur.' : ru ? 'Не удалось открыть мини-плеер.' : 'I could not open the music player.', face: 'aside' };
+    }
     if (asked.kind === 'videoSearch') {
       const result = await this.host.videoSearch?.({ creator: asked.creator, browser: asked.browser });
       const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
       if (!result?.ok) return { line: result?.error || (fr ? 'Je n’ai pas pu ouvrir la recherche YouTube.' : ru ? 'Не удалось открыть поиск YouTube.' : 'I could not open YouTube search.'), face: 'aside' };
       return { line: fr ? `Recherche YouTube triée par date ouverte pour ${asked.creator}${asked.browser ? ` dans ${asked.browser}` : ''}. Vérifie les résultats : je ne peux pas confirmer ici lequel est réellement le plus récent.` : ru ? `Поиск YouTube с сортировкой по дате открыт для ${asked.creator}. Проверь результаты: я не могу подтвердить, какое видео самое новое.` : `Date-sorted YouTube search opened for ${asked.creator}${asked.browser ? ` in ${asked.browser}` : ''}. Check the results: I cannot verify here which video is actually newest.`, face: 'smug' };
+    }
+    if (asked.kind === 'webSearch') {
+      const result = await this.host.webSearch?.({ query: asked.query });
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      return result?.ok
+        ? { line: fr ? `Recherche en ligne ouverte pour « ${asked.query} ».` : ru ? `Поиск в интернете открыт для «${asked.query}».` : `Web search opened for "${asked.query}".`, face: 'smug' }
+        : { line: result?.error || (fr ? 'La recherche en ligne n’a pas pu être ouverte.' : ru ? 'Не удалось открыть поиск в интернете.' : 'I could not open the web search.'), face: 'aside' };
     }
     if (asked.kind === 'roblox') {
       this.zap();
@@ -606,10 +689,14 @@ export class Chat {
         this.shown = done.line;
         this.panel.stream(done.line, { done: true });
         if (done.face) this.panel.setFace(done.face);
+        this.remember({ role: 'assistant', content: done.line });
         return;
       }
 
-      return this.addLine(answer, done.line, done.face);
+      this.shown = done.line;
+      this.panel.stream(done.line, { done: true });
+      if (done.face) this.panel.setFace(done.face);
+      return;
     }
     if (asked?.kind === 'close') return this.offerClose(asked.name, answer);
     // a message in a messenger: she typed it out, now she waits for your yes (hands.js)
@@ -816,7 +903,7 @@ export class Chat {
     if (id !== this.turn) return;
     this.satelliteWait?.response(id); // the first actual answer chunk ends the reconnect animation
     this.answer += piece;
-    this.panel.stream(clean(this.answer));
+    if (!this.actionTurn) this.panel.stream(clean(this.answer));
     this.voice.play('blip'); // her blips as the words come in
   }
 

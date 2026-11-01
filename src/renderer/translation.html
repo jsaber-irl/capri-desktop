@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capri // Traduction</title>
+  <link rel="stylesheet" href="translation.css">
+</head>
+<body>
+  <main class="translator">
+    <header class="translator__header"><strong>CAPRI // TRANSLATOR</strong><button id="close" type="button">×</button></header>
+    <section class="translator__settings">
+      <label>API<select id="provider"><option value="mymemory">MyMemory — gratuit</option><option value="deepl">DeepL</option><option value="google">Google Cloud Translation</option><option value="libretranslate">LibreTranslate</option><option value="custom">Service personnalisé</option></select></label>
+      <label>Source<select id="sourceLang"><option value="auto">Détection automatique</option><option value="fr">Français</option><option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="it">Italiano</option><option value="ja">日本語</option></select></label>
+      <label>Cible<select id="targetLang"><option value="fr">Français</option><option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="it">Italiano</option><option value="ja">日本語</option></select></label>
+    </section>
+    <section class="translator__credentials">
+      <input id="apiKey" type="password" placeholder="Clé API (optionnelle pour MyMemory)">
+      <input id="apiUrl" type="url" placeholder="URL API LibreTranslate ou personnalisée">
+      <button id="saveSettings" type="button">Enregistrer API</button>
+    </section>
+    <section class="translator__source">
+      <div class="translator__buttons"><button id="urlMode" type="button" class="active">Page web</button><button id="fileMode" type="button">Fichier</button><button id="textMode" type="button">Texte</button></div>
+      <input id="url" type="url" placeholder="https://exemple.com/page">
+      <button id="chooseFile" type="button" hidden>Choisir un fichier</button>
+      <textarea id="input" placeholder="Colle un texte à traduire…" hidden></textarea>
+      <p id="fileName" hidden></p>
+    </section>
+    <button id="translate" class="translator__go" type="button">TRADUIRE</button>
+    <p id="status" role="status"></p>
+    <article id="output" class="translator__output" aria-live="polite"></article>
+  </main>
+  <script src="translation.js"></script>
+</body>
+</html>

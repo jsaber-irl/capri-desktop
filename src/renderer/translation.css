@@ -1,0 +1,24 @@
+:root { color-scheme: dark; font-family: "JetBrains Mono", monospace; --pink: #ff2152; --cyan: #45e6f5; --bg: #0e0a14; --muted: #9a8da4; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; color: #f7f0fa; background: radial-gradient(circle at 10% 0, #39203e, transparent 40%), linear-gradient(145deg, #171020, var(--bg)); }
+.translator { min-height: 100vh; padding: 18px 24px; }
+.translator__header { display: flex; justify-content: space-between; color: var(--pink); letter-spacing: .15em; -webkit-app-region: drag; }
+.translator__header button { -webkit-app-region: no-drag; }
+button, select, input, textarea { font: inherit; }
+button { cursor: pointer; color: inherit; background: #21182d; border: 1px solid #ff215277; padding: 8px 12px; }
+button:hover, button.active { color: var(--cyan); border-color: var(--cyan); }
+.translator__header button { padding: 0 8px; color: var(--muted); background: transparent; border: 0; font-size: 24px; }
+.translator__settings, .translator__credentials { display: flex; gap: 12px; margin-top: 20px; }
+label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
+select, input, textarea { color: #fff; background: #16111f; border: 1px solid #63476d; padding: 8px; }
+label select { min-width: 180px; }
+.translator__credentials input { flex: 1; }
+.translator__source { margin-top: 22px; }
+.translator__buttons { display: flex; gap: 8px; margin-bottom: 10px; }
+#url, #input { width: 100%; }
+#input { min-height: 120px; resize: vertical; }
+#chooseFile { margin-top: 8px; }
+#fileName { color: var(--cyan); font-size: 11px; }
+.translator__go { width: 100%; margin-top: 18px; color: var(--bg); background: var(--cyan); font-weight: 700; }
+#status { min-height: 20px; color: var(--muted); font-size: 11px; }
+.translator__output { min-height: 180px; padding: 16px; white-space: pre-wrap; overflow-wrap: anywhere; background: #0b0910aa; border: 1px solid #ff215244; line-height: 1.6; }

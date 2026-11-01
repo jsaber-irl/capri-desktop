@@ -27,6 +27,7 @@ const PROVIDERS = {
   gemini: { label: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai', env: 'GEMINI_API_KEY' },
   deepseek: { label: 'DeepSeek', url: 'https://api.deepseek.com/v1', env: 'DEEPSEEK_API_KEY' },
   mistral: { label: 'Mistral', url: 'https://api.mistral.ai/v1', env: 'MISTRAL_API_KEY' },
+  nvidia: { label: 'NVIDIA Build', url: 'https://integrate.api.nvidia.com/v1', env: 'NVIDIA_API_KEY', modelEnv: 'NVIDIA_MODEL' },
   custom: { label: 'Custom (customUrl in config)' },
   claude: { label: 'Claude Code (sends to the terminal agent)', kind: 'claude' },
 };
@@ -41,7 +42,16 @@ function endpoint(id, cfg) {
   return { ...p, url: url.replace(/\/+$/, ''), key };
 }
 
-const headers = (key) => ({ 'content-type': 'application/json', ...(key && { authorization: `Bearer ${key}` }) });
+function configuredModel(id) {
+  const p = PROVIDERS[id];
+  if (!p?.modelEnv) return '';
+  return process.env[p.modelEnv] || process.env.NVIDIA_AI_MODEL || process.env.nvidia_model || '';
+}
+
+const headers = (key) => ({
+  'content-type': 'application/json',
+  ...(key && { authorization: ['Bearer', key].join(' ') }),
+});
 
 // Why a server said no, in a sentence (Gemini sends its error inside an array), with a code when it's
 // worth another try: 'busy' (too many people on it right now), 'gone' (that model isn't served anymore).
@@ -85,7 +95,9 @@ async function models(id, cfg) {
   const body = await res.json();
   const list = Array.isArray(body) ? body : body.data || body.models || [];
   const names = list.map((m) => (typeof m === 'string' ? m : m.id || m.name)).filter(Boolean);
-  return id === 'gemini' ? geminiModels(names) : names;
+  const preferred = configuredModel(id);
+  const ordered = preferred ? [preferred, ...names.filter((name) => name !== preferred)] : names;
+  return id === 'gemini' ? geminiModels(ordered) : ordered;
 }
 
 function warm(id, model) {

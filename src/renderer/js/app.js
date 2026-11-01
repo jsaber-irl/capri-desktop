@@ -987,6 +987,9 @@ async function boot() {
         if (cmd.on) capri.stow();
         else capri.unstow();
         break;
+      case 'quit':
+        host.quit?.();
+        break;
       case 'satellite': // the whole sequence, on demand (tray)
         if (capri.stowed) {
           host.setConfig({ visible: true });

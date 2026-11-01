@@ -1,4 +1,4 @@
-## **Project Capricorn (2.1.0)**
+## **Project Capricorn (2.1.5)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -99,6 +99,10 @@ npm run dist
 
 Capri can work with a local AI, a cloud provider, or Claude Code.
 
+From the chat, Capri can also open a validated web search for requests such as « recherche en ligne les horaires du Louvre ».
+The terminal provides the equivalent `/search web <requête>` command. Search requests open the default browser; Capri does not
+pretend to have verified results when the browser cannot be opened.
+
 ### Claude with an API key
 
 1. Create a key in [Anthropic Console](https://console.anthropic.com/settings/keys).
@@ -146,7 +150,12 @@ You can use a free or paid provider with its API key:
 - [Groq](https://console.groq.com/keys);
 - [Gemini](https://aistudio.google.com/apikey);
 - [OpenRouter](https://openrouter.ai/keys);
-- OpenAI, Mistral, DeepSeek, and Anthropic.
+- OpenAI, Mistral, DeepSeek, NVIDIA Build, and Anthropic.
+
+NVIDIA Build uses its OpenAI-compatible endpoint. You can connect it from the AI menu with
+`https://integrate.api.nvidia.com/v1`, your `nvapi-...` key, and a model such as
+`nvidia/nemotron-3.5-lightning-30b-a3b`. For environment-based setup, use `NVIDIA_API_KEY` and
+`NVIDIA_MODEL`.
 
 Pollinations can be used without a key or account. Capri checks the key when connecting and clearly reports errors.
 
@@ -305,7 +314,7 @@ The demo plays through a complete fictional session, then shows Capri's autonomo
 The data involved depends on the features you enable:
 
 - Local Ollama, Piper, and Chatterbox stay on your computer.
-- Claude, OpenAI, Gemini, Groq, OpenRouter, Mistral, DeepSeek, and ElevenLabs receive the data necessary for their operation.
+- Claude, OpenAI, Gemini, Groq, OpenRouter, Mistral, DeepSeek, NVIDIA Build, and ElevenLabs receive the data necessary for their operation.
 - Vision sends the screenshot to the selected model.
 - Transcription sends audio to the selected speech-recognition engine.
 - The microphone and vision only operate when enabled.
@@ -450,6 +459,7 @@ The following are present in the current source tree. Capabilities that depend o
 - **Application and file actions:** application names are resolved from installed application metadata and aliases. Explicit document creation writes a new text file without overwriting an existing one, verifies it by reading it back, and opens it in TextEdit on macOS when that step succeeds. It does not automate arbitrary document editing inside every application.
 - **Video search:** a latest-video request opens YouTube search results ordered by date. Capri does not verify which result is genuinely newest or automatically select a video; inspect the results page yourself.
 - **Music:** terminal, chat and voice requests use the shared media controller and available platform adapters. Track metadata, volume control, native apps and browser sessions vary by operating system and reader.
+- **Translation:** open **Translate a page or file** from Capri's menu to translate an HTTP(S) page, a text/Markdown/HTML file, or pasted text. MyMemory is used free of charge by default; DeepL, Google Cloud Translation and LibreTranslate can be selected with their API key or endpoint. API keys are stored with the system's encrypted storage.
 - **Chess:** the chat can open a local interactive chess window and the terminal supports /chess, /chess new, /chess help, /chess resign and /chess move <move>. The self-contained opponent is a casual, shallow-search bot; its strength has not been rated or calibrated to 1000 Elo.
 - **Terminal additions:** /document create <name> "<text>", /search videos <channel> [in Safari], and /music <action> provide explicit entry points to those shared services. /open app/<name> resolves and launches an installed application.
 - **Languages:** the primary menus and dialogue dictionaries include French, English and Russian. Some dedicated windows retain their own translation dictionaries, so not every external model response or every legacy string is guaranteed to be translated.

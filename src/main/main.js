@@ -39,8 +39,12 @@ const { createHub } = require('./hub');
 const { createMacPermissionsWindow, macPermissionsMenuItem, listMacWindows } = require('./mac-permissions');
 const { createIncomingCall } = require('./incoming-call');
 const { createChessWindow } = require('./chess-window');
+const { createMusicPlayer } = require('./music-player');
+const { createTranslationWindow } = require('./translation-window');
+const { translateSource } = require('./translator');
 const { createTextDocument } = require('./documents');
 const { openVideoSearch } = require('./video-search');
+const { openWebSearch } = require('./web-search');
 const { installNavigationGuards } = require('./electron-security');
 const { createFarewell } = require('./farewell');
 const stt = require('./stt');
@@ -110,7 +114,13 @@ const incomingCall = createIncomingCall({
   protocolUrl: 'capri://app/src/renderer/call.html', sendCommand, screen,
   getOverlayWebContents: () => overlay?.webContents,
 });
-const chessWindow = createChessWindow({ BrowserWindow, ipcMain, preload: path.join(__dirname, '..', 'preload.js'), lang: () => resolveLang(config.load().lang) });
+const chessWindow = createChessWindow({
+  BrowserWindow,
+  ipcMain,
+  preload: path.join(__dirname, '..', 'preload.js'),
+  lang: () => resolveLang(config.load().lang),
+  getCommandWebContents: () => overlay?.webContents,
+});
 // the recording she was given as her voice, if any (voice-sample.js): in her own data folder
 const voiceSample = createSample({ dir: () => path.join(app.getPath('userData'), 'voices') });
 const chatterbox = new Chatterbox({ roots: placesNextToHer, voices: () => [voiceSample.dir()] });
@@ -209,6 +219,62 @@ const chats = new Map(); // id -> AbortController of an answer being streamed
 let moodState = null;   // how she feels (the overlay says), for her menu's top line
 let mediaWatch = null;  // what's playing (media.js), while she's allowed to know
 const musicControl = createMusicController();
+async function playMusicTrack({ title, service = 'auto' } = {}) {
+  const query = String(title || '').trim();
+  if (!query) return { ok: false, error: 'Morceau introuvable.' };
+  const requested = String(service || 'auto').toLowerCase();
+  if (requested === 'youtube') {
+    await shell.openExternal(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
+    return { ok: true, service: 'youtube' };
+  }
+  const services = requested === 'auto' ? ['spotify', 'deezer'] : [requested];
+  for (const candidate of services) {
+    const status = await musicControl.command({ action: 'status', service: candidate });
+    if (status.ok) {
+      await launch.music(query, candidate);
+      return { ok: true, service: candidate };
+    }
+  }
+  await shell.openExternal(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
+  return { ok: true, service: 'youtube', fallback: true };
+}
+const musicPlayer = createMusicPlayer({
+  BrowserWindow,
+  ipcMain,
+  preload: path.join(__dirname, '..', 'preload.js'),
+  protocolUrl: 'capri://app/src/renderer/music-player.html',
+  lang: () => resolveLang(config.load().lang),
+  playTrack: playMusicTrack,
+  media: (request) => musicControl.command(request),
+});
+const translationWindow = createTranslationWindow({
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  preload: path.join(__dirname, '..', 'preload.js'),
+  protocolUrl: 'capri://app/src/renderer/translation.html',
+  translateSource,
+  getSettings: () => {
+    const cfg = config.load();
+    return { provider: cfg.translationProvider || 'mymemory', apiUrl: cfg.translationApiUrl || '', hasKey: Boolean(cfg.translationApiKey) };
+  },
+  getTranslationOptions: () => {
+    const cfg = config.load();
+    const [apiKey] = Object.values(setup.openKeys({ translation: cfg.translationApiKey || '' }));
+    return { provider: cfg.translationProvider || 'mymemory', apiKey: apiKey || '', apiUrl: cfg.translationApiUrl || '' };
+  },
+  setSettings: (settings = {}) => {
+    try {
+      const provider = ['mymemory', 'deepl', 'google', 'libretranslate'].includes(String(settings.provider)) ? String(settings.provider) : 'mymemory';
+      const patch = { translationProvider: provider, translationApiUrl: String(settings.apiUrl || '').trim().slice(0, 500) };
+      if (String(settings.apiKey || '').trim()) patch.translationApiKey = setup.sealKey(String(settings.apiKey).trim().slice(0, 500));
+      updateConfig(patch);
+      return { ok: true, provider, apiUrl: patch.translationApiUrl, hasKey: Boolean(config.load().translationApiKey) };
+    } catch (error) {
+      return { ok: false, error: error.message };
+    }
+  },
+});
 let presenceTimer = null;
 let senseState = {};    // which senses are live right now (the overlay says): { eyes, ears, listening }
 let pttKey = null;      // the push-to-talk shortcut currently registered
@@ -577,9 +643,11 @@ const terminal = createTerminal({
   openFile: (file) => safeOpenPath(file, shell),
   download: downloadTerminalFile,
   musicControl: (request) => musicControl.command(request),
+  openMusicPlayer: () => musicPlayer.show(),
   chess: (request) => chessWindow.command(request),
   createTextDocument: createUserTextDocument,
   videoSearch: (request) => performVideoSearch(request),
+  webSearch: (request) => openWebSearch({ ...request, openExternal: (url) => shell.openExternal(url) }),
   mascot: (action, payload) => {
     if (action === 'teleport') sendCommand('teleport');
     else if (action === 'satellite') sendCommand('satellite');
@@ -741,6 +809,8 @@ function buildTray() {
     { label: t.handstand, submenu: handstandItems },
     { label: t.satellite, click: () => sendCommand('satellite') },
     { label: t.demo, click: playDemo },
+    { label: t.musicPlayer, click: () => musicPlayer.show() },
+    { label: t.translator, click: () => translationWindow.show() },
     { label: t.terminal, click: openTerminal },
     { label: t.help, click: () => sendCommand('welcome') },
     { label: t.hub, click: () => hub?.show() },
@@ -1358,6 +1428,11 @@ function registerIpc() {
   ipcMain.on('farewell:done', (event) => {
     if (event.sender === overlay?.webContents) farewell.finish();
   });
+  ipcMain.handle('farewell:start', () => ({ ok: farewell.start() }));
+  ipcMain.handle('app:quit', () => {
+    app.quit();
+    return { ok: true };
+  });
   ipcMain.on('overlay:interactive', (_e, on) => {
     overlay?.setIgnoreMouseEvents(!on, { forward: true });
   });
@@ -1550,12 +1625,17 @@ function registerIpc() {
   ipcMain.handle('apps:launch', (_e, item) => launch.launch(item).then(() => ({ ok: true }), (err) => ({ ok: false, error: err.message })));
   ipcMain.handle('apps:media', async (_e, action) => (await musicControl.command({ action })).ok);
   ipcMain.handle('music:command', (_e, request) => musicControl.command(request || {}));
+  ipcMain.handle('music-player:open', () => {
+    musicPlayer.show();
+    return { ok: true };
+  });
   ipcMain.handle('apps:music', (_e, query) => launch.music(query).catch(() => false));
   ipcMain.handle('apps:site', (_e, address) => launch.site(address).catch(() => false));
   ipcMain.handle('apps:openPath', (_e, target) => safeOpenPath(target, shell)
     .then((ok) => ok ? { ok: true } : { ok: false, error: 'Fichier, dossier ou document introuvable.' }));
   ipcMain.handle('apps:roblox', (_e, query) => launch.roblox(query).catch((err) => ({ name: null, error: err.message })));
   ipcMain.handle('apps:videoSearch', (_e, request) => performVideoSearch(request || {}));
+  ipcMain.handle('apps:webSearch', (_e, request) => openWebSearch({ ...(request || {}), openExternal: (url) => shell.openExternal(url) }));
   ipcMain.handle('documents:createText', async (_e, request) => {
     if (!request || typeof request.filename !== 'string' || typeof request.content !== 'string' || request.filename.length > 120 || request.content.length > 100000) {
       return { ok: false, stage: 'validate', error: 'Requête de document invalide.' };
