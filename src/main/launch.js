@@ -17,7 +17,7 @@ const WIN = process.platform === 'win32';
 const SKIP = /uninstall|désinstaller|desinstalar|deinstall|readme|documentation|release notes|support center|website|manual/i;
 const STEAM_SKIP = /redistributable|dedicated server|steamworks/i;
 // Words that do not distinguish apps in a user's short request (e.g. "Roblox Player").
-const FILLER = new Set(['player', 'launcher', 'app', 'application', 'the', 'for', 'windows', 'desktop', 'client', 'x64', 'x86', 'beta']);
+const FILLER = new Set(['player', 'launcher', 'app', 'the', 'for', 'windows', 'desktop', 'client', 'x64', 'x86', 'beta', 'music', 'musique', 'media', 'audio', 'video', 'videos']);
 const CACHE_MS = 10 * 60 * 1000; // installed apps hardly change
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 let cache = null; // { at, items }
@@ -347,6 +347,169 @@ async function linuxApplications() {
   return items;
 }
 
+// Fichiers, dossiers et raccourcis présents sur le bureau.
+function desktopItems() {
+  const dirs = [
+    app.getPath('desktop'),
+  ];
+
+  // Bureau partagé Windows.
+  if (process.platform === 'win32') {
+    dirs.push(
+      path.join(
+        process.env.PUBLIC || 'C:\\Users\\Public',
+        'Desktop'
+      )
+    );
+  }
+
+  const items = [];
+  const seen = new Set();
+
+  for (const dir of dirs) {
+    let entries = [];
+
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (
+        entry.name.startsWith('.') ||
+        /^desktop\.ini$/i.test(entry.name)
+      ) continue;
+
+      const fullPath = path.join(dir, entry.name);
+
+      // Évite les doublons entre les bureaux.
+      if (seen.has(fullPath)) continue;
+      seen.add(fullPath);
+
+      const folder = entry.isDirectory();
+
+      items.push({
+        name: folder
+          ? entry.name
+          : entry.name.replace(/\.[^.]+$/, ''),
+
+        kind: folder ? 'folder' : 'file',
+        id: fullPath,
+        path: fullPath,
+      });
+    }
+  }
+
+  return items;
+}
+
+// Extensions pouvant exécuter du code.
+// Elles ne doivent jamais être ouvertes automatiquement par Capri.
+const RUNS = /\.(exe|bat|cmd|ps1|vbs|vbe|wsf|wsh|js|jse|msi|msp|reg|scr|com|jar|hta|cpl|pif|sh|command|app)$/i;
+
+const risky = (item) =>
+  item?.kind === 'file' && RUNS.test(item.id || item.path || '');
+
+// Dossiers système accessibles depuis Capri.
+const FOLDERS = [
+  ['explorer', /explorateur|file explorer|\bexplorer\b|ce pc|this pc/i],
+  ['recycle', /corbeille|recycle bin|\btrash\b/i],
+  ['downloads', /t[ée]l[ée]chargements?|downloads?/i],
+  ['desktop', /\bbureau\b|\bdesktop\b/i],
+  ['documents', /\bdocuments?\b/i],
+  ['pictures', /\bimages\b|\bphotos\b|\bpictures\b/i],
+  ['music', /dossier (de )?musique|music folder/i],
+  ['videos', /\bvid[ée]os\b/i],
+];
+
+function knownFolder(text) {
+  const normalized = normalizeRequest(text);
+
+  const hit = FOLDERS.find(([, regex]) => regex.test(normalized));
+
+  return hit
+    ? { name: hit[0], kind: 'known', id: hit[0] }
+    : null;
+}
+
+// Ouvre un dossier système.
+async function openKnown(id) {
+  const allowed = FOLDERS.some(([key]) => key === id);
+
+  if (!allowed) {
+    throw new Error('Unknown system folder');
+  }
+
+  // Explorateur de fichiers.
+  if (id === 'explorer') {
+    if (process.platform === 'win32') {
+      spawn('explorer.exe', [], {
+        detached: true,
+        stdio: 'ignore',
+      }).unref();
+
+      return true;
+    }
+
+    if (process.platform === 'darwin') {
+      await execFileAsync('open', [app.getPath('home')]);
+      return true;
+    }
+
+    if (process.platform === 'linux') {
+      await execFileAsync('xdg-open', [app.getPath('home')]);
+      return true;
+    }
+  }
+
+  // Corbeille : Windows.
+  if (id === 'recycle') {
+    if (process.platform === 'win32') {
+      spawn('explorer.exe', ['shell:RecycleBinFolder'], {
+        detached: true,
+        stdio: 'ignore',
+      }).unref();
+
+      return true;
+    }
+
+    if (process.platform === 'darwin') {
+      await execFileAsync('open', ['-a', 'Finder', path.join(os.homedir(), '.Trash')]);
+      return true;
+    }
+
+    if (process.platform === 'linux') {
+      await shell.openExternal('trash:///');
+      return true;
+    }
+  }
+
+  const folders = {
+    downloads: 'downloads',
+    desktop: 'desktop',
+    documents: 'documents',
+    pictures: 'pictures',
+    music: 'music',
+    videos: 'videos',
+  };
+
+  const folder = folders[id];
+
+  if (!folder) {
+    throw new Error('Unknown system folder');
+  }
+
+  const target = app.getPath(folder);
+  const error = await shell.openPath(target);
+
+  if (error) {
+    throw new Error(error);
+  }
+
+  return true;
+}
+
 function steamRoot() {
   return new Promise((resolve) => {
     execFile('reg.exe', ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'], { windowsHide: true, timeout: 5000 }, (err, out) => {
@@ -422,18 +585,80 @@ async function resolve(text) {
 }
 
 async function find(text) {
-  const result = await resolve(text);
-  return result.status === 'found' ? result.item : null;
+  const items = [
+    ...desktopItems(),
+    ...(await launchables()),
+  ];
+
+  const result = resolveInCatalog(text, items);
+
+  if (result.status === 'found') {
+    return result.item;
+  }
+
+  if (result.status === 'ambiguous') {
+    return result;
+  }
+
+  return knownFolder(text);
 }
 
 // Opens one of them (only something she listed herself): a Start menu app through its AppsFolder
 // entry (desktop and Store apps alike), a game through its launcher's link.
 /** Lance une entrée résolue du catalogue, jamais une commande construite depuis le texte brut. */
+/** Ouvre une application, un jeu, un fichier ou un dossier. */
 async function launch({ kind, id } = {}) {
-  const item = (await launchables()).find((i) => i.kind === kind && i.id === id);
-  if (!item) throw new Error('not found');
-  if (kind === 'steam') return shell.openExternal(`steam://rungameid/${id}`);
-  if (kind === 'epic') return shell.openExternal(`com.epicgames.launcher://apps/${encodeURIComponent(id)}?action=launch&silent=true`);
+
+  // Dossiers système.
+  if (kind === 'known') {
+    return openKnown(id);
+  }
+
+  // Fichiers et dossiers du bureau.
+  if (kind === 'file' || kind === 'folder') {
+    const item = desktopItems().find(
+      (entry) => entry.id === id && entry.kind === kind
+    );
+
+    if (!item) {
+      throw new Error('Desktop item not found');
+    }
+
+    // Ne jamais exécuter directement un script ou programme.
+    if (risky(item)) {
+      throw new Error('Opening executable files is not allowed');
+    }
+
+    const error = await shell.openPath(item.id);
+
+    if (error) {
+      throw new Error(error);
+    }
+
+    return { ok: true };
+  }
+
+  // Applications et jeux.
+  const item = (await launchables()).find(
+    (entry) => entry.kind === kind && entry.id === id
+  );
+
+  if (!item) {
+    throw new Error('Application not found');
+  }
+
+  if (kind === 'steam') {
+    await shell.openExternal(`steam://rungameid/${id}`);
+    return { ok: true };
+  }
+
+  if (kind === 'epic') {
+    await shell.openExternal(
+      `com.epicgames.launcher://apps/${encodeURIComponent(id)}?action=launch&silent=true`
+    );
+    return { ok: true };
+  }
+
   return openApplicationItem(item);
 }
 
@@ -477,13 +702,126 @@ async function openApplicationItem(item, {
 
 // The media keys, as if pressed on the keyboard: whatever plays music (Spotify, a browser…) reacts.
 // Play and pause are the same key; the volume moves a few steps at a time.
-const MEDIA = { pause: [179, 1], play: [179, 1], next: [176, 1], previous: [177, 1], volup: [175, 5], voldown: [174, 5], mute: [173, 1] };
+// Contrôle multimédia multiplateforme.
+// Windows : véritables touches multimédias via user32.dll.
+// macOS : AppleScript.
+// Linux : playerctl et wpctl/pactl.
+
+const MEDIA = {
+  pause: 'playpause',
+  play: 'playpause',
+  next: 'next',
+  previous: 'previous',
+  volup: 'volup',
+  voldown: 'voldown',
+  mute: 'mute',
+};
 
 async function media(action) {
-  if (!WIN || !MEDIA[action]) return false;
-  const [key, times] = MEDIA[action];
-  return powershell(`$w = New-Object -ComObject WScript.Shell; 1..${times} | ForEach-Object { $w.SendKeys([string][char]${key}) }`)
-    .then(() => true, () => false);
+  const command = MEDIA[String(action || '').toLowerCase()];
+  if (!command) return false;
+
+  // Windows
+  if (process.platform === 'win32') {
+    const keys = {
+      playpause: 0xb3,
+      next: 0xb0,
+      previous: 0xb1,
+      volup: 0xaf,
+      voldown: 0xae,
+      mute: 0xad,
+    };
+
+    const times = command === 'volup' || command === 'voldown' ? 5 : 1;
+    const key = keys[command];
+
+    const script = `
+      Add-Type -TypeDefinition '
+        using System;
+        using System.Runtime.InteropServices;
+        public class CapriMediaKeys {
+          [DllImport("user32.dll")]
+          public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+        }
+      ' -ErrorAction SilentlyContinue;
+
+      1..${times} | ForEach-Object {
+        [CapriMediaKeys]::keybd_event(${key}, 0, 1, [UIntPtr]::Zero);
+        [CapriMediaKeys]::keybd_event(${key}, 0, 3, [UIntPtr]::Zero);
+      }
+    `;
+
+    return powershell(script).then(() => true, () => false);
+  }
+
+  // macOS
+  if (process.platform === 'darwin') {
+    const scripts = {
+      playpause: 'tell application "System Events" to key code 16 using {command down}',
+      next: 'tell application "Music" to next track',
+      previous: 'tell application "Music" to previous track',
+      volup: 'set volume output volume (output volume of (get volume settings) + 5)',
+      voldown: 'set volume output volume (output volume of (get volume settings) - 5)',
+      mute: 'set volume output muted not (output muted of (get volume settings))',
+    };
+
+    try {
+      await execFileAsync('/usr/bin/osascript', ['-e', scripts[command]], { timeout: 5000 });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Linux
+  if (process.platform === 'linux') {
+    const commands = {
+      playpause: ['playerctl', ['play-pause']],
+      next: ['playerctl', ['next']],
+      previous: ['playerctl', ['previous']],
+      volup: ['wpctl', ['set-volume', '@DEFAULT_AUDIO_SINK@', '5%+']],
+      voldown: ['wpctl', ['set-volume', '@DEFAULT_AUDIO_SINK@', '5%-']],
+      mute: ['wpctl', ['set-mute', '@DEFAULT_AUDIO_SINK@', 'toggle']],
+    };
+
+    const [executable, args] = commands[command];
+
+    try {
+      await execFileAsync(executable, args, { timeout: 5000 });
+      return true;
+    } catch {
+      // Fallback for Linux systems using PulseAudio.
+      if (command === 'volup' || command === 'voldown') {
+        try {
+          await execFileAsync('pactl', [
+            'set-sink-volume',
+            '@DEFAULT_SINK@',
+            command === 'volup' ? '+5%' : '-5%',
+          ], { timeout: 5000 });
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      if (command === 'mute') {
+        try {
+          await execFileAsync('pactl', [
+            'set-sink-mute',
+            '@DEFAULT_SINK@',
+            'toggle',
+          ], { timeout: 5000 });
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      return false;
+    }
+  }
+
+  return false;
 }
 
 // A service search for a track: in the app when its URI handler is available, else on the web.
@@ -521,4 +859,31 @@ async function site(address) {
   return true;
 }
 
-module.exports = { launchables, match, find, resolve, normalizeRequest, resolveInCatalog, macApplications, linuxApplications, openApplicationItem, launch, media, music, site, siteUrl, roblox };
+module.exports = {
+  // Applications
+  launchables,
+  match,
+  find,
+  resolve,
+  normalizeRequest,
+  resolveInCatalog,
+  macApplications,
+  linuxApplications,
+  openApplicationItem,
+  launch,
+
+  // Bureau et dossiers système
+  desktopItems,
+  knownFolder,
+  openKnown,
+  risky,
+
+  // Multimédia
+  media,
+
+  // Musique et navigation
+  music,
+  site,
+  siteUrl,
+  roblox,
+};

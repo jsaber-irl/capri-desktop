@@ -100,7 +100,7 @@ export class Capri {
     this.fallToFloor = false;
 
     this.p = {
-      seed: 0, boil: 0.9, hair: 0, head: 0, mane: 0, armL: 0, armR: 0, longL: 1, longR: 1, sit: 0, kickL: 0, kickR: 0,
+      seed: 0, boil: 0.9, hair: 0, head: 0, mane: 0, armL: 0, armR: 0, longL: 1, longR: 1, sit: 0, kickL: 0, kickR: 0, bend: 0,
       smear: [0, 0], echo: [0, 0],
       glitch: 0, glitchSeed: 0, split: 0, collapse: 0, dissolve: 0, sparkle: 1, grade: 1,
       sil: INK, silAmount: 0, misreg: [-2.6, 2.2], alpha: 1,
@@ -500,6 +500,7 @@ export class Capri {
     p.longR = pose.longR;
     p.kickL = pose.kickL;
     p.kickR = pose.kickR;
+    p.bend = pose.bend;
     p.smear = pose.smear;
     p.echo = pose.echo;
     // on a ledge she stays seated: no lifting off it, no sinking through it
