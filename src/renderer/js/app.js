@@ -18,6 +18,8 @@ import { Eyes } from './eyes.js';
 import { Rhythm } from './rhythm.js';
 import { Hands } from './hands.js';
 import { Ears } from './ears.js';
+import { Pc } from './pc.js';
+import { Reminders, clock } from './reminders.js';
 import { Bond } from './bond.js';
 import { Ring } from './ring.js';
 import { applyTheme, applyWindowTheme, resolveTheme, askedTheme } from './themes.js';
@@ -109,6 +111,31 @@ async function boot() {
 
   const mission = new Mission();
   const brain = new Brain({ capri, panel, voice, host, mission, lang: config.lang, assistant: config.assistant });
+  const reminders = new Reminders({ host, list: config.reminders });
+  reminders.onDue = (reminder) => {
+    reminder.made = Date.now();
+    reminders.save();
+    capri.perform('remind');
+    const lang = brain.lang === 'fr' ? 'fr-FR' : brain.lang === 'ru' ? 'ru-RU' : 'en-US';
+    panel.say({
+      kind: 'remind',
+      face: 'wide',
+      line: brain.lang === 'fr'
+        ? `Rappel : ${reminder.text} (${clock(reminder.at, lang, true)}).`
+        : brain.lang === 'ru'
+          ? `Напоминание: ${reminder.text} (${clock(reminder.at, lang, true)}).`
+          : `Reminder: ${reminder.text} (${clock(reminder.at, lang, true)}).`,
+      hold: null,
+    });
+    panel.notice({
+      line: brain.lang === 'fr'
+        ? `Rappel : ${reminder.text}`
+        : brain.lang === 'ru'
+          ? `Напоминание: ${reminder.text}`
+          : `Reminder: ${reminder.text}`,
+      kind: 'remind',
+    });
+  };
 
   // Her feelings (heart.js, mood.js): what she shows, and her colours when they follow her mood.
   const heart = new Heart({ capri, panel, voice, brain, host });
@@ -345,7 +372,8 @@ async function boot() {
       panel.hideSatelliteWait();
     },
   });
-  const chat = new Chat({ capri, panel, voice, host, brain, satelliteWait });
+  const chat = new Chat({ capri, panel, voice, host, brain, reminders, satelliteWait });
+  const pc = new Pc({ capri, panel, brain, host, voice, chat, guide, enabled: config.pcReact !== false });
   const satelliteTest = new CapriSatelliteTest({
     chat, panel, isAnimating: () => satelliteAnimationRunning,
     log: (message) => host.terminalDemoLog?.(message),
@@ -583,6 +611,7 @@ async function boot() {
   host.onWindows((data) => {
     capri.setWindows(data);
     brain.onWindows(data);
+    pc.onWindows(data);
     if (data && data.fg !== lastFg) {
       lastFg = data.fg;
       eyes.onForeground(); // the window in front changed: worth a glance soon
@@ -591,7 +620,11 @@ async function boot() {
   // (she glances at the screen on her own, now and then, when she's allowed and things are calm: eyes.js
   // keeps that clock itself, and only while vision is on)
   // the windows as they are now: the watcher only speaks again when something changes
-  host.windowsNow().then((data) => data && capri.setWindows(data));
+  host.windowsNow().then((data) => {
+    if (!data) return;
+    capri.setWindows(data);
+    pc.onWindows(data);
+  });
 
   host.onResize(({ width, height, gap = 0 }) => {
     floorGap = gap;
@@ -617,6 +650,8 @@ async function boot() {
     hands.configure(cfg);
     rhythm.configure(cfg).catch(() => {});
     ears.configure(cfg);
+    pc.configure(cfg);
+    reminders.sync(cfg.reminders);
     host.senseState({ eyes: eyes.enabled, ears: ears.enabled, listening: false });
     showSenses();
     capri.lang = cfg.lang;

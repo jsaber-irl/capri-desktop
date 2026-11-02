@@ -27,9 +27,9 @@ function kindOf({ name = '', class: cls = '' }) {
 }
 
 export class Pc {
-  constructor({ capri, panel, brain, host, voice, chat, guide }) {
+  constructor({ capri, panel, brain, host, voice, chat, guide, enabled = true }) {
     Object.assign(this, { capri, panel, brain, host, voice, chat, guide });
-    this.enabled = true;
+    this.enabled = enabled;
     this.wantsOut = () => true; // not put away in her settings
     this.hotSince = 0;
     this.hot = false;
@@ -47,6 +47,10 @@ export class Pc {
     this.watchBattery();
     window.addEventListener('offline', () => this.offline());
     window.addEventListener('online', () => this.online());
+  }
+
+  configure(config) {
+    this.enabled = config?.pcReact !== false;
   }
 
   get t() {
@@ -147,7 +151,7 @@ export class Pc {
   }
 
   // what windows.ps1 sees: USB sticks by letter, devices plugged in or out, the game in front
-  onWindows({ usb = [], plug = null, game = null }) {
+  onWindows({ usb = [], plug = null, game = null } = {}) {
     if (!this.enabled) {
       this.drives = usb;
       this.plugs = plug?.n ?? 0;

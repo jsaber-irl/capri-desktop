@@ -18,7 +18,7 @@ export const FACES = {
   grin: 'capri-face.png',
 };
 const KIND_FACE = { alert: 'many', done: 'look', error: 'laugh', work: 'calm', idle: 'calm', report: 'smug', chat: 'look' };
-const PRIORITY = { info: 1, idle: 1, work: 2, done: 3, error: 3, report: 3, chat: 3, alert: 4 };
+const PRIORITY = { info: 1, idle: 1, work: 2, done: 3, error: 3, report: 3, chat: 3, alert: 4, remind: 3 };
 const DECODE_STEP_MS = 28;
 const COUNT_MS = 700; // her report's numbers counting up
 
@@ -89,6 +89,12 @@ export class Panel {
       if (e.key === 'Escape') this.hide();
     });
     this.chatClose.addEventListener('click', () => this.hide());
+
+    const notice = document.getElementById('notice');
+    notice?.querySelector('.notice__close')?.addEventListener('click', () => {
+      notice.setAttribute('hidden', '');
+      clearTimeout(this.noticeTimer);
+    });
 
     this.el.addEventListener('click', () => {
       if (this.current?.chat) this.chatInput.focus(); // a chat stays until you close it
@@ -501,6 +507,17 @@ export class Panel {
       return li;
     }));
     this.log.hidden = entries.length === 0;
+  }
+
+  // A top-right reminder notice: a line that stays until you close it (or a new one replaces it).
+  notice(msg) {
+    const el = document.getElementById('notice');
+    if (!el) return;
+    const line = el.querySelector('.notice__line');
+    line.textContent = msg.line || '';
+    el.removeAttribute('hidden');
+    clearTimeout(this.noticeTimer);
+    this.noticeTimer = setTimeout(() => { el.setAttribute('hidden', ''); }, 10000);
   }
 
   hide() {

@@ -4,12 +4,26 @@ const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 
+let remindersModule = null;
+async function loadReminders() {
+  if (!remindersModule) {
+    remindersModule = await import('../renderer/js/reminders.js');
+  }
+  return remindersModule;
+}
+
 const HELP_COMMANDS = [
   ['/help', 'Afficher les commandes disponibles.', 'Show available commands.'],
   ['/clear', 'Effacer l’historique visible.', 'Clear visible history.'],
   ['/history', 'Afficher les commandes exécutées.', 'Show executed commands history.'],
   ['/version', 'Afficher la version de Capri.', 'Show Capri version.'],
   ['/status', 'Afficher l’état général de Capri.', 'Show general Capri status.'],
+  ['/pc info', 'Afficher les informations du PC.', 'Show PC hardware information.'],
+  ['/pc react', 'Activer/désactiver les réactions de Capri à ton PC.', 'Toggle Capri reacting to your PC.'],
+  ['/remind <texte>', 'Créer un rappel (ex: rappelle-moi dans 20 min de sortir la pizza).', 'Create a reminder (ex: remind me in 20 min to take out the pizza).'],
+  ['/cancel [texte]', 'Annuler un rappel (sans texte: le plus ancien à venir).', 'Cancel a reminder (no text: the oldest upcoming one).'],
+  ['/rappelle-moi <texte>', "Créer un rappel (alias français de /remind).", "Create a reminder (French alias of /remind)."],
+  ['/annule [texte]', 'Annuler un rappel (alias français de /cancel).', 'Cancel a reminder (French alias of /cancel).'],
   ['/open app/<nom>', 'Ouvrir une application connue de Capri.', 'Open a known application.'],
   ['/open file/<chemin>', 'Ouvrir un fichier, dossier ou document local existant.', 'Open an existing local file, folder, or document.'],
   ['/open folder/<chemin>', 'Ouvrir un dossier local existant.', 'Open an existing local folder.'],
@@ -140,6 +154,10 @@ function createTerminal({
   createTextDocument = null,
   videoSearch = null,
   webSearch = null,
+  reminders = null,
+  pcReact = null,
+  setPcReact = null,
+  lookAtPc = null,
   random = Math.random
 } = {}) {
   const history = [];
@@ -329,6 +347,64 @@ function createTerminal({
         `mode: offline-safe`,
         `interfaces: ${Object.keys(os.networkInterfaces()).filter((k) => !k.startsWith('lo')).join(', ') || 'loopback'}`
       ]);
+    }
+
+    if (command === '/pc') {
+      const sub = (rest[0] || '').toLowerCase();
+      if (sub === 'info') {
+        if (!lookAtPc) return error(tr('Le PC n’est pas accessible.', 'The PC is not accessible.'));
+        try {
+          const hw = await lookAtPc({ force: true });
+          return result([
+            `platform: ${hw.os.platform} (${hw.os.arch}, ${hw.os.release})`,
+            `cpu: ${hw.cpu.name || 'inconnu'}`,
+            `ram: ${(hw.ramFree || 0).toFixed(1)}GB free / ${(hw.ram || 0).toFixed(1)}GB total`,
+            `gpu: ${hw.gpu ? `${hw.gpu.name} · ${(hw.gpu.vram / (1024 ** 3)).toFixed(1)}GB` : 'aucune détectée'}`,
+            `disk: ${(hw.disk.free / (1024 ** 3)).toFixed(1)}GB free / ${(hw.disk.total / (1024 ** 3)).toFixed(1)}GB`,
+            `status: ${hw.cpu.cores || 0} cœurs, ${hw.cpu.threads || 0} threads`,
+          ]);
+        } catch (err) {
+          return error(`${tr('Impossible de lire le PC :', 'Cannot read the PC:')} ${err.message}`);
+        }
+      }
+      if (sub === 'react') {
+        if (!pcReact || !setPcReact) return error(tr('Les réactions PC ne sont pas configurées.', 'PC reactions are not configured.'));
+        const current = Boolean(await pcReact());
+        const next = !current;
+        await setPcReact(next);
+        return response([tr(`Réactions PC : ${next ? 'activées' : 'désactivées'}.`, `PC reactions: ${next ? 'on' : 'off'}.`)]);
+      }
+      return error(tr('Usage : /pc info ou /pc react.', 'Usage: /pc info or /pc react.'));
+    }
+
+    if (command === '/remind' || command === '/rappelle-moi') {
+      if (!reminders) return error(tr('Les rappels ne sont pas configurés.', 'Reminders are not configured.'));
+      const text = rest.join(' ').trim();
+      if (!text) return error(tr('Usage : /remind <texte>.', 'Usage: /remind <text>.'));
+      try {
+        const mod = await loadReminders();
+        const r = mod.parseReminder(text, Date.now());
+        if (!r) return error(tr('Je n’ai pas compris le rappel. Dis par exemple : rappelle-moi dans 20 min de sortir la pizza.', "I didn't understand the reminder. Say for example: remind me in 20 min to take out the pizza."));
+        reminders.add(r.at, r.text);
+        return response([
+          tr(`Rappel créé : « ${r.text} »`, `Reminder created: “${r.text}”`),
+          r.at ? tr(`à ${new Date(r.at).toLocaleTimeString()}`, `at ${new Date(r.at).toLocaleTimeString()}`) : tr('sans heure précisée', 'no time specified'),
+        ].filter(Boolean));
+      } catch (err) {
+        return error(`${tr('Impossible de créer le rappel :', 'Cannot create reminder:')} ${err.message}`);
+      }
+    }
+
+    if (command === '/cancel' || command === '/annule') {
+      if (!reminders) return error(tr('Les rappels ne sont pas configurés.', 'Reminders are not configured.'));
+      const text = rest.join(' ').trim();
+      try {
+        const cancelled = reminders.cancelByText(text);
+        if (!cancelled) return error(text ? tr(`Aucun rappel ne correspond à « ${text} ».`, `No reminder matches “${text}”.`) : tr('Aucun rappel à venir à annuler.', 'No upcoming reminder to cancel.'));
+        return response([tr(`Rappel annulé : « ${cancelled.text} ».`, `Reminder cancelled: “${cancelled.text}”.`)]);
+      } catch (err) {
+        return error(`${tr('Impossible d’annuler le rappel :', 'Cannot cancel reminder:')} ${err.message}`);
+      }
     }
 
     if (command === '/open') {

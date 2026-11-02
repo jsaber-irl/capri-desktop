@@ -114,6 +114,7 @@ contextBridge.exposeInMainWorld('host', {
   webSearch: (query) => ipcRenderer.invoke('web:search', query),
   openSite: (address) => ipcRenderer.invoke('apps:site', address),
   openPath: (target) => ipcRenderer.invoke('apps:openPath', String(target || '')),
+  openKnown: (id) => ipcRenderer.invoke('apps:openKnown', String(id || '')),
   videoSearch: (request) => ipcRenderer.invoke('apps:videoSearch', request || {}),
   webSearch: (request) => ipcRenderer.invoke('apps:webSearch', request || {}),
   focusOverlay: (on) => ipcRenderer.send('overlay:focus', Boolean(on)),

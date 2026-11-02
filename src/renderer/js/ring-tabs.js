@@ -11,7 +11,7 @@ import { micThreshold, meterLevel } from './ears.js';
 import { el, heading, note, row, button, buttons, toggle, pick, seg, slider, chips, quote } from './ring-ui.js';
 import { PROVIDERS, GROUPS, needsKey, isLocal } from './brain-providers.js';
 
-export const ORDER = ['bond', 'brain', 'mic', 'senses', 'character', 'colours', 'voice', 'more', 'chat'];
+export const ORDER = ['bond', 'brain', 'mic', 'senses', 'character', 'colours', 'voice', 'more', 'screen', 'chat'];
 
 const isWindows = (host) => (host.platform ? host.platform === 'win32' : /win/i.test(globalThis.navigator?.platform || ''));
 const prettyKey = (key) => String(key || 'Control+Alt+Space').replace(/\bControl\b/g, 'Ctrl').replace(/\bCommandOrControl\b/g, 'Ctrl');
@@ -791,4 +791,37 @@ const more = {
   },
 };
 
-export const TABS = { bond, brain, mic, senses, character, colours, voice, more, chat: { render: () => el('div') } };
+const screen = {
+  render(c) {
+    const { t, cfg, host } = c;
+    const s = t.screen;
+    const root = el('div');
+    root.append(toggle(s.follow, cfg.follow !== false, (v) => c.set({ follow: v })));
+    root.append(heading(''));
+    root.append(el('div', 'ring__sub', s.pick));
+    let alive = true;
+    host.screens?.().then((displays) => {
+      if (!alive || !c.open) return;
+      if (!displays || !displays.length) {
+        root.append(note(s.screens.one.replace('{n}', '1')));
+        return;
+      }
+      const primary = displays.find((d) => d.primary);
+      const cur = cfg.displayId ? displays.find((d) => d.id === cfg.displayId) : (primary || displays[0]);
+      const list = el('div', 'ring__screens');
+      for (const d of displays) {
+        const isCur = cur && cur.id === d.id;
+        const label = isCur ? `● ${s.current} — ${d.size.width}×${d.size.height}` : `${d.size.width}×${d.size.height}${d.primary ? ' · ' + s.one.replace('{n}', '') : ''}`;
+        list.append(button(label, () => {
+          host.moveScreen(d.id);
+          c.refresh();
+        }));
+      }
+      root.append(list);
+    }).catch(() => {});
+    c.onLeave(() => { alive = false; });
+    return root;
+  },
+};
+
+export const TABS = { bond, brain, mic, senses, character, colours, voice, more, screen, chat: { render: () => el('div') } };

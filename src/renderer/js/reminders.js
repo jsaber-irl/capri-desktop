@@ -41,6 +41,9 @@ const TOMORROW = word('demain|tomorrow|amanh[ãa]|завтра|(?<!de la\\s)mañ
 const PM = word("ce soir|du soir|de l['’]après-midi|cet après-midi|tonight|this evening|in the evening|this afternoon|in the afternoon|de la tarde|de la noche|esta tarde|esta noche|da tarde|da noite|hoje à noite|вечера|дня");
 const AM = word('du matin|ce matin|in the morning|de la mañana|da manhã|de manhã|утра');
 const POLITE = word("s['’]il te pla[iî]t|stp|svp|please|pls|plz|por favor|пожалуйста", 'giu');
+// "annule le rappel : Sortir la pizza", "cancel the reminder: call mom", "отмени напоминание"
+// le texte après les deux points (optionnel) est ce qu'on cherche à annuler
+const CANCEL = /(?:annul[ae]?|annuler|annulation|cancel(?:lation)?|supprimer|delete|remove|отмен[иа]|удалить)\s+(?:le\s+|un\s+|la\s+|ce\s+)?(?:rappel|reminder|напоминание)(?:\s*:?\s*(.+))?/i;
 // what comes before what to remind you of, once the rest is gone
 const LEAD = new RegExp("^(?:[\\s,:;.!?-]|d['’]|qu['’]|(?:capri|de que|de|que|pour|à|to|that|about|of|for|para|pra|me|о|об|что|чтобы|мне)(?![\\p{L}]))+", 'iu');
 
@@ -118,6 +121,15 @@ export function parseWhen(text, now = Date.now()) {
   return { at: d.getTime(), spans };
 }
 
+// A cancellation asked for in text: { text: the reminder text to look for (may be ''), or null if
+// it isn't asking to cancel one.
+export function parseCancel(text) {
+  const m = CANCEL.exec(text);
+  if (!m) return null;
+  const what = (m[1] || '').trim();
+  return { text: what };
+}
+
 // A reminder asked for in text: { at (ms, or null if it doesn't say when), text: what to remind
 // you of ('' if nothing) }, or null if it isn't asking for one.
 export function parseReminder(text, now = Date.now()) {
@@ -133,10 +145,12 @@ export function parseReminder(text, now = Date.now()) {
 }
 
 // When a reminder is for, as she says it: the time, with the day if it isn't today.
-export function clock(at, lang = 'en') {
+// Pass `seconds` to include seconds (the due panel shows the exact time: 13:22:30).
+export function clock(at, lang = 'en', seconds = false) {
   const d = new Date(at);
   const sameDay = d.toDateString() === new Date().toDateString();
-  return new Intl.DateTimeFormat(lang, sameDay ? { hour: '2-digit', minute: '2-digit' } : { weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(d);
+  const opts = { hour: '2-digit', minute: '2-digit', ...(seconds ? { second: '2-digit' } : {}) };
+  return new Intl.DateTimeFormat(lang, sameDay ? opts : { weekday: 'short', ...opts }).format(d);
 }
 
 // The ones she keeps: [{ id, at, text, made }], saved in her settings (main.js shows them in her
@@ -160,10 +174,24 @@ export class Reminders {
   }
 
   add(at, text) {
-    const r = { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, at, text, made: Date.now() };
+    const r = { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, at, text, made: null };
     this.list = [...this.list, r];
     this.save();
     return r;
+  }
+
+  // Annule le rappel dont le texte contient `text` (insensible à la casse), ou le plus ancien
+  // rappel à venir si `text` est vide. Retourne le rappel annulé, ou null.
+  cancelByText(text) {
+    const needle = String(text || '').trim().toLowerCase();
+    let target = null;
+    if (needle) {
+      target = this.upcoming.find((r) => !r.made && String(r.text || '').toLowerCase().includes(needle));
+    }
+    if (!target) target = this.upcoming.find((r) => !r.made);
+    if (!target) return null;
+    this.remove(target.id);
+    return target;
   }
 
   remove(id) {
@@ -183,10 +211,13 @@ export class Reminders {
   }
 
   check() {
-    if (this.firing.size || !this.onDue) return;
-    const due = this.upcoming.find((r) => r.at <= Date.now());
+    if (!this.onDue) return;
+    const due = this.upcoming.find((r) => !r.made && r.at <= Date.now());
     if (!due) return;
     this.firing.add(due.id);
     this.onDue(due);
+    this.firing.delete(due.id);
+    // le rappel a sonné : on le retire de la liste (il n'encombre plus le menu ni la config)
+    this.remove(due.id);
   }
 }

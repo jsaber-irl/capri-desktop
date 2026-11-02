@@ -113,6 +113,10 @@ const ICONS = {
     ['rect', { x: 15, y: 15.5, width: 4, height: 5, class: 'is-fill' }],
   ],
   chat: [['path', { d: 'M3.5 4 H20.5 V16 H10 L5.5 20.5 V16 H3.5 Z', class: 'is-fill' }]],
+  screen: [
+    ['rect', { x: 4, y: 3, width: 16, height: 14, rx: 1 }],
+    ['path', { d: 'M10 17 H14 M12 17 V20' }],
+  ],
 };
 
 const svg = (tag, attrs = {}) => {

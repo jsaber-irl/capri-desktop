@@ -11,6 +11,7 @@ import { ASSISTANT_NAMES } from './lines.js';
 import { askedTheme } from './themes.js';
 import { lifeLines } from './lines-life.js';
 import { FORGET_ME } from './bond.js';
+import { parseReminder, parseCancel, clock } from './reminders.js';
 
 const REMEMBER = 20; // messages she has in mind when answering
 const KEEP = 60;     // messages she remembers across restarts (memory.json)
@@ -55,6 +56,26 @@ const MUSIC_WORD = /musi|song|track|spotify|deezer|chanson|morceau|j['’]écout
 const MUSIC_STATUS = /(?:qu['’]est-ce que j['’]écoute|quel (?:morceau|titre|artiste)|what (?:am i|is) listening to|what(?:'s| is) playing|current track|now playing)/i;
 // "put X on Spotify", "включи X в Spotify"
 const SPOTIFY_ASK = /(?:play|put on|put|включи|поставь)\s+(?:me\s+)?(.+?)\s+(?:on|в)\s+spotify/i;
+// "mets Bohemian Rhapsody", "joue Bohemian Rhapsody", "lance Bohemian Rhapsody" (sur YouTube)
+const YOUTUBE_ASK = /\b(?:mets|joue|lance|play|put on)\s+(.+?)(?:\s*(?:sur|on|dans|in)\s+youtube\b|\s*[.!?]*$)/iu;
+// "trouve mon projet After Effects", "cherche un fichier pdf", "ouvre le dossier de mon projet"
+const FIND_FILES_ASK = /\b(?:trouve|trouver|cherche|chercher|find|search|ouvre le dossier de|open the folder of)\b\s+(.+?)(?:\s*(?:et\s+)?(?:ouvre|open|lance|launch)\s+(?:le\s+)?dossier)?\s*[.!?]*$/iu;
+// "prends une capture d'écran", "fais une capture", "screenshot"
+const SCREENSHOT_ASK = /\b(?:capture|screenshot|fais une capture|photo d[ée]cran|snap)\b/iu;
+// dossiers système par leur nom : "ouvre l'explorateur", "ouvre la corbeille", "ouvre mon bureau"
+const OPEN_SYSTEM_FOLDER = /\b(?:ouvre|open|lance|launch)\b\s+(?:le\s+|la\s+|l'|the\s+|mon\s+|ma\s+|ton\s+|ta\s+)?(explorateur|file explorer|explorer|corbeille|recycle bin|trash|bureau|desktop|documents|t[ée]l[ée]chargements|downloads|images|photos|pictures|musique|music|vid[eé]os|videos)\b/iu;
+const FOLDER_ID = {
+  explorateur: 'explorer', 'file explorer': 'explorer', explorer: 'explorer',
+  corbeille: 'recycle', 'recycle bin': 'recycle', trash: 'recycle',
+  bureau: 'desktop', desktop: 'desktop',
+  documents: 'documents',
+  'téléchargements': 'downloads', downloads: 'downloads',
+  images: 'pictures', photos: 'pictures', pictures: 'pictures',
+  musique: 'music', music: 'music',
+  'vidéos': 'videos', videos: 'videos',
+};
+// plusieurs actions dans un même message, séparées par "et" / "and" / " puis "
+const SPLIT_ACTIONS = /\s+(?:et|and|puis|then|,)\s+/iu;
 const MEDIA_ACTIONS = new Set(MEDIA_ASK.map(([action]) => action));
 function musicAction(text) {
   if (MUSIC_STATUS.test(text)) return 'current';
@@ -114,12 +135,13 @@ const SCREEN_Q = /(?:что|чё|чо|какой|кто|where|what|which|who).{0
 const WRITE_ASK = /напиш\p{L}*|напеч\p{L}*|отправ\p{L}*|сообщ\p{L}*|скаж\p{L}*|передай|write|send|message|text/iu;
 
 export class Chat {
-  constructor({ capri, panel, voice, host, brain, satelliteWait = null }) {
+  constructor({ capri, panel, voice, host, brain, reminders = null, satelliteWait = null }) {
     this.capri = capri;
     this.panel = panel;
     this.voice = voice;
     this.host = host;
     this.brain = brain;
+    this.reminders = reminders;
     this.satelliteWait = satelliteWait;
     this.history = []; // your chats with her, [{ role, content }], kept by main.js across restarts
     this.warm = false; // a model already answered this run (Ollama's first answer waits for it to load)
@@ -301,10 +323,32 @@ export class Chat {
     // what you asked for plainly happens right away (the music, the volume, an app you named): her
     // line about it comes under her answer (Claude Code, answering her chat, does things its own way)
     const asked = this.agent ? null : this.asked(text);
+    if (asked && asked.kind === 'multi') {
+      const lines = [];
+      this.actionTurn = true;
+      for (const part of asked.parts) {
+        if (['close', 'hands'].includes(part.kind)) continue;
+        const done = await this.doNow(part);
+        if (done?.line) lines.push(done.line);
+      }
+      this.turn = 0;
+      this.shown = lines.join(' ');
+      this.panel.stream(this.shown, { done: true });
+      if (asked.parts.some((p) => p.kind === 'hands' && p.intent.kind !== 'message')) {
+        const firstHands = asked.parts.find((p) => p.kind === 'hands' && p.intent.kind !== 'message');
+        await this.hands.op(firstHands.intent);
+      }
+      this.remember({ role: 'assistant', content: this.shown });
+      this.panel.setChatBusy(false);
+      this.actionTurn = false;
+      this.sayLater();
+      this.listApps();
+      return;
+    }
     const early = asked && !['close', 'hands'].includes(asked.kind) ? this.doNow(asked)
       : asked?.kind === 'hands' && asked.intent.kind !== 'message' ? this.hands.op(asked.intent) : null;
     this.actionTurn = Boolean(early);
-    if (asked && ['openPath', 'currentTime'].includes(asked.kind) && early) {
+    if (asked && ['openPath', 'currentTime', 'reminder', 'cancelReminder'].includes(asked.kind) && early) {
       const done = await early;
       this.turn = 0;
       this.shown = done?.line || '';
@@ -438,9 +482,10 @@ export class Chat {
     return fmt(this.t.notInstalled, { app: requested });
   }
 
-  // What you asked plainly, read off your message (a small model doesn't always write its tag right):
+  // What you asked plainly, read off your message (one request, no "and"):
   // { kind: 'media', action } | { kind: 'music', song } | { kind: 'close', name } | { kind: 'open', text }
-  asked(whole) {
+  // | { kind: 'youtube', song } | { kind: 'findFiles', query } | { kind: 'openSystemFolder', name }
+  askedOne(whole) {
     const text = whole.length > ASK_MAX ? whole.slice(0, ASK_MAX) : whole; // (a command is a few words: a pasted page is not read for one)
     const count = text.trim().split(/\s+/).length;
     // Roblox : détecter les demandes de lancement de jeux avant la recherche d'applications locales.
@@ -467,6 +512,10 @@ export class Chat {
     if (name) return { kind: 'name', name };
     const memo = MEMO_ASK.exec(text)?.[1]?.trim();
     if (memo) return { kind: 'memo', text: memo };
+    const cancel = parseCancel(text);
+    if (cancel) return { kind: 'cancelReminder', text: cancel.text };
+    const reminder = parseReminder(text);
+    if (reminder) return { kind: 'reminder', ...reminder };
     if (FORGET_ME.test(text)) return { kind: 'forgetMe' };
     if (LATEST_VIDEO_ASK.test(text) && /youtube/i.test(text)) {
       const browserMatch = /\b(?:dans|depuis|in)\s+(safari|firefox|chrome)\b/i.exec(text);
@@ -476,6 +525,14 @@ export class Chat {
       if (creator) return { kind: 'videoSearch', creator, browser };
     }
     if (CHESS_ASK.test(text)) return { kind: 'chess' };
+    if (SCREENSHOT_ASK.test(text)) return { kind: 'screenshot' };
+    const yt = YOUTUBE_ASK.exec(text);
+    const musicSvc = /\b(spotify|deezer)\b/i.exec(text)?.[1]?.toLowerCase();
+    if (yt && yt[1] && !musicSvc && !/on youtube|sur youtube/i.test(text)) return { kind: 'youtube', song: yt[1].trim() };
+    const find = FIND_FILES_ASK.exec(text);
+    if (find && find[1]) return { kind: 'findFiles', query: find[1].trim() };
+    const folder = OPEN_SYSTEM_FOLDER.exec(text);
+    if (folder) return { kind: 'openSystemFolder', name: FOLDER_ID[folder[1].toLowerCase()] || folder[1].toLowerCase() };
     const pathMatch = OPEN_PATH_ASK.exec(text);
     if (pathMatch) {
       const requestedPath = cleanRequestedPath(pathMatch[1]);
@@ -534,6 +591,16 @@ export class Chat {
     if (app) return { kind: 'close', name: app };
     if (OPEN_ASK.test(text) && count <= 8) return { kind: 'open', text };
     return null;
+  }
+
+  // What you asked plainly, possibly two things at once ("ouvre Discord et lance Spotify").
+  // Returns { kind: 'multi', parts: [...] } or the single askedOne result.
+  asked(whole) {
+    const text = whole.length > ASK_MAX ? whole.slice(0, ASK_MAX) : whole;
+    const parts = text.split(SPLIT_ACTIONS);
+    const asked = parts.map((part) => this.askedOne(part.trim())).filter(Boolean);
+    if (asked.length > 1) return { kind: 'multi', parts: asked };
+    return asked[0] || null;
   }
 
   // Whether "next", "pause", "louder"... is about the music, and not just a word in what you're saying
@@ -653,6 +720,27 @@ export class Chat {
       this.host.setConfig({ memories: custom.memories });
       return { line: this.brain.t.custom.remembered, face: 'smug' };
     }
+    if (asked.kind === 'reminder') {
+      const french = this.brain.lang === 'fr', russian = this.brain.lang === 'ru';
+      if (!asked.at) return { line: french ? 'À quelle heure dois-je te le rappeler ?' : russian ? 'На какое время поставить напоминание?' : 'What time should I remind you?', face: 'aside' };
+      if (!asked.text) return { line: french ? 'Que dois-je te rappeler ?' : russian ? 'О чём тебе напомнить?' : 'What should I remind you about?', face: 'aside' };
+      if (!this.reminders) return { line: french ? 'Je ne peux pas garder ce rappel pour le moment.' : russian ? 'Я пока не могу сохранить это напоминание.' : 'I cannot save that reminder right now.', face: 'aside' };
+      this.reminders.add(asked.at, asked.text);
+      return {
+        line: french ? `Je te rappellerai « ${asked.text} » à ${clock(asked.at, 'fr-FR')}.` : russian ? `Я напомню тебе: «${asked.text}» — ${clock(asked.at, 'ru-RU')}.` : `I’ll remind you to ${asked.text} at ${clock(asked.at, 'en-US')}.`,
+        face: 'smug',
+      };
+    }
+    if (asked.kind === 'cancelReminder') {
+      const french = this.brain.lang === 'fr', russian = this.brain.lang === 'ru';
+      if (!this.reminders) return { line: french ? 'Je ne peux pas annuler de rappel pour le moment.' : russian ? 'Я пока не могу отменить напоминание.' : 'I cannot cancel a reminder right now.', face: 'aside' };
+      const cancelled = this.reminders.cancelByText(asked.text);
+      if (!cancelled) return { line: french ? 'Je n’ai trouvé aucun rappel à annuler.' : russian ? 'Не нашёл напоминание для отмены.' : 'I couldn’t find a reminder to cancel.', face: 'aside' };
+      return {
+        line: french ? `Rappel annulé : « ${cancelled.text} » (${clock(cancelled.at, 'fr-FR')}).` : russian ? `Напоминание отменено: «${cancelled.text}» — ${clock(cancelled.at, 'ru-RU')}.` : `Reminder cancelled: “${cancelled.text}” at ${clock(cancelled.at, 'en-US')}.`,
+        face: 'smug',
+      };
+    }
     if (asked.kind === 'media') {
       this.capri.pulse();
       if (this.host.musicControl) {
@@ -675,6 +763,37 @@ export class Chat {
     if (asked.kind === 'music') {
       this.zap();
       return (await this.host.music(asked.song)) ? { line: fmt(t.music, { song: asked.song }), face: 'laugh' } : null;
+    }
+    if (asked.kind === 'youtube') {
+      this.zap();
+      const result = await this.host.youtube(asked.song);
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      return result?.ok
+        ? { line: fmt(t.youtubeSong, { song: asked.song }), face: 'laugh' }
+        : { line: result?.error || (fr ? "Je n'ai pas pu ouvrir YouTube." : ru ? 'Не удалось открыть YouTube.' : "I couldn't open YouTube."), face: 'aside' };
+    }
+    if (asked.kind === 'screenshot') {
+      const result = await this.host.screenshot();
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      return result?.ok
+        ? { line: fr ? `Capture d’écran enregistrée : ${result.name}.` : ru ? `Снимок экрана сохранён: ${result.name}.` : `Screenshot saved: ${result.name}.`, face: 'smug' }
+        : { line: result?.error || (fr ? 'Je n’ai pas pu faire de capture d’écran.' : ru ? 'Не удалось сделать снимок экрана.' : 'I couldn’t take a screenshot.'), face: 'aside' };
+    }
+    if (asked.kind === 'findFiles') {
+      const result = await this.host.searchFiles(asked.query);
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      if (!result?.ok || !result.results?.length) {
+        return { line: result?.error || (fr ? `Je n’ai rien trouvé pour « ${asked.query} ».` : ru ? `Не нашла « ${asked.query} ».` : `I couldn’t find anything for “${asked.query}".`), face: 'aside' };
+      }
+      const list = result.results.map((r) => `"${r.name}" (${r.folder})`).join(', ');
+      return { line: fr ? `J’ai trouvé ${result.results.length} : ${list}. Dis-moi lequel ouvrir.` : ru ? `Нашла ${result.results.length}: ${list}. Скажи, какой открыть.` : `I found ${result.results.length}: ${list}. Tell me which one to open.`, face: 'smug' };
+    }
+    if (asked.kind === 'openSystemFolder') {
+      const result = await this.host.openKnown(FOLDER_ID[asked.name] || asked.name);
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      return result?.ok
+        ? { line: fr ? `Ouvert : ${asked.name}.` : ru ? `Открыто: ${asked.name}.` : `Opened: ${asked.name}.`, face: 'laugh' }
+        : { line: result?.error || (fr ? `Je n’ai pas pu ouvrir « ${asked.name} ».` : ru ? `Не удалось открыть « ${asked.name} ».` : `I couldn’t open “${asked.name}".`), face: 'aside' };
     }
     const resolution = await this.resolveLaunch(asked.text);
     if (resolution.status === 'ambiguous') {

@@ -40,7 +40,8 @@
     '/capri stow',
     '/capri call',
     '/test demoSatellite',
-    '/music ', '/music status', '/music play', '/music pause', '/music toggle', '/music next', '/music previous', '/music current', '/music volume ', '/music spotify ', '/music deezer '
+    '/music ', '/music status', '/music play', '/music pause', '/music toggle', '/music next', '/music previous', '/music current', '/music volume ', '/music spotify ', '/music deezer ',
+    '/pc info', '/pc react', '/remind ', '/cancel ', '/rappelle-moi ', '/annule '
   ];
 
   function line(text, kind = 'response') {

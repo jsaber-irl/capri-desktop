@@ -122,6 +122,23 @@ export const LIFE_LINES = {
         battery: ['Батарея {pct}%… мне становится холодно.', 'Заряд {pct}%. Подключи меня к розетке, а?'],
       },
     },
+    pc: {
+      hot: ['Мой процессор плавится при {cpu}%!', 'Слишком жарко! Процессор загружен на {cpu}%.'],
+      cool: ['Процессор остыл. Я снова могу дышать.'],
+      charging: ['Питание! Я снова набираю силы.'],
+      unplugged: ['Ты отключил меня? Я прослежу за батареей.'],
+      low: ['Батарея на {level}%… я слабею.'],
+      critical: ['Критический заряд {level}%! Я сейчас упаду!'],
+      offline: ['Сеть пропала… я не чувствую внешний мир.'],
+      online: ['Сеть вернулась! Я снова всё чувствую.'],
+      usb: ['Флешка! Ныряю внутрь осмотреться.'],
+      usbBack: ['Вернулась из глубин флешки. Интересно.'],
+      usbOut: ['Флешка исчезла.'],
+      plugIn: { phone: ['Телефон подключён: {name}.'], controller: ['Геймпад! Готова играть?'], audio: ['Звук подключён: {name}.'], camera: ['Камера подключена: {name}.'], device: ['Что-то подключилось: {name}.'] },
+      plugOut: { phone: ['Телефон отключён: {name}.'], controller: ['Геймпад исчез.'], audio: ['Звук отключён: {name}.'], camera: ['Камера отключена.'], device: ['Что-то отключилось: {name}.'] },
+      game: ['Ты играешь в {game}. Я не буду мешать.'],
+      gameBack: ['Закончил играть? Я вернулась.'],
+    },
     theme: {
       done: ['Новый цвет! Как я тебе?', 'Перекрасилась. Нравится?', 'Сменила прошивку цвета. Оцени.'],
       mood: 'Теперь мой цвет — это моё настроение.',
@@ -223,7 +240,7 @@ export const LIFE_LINES = {
     },
     // её круговое меню (ring.js)
     ring: {
-      tabs: { bond: 'Связь', brain: 'ИИ', mic: 'Микрофон', senses: 'Чувства', character: 'Характер', colours: 'Цвета', voice: 'Голос', more: 'Ещё', chat: 'Говорить' },
+      tabs: { bond: 'Связь', brain: 'ИИ', mic: 'Микрофон', senses: 'Чувства', character: 'Характер', colours: 'Цвета', voice: 'Голос', more: 'Ещё', screen: 'Экран', chat: 'Говорить' },
       close: 'Закрыть',
       bond: {
         next: 'До «{name}»: ещё {need}',
@@ -361,8 +378,18 @@ export const LIFE_LINES = {
         hub: 'Главное меню (нейросети)…', manage: 'Что стоит на компьютере…',
         goodbye: 'Попрощаться с Capri', quit: 'Выйти из Capri',
       },
+      screen: {
+        title: 'Экран',
+        follow: 'Следовать за мной с экрана на экран',
+        pick: 'Выбрать экран',
+        current: 'Этот экран',
+        screens: { one: 'Экран {n}', other: 'Экраны' },
+      },
+      pcReactTitle: 'Реагировать на мой ПК',
+      pcReact: 'Реагировать на мой ПК',
     },
   },
+fr: {
 
   en: {
     callGreeting: 'Hi, how can I help?',
@@ -471,6 +498,23 @@ export const LIFE_LINES = {
         battery: ["Battery at {pct}%… I'm getting cold.", 'Down to {pct}%. Plug me in, would you?'],
       },
     },
+    pc: {
+      hot: ['My processor is melting at {cpu}%!', 'Too hot! Your CPU is running at {cpu}%.'],
+      cool: ['The processor cooled down. I can breathe again.'],
+      charging: ['Power! I am getting my strength back.'],
+      unplugged: ['You unplugged me? I will keep an eye on the battery.'],
+      low: ['Battery at {level}%… I am slumping.'],
+      critical: ['Battery critical at {level}%! I am collapsing!'],
+      offline: ['The network is gone… I cannot feel the outside.'],
+      online: ['The network is back! I can feel it again.'],
+      usb: ['A USB drive! I am diving in to take a look.'],
+      usbBack: ['Back from the USB depths. Interesting stuff.'],
+      usbOut: ['The USB drive is gone.'],
+      plugIn: { phone: ['A phone joined us: {name}.'], controller: ['A controller! Ready to play?'], audio: ['Audio connected: {name}.'], camera: ['Camera connected: {name}.'], device: ['Something new is plugged in: {name}.'] },
+      plugOut: { phone: ['The phone left: {name}.'], controller: ['The controller is gone.'], audio: ['Audio disconnected: {name}.'], camera: ['The camera is gone.'], device: ['Something was unplugged: {name}.'] },
+      game: ['You are playing {game}. I will get out of your way.'],
+      gameBack: ['Done playing? I am back.'],
+    },
     theme: {
       done: ['New colour! How do I look?', 'Repainted. Like it?', 'Colour firmware updated. Rate me.'],
       mood: 'Now my colour is my mood.',
@@ -564,7 +608,7 @@ export const LIFE_LINES = {
       off: "I'm not learning anything about you right now. Turn it on in the menu › Character › Learns about me.",
     },
     ring: {
-      tabs: { bond: 'Bond', brain: 'AI', mic: 'Mic', senses: 'Senses', character: 'Character', colours: 'Colours', voice: 'Voice', more: 'More', chat: 'Talk' },
+      tabs: { bond: 'Bond', brain: 'AI', mic: 'Mic', senses: 'Senses', character: 'Character', colours: 'Colours', voice: 'Voice', more: 'More', screen: 'Screen', chat: 'Talk' },
       close: 'Close',
       bond: {
         next: 'To "{name}": {need} to go',
@@ -702,6 +746,15 @@ export const LIFE_LINES = {
         hub: 'Main menu (AI models)…', manage: 'What is on this PC…',
         goodbye: 'Say goodbye to Capri', quit: 'Quit Capri',
       },
+      screen: {
+        title: 'Screen',
+        follow: 'Follow me across screens',
+        pick: 'Pick her screen',
+        current: 'This screen',
+        screens: { one: 'Screen {n}', other: 'Screens' },
+      },
+      pcReactTitle: 'React to my PC',
+      pcReact: 'React to my PC',
     },
   },
 fr: {
@@ -1141,6 +1194,24 @@ fr: {
     },
   },
 
+  pc: {
+    hot: ['Mon processeur fond à {cpu}% !', 'Il fait trop chaud ! Ton processeur est à {cpu}%.'],
+    cool: ['Le processeur a refroidi. Je peux respirer.'],
+    charging: ['De l’énergie ! Je reprends des forces.'],
+    unplugged: ['Tu m’as débranchée ? Je surveille la batterie.'],
+    low: ['Batterie à {level}%… je m’affaisse.'],
+    critical: ['Batterie critique à {level}% ! Je m’écroule !'],
+    offline: ['Le réseau a disparu… je ne sens plus le monde extérieur.'],
+    online: ['Le réseau revient ! Je le sens à nouveau.'],
+    usb: ['Une clé USB ! Je plonge dedans pour jeter un œil.'],
+    usbBack: ['De retour des profondeurs de la clé USB. Intéressant.'],
+    usbOut: ['La clé USB a disparu.'],
+    plugIn: { phone: ['Un téléphone est branché : {name}.'], controller: ['Une manette ! Prête à jouer ?'], audio: ['Audio branché : {name}.'], camera: ['Caméra branchée : {name}.'], device: ['Quelque chose est branché : {name}.'] },
+    plugOut: { phone: ['Le téléphone est débranché : {name}.'], controller: ['La manette a disparu.'], audio: ['Audio débranché : {name}.'], camera: ['La caméra est débranchée.'], device: ['Quelque chose a été débranché : {name}.'] },
+    game: ['Tu joues à {game}. Je vais me ranger.'],
+    gameBack: ['Tu as fini de jouer ? Me revoilà.'],
+  },
+
   theme: {
     done: [
       'Nouvelle couleur ! Alors, comment je suis ?',
@@ -1322,6 +1393,7 @@ fr: {
       colours: 'Couleurs',
       voice: 'Voix',
       more: 'Plus',
+      screen: 'Écran',
       chat: 'Discussion',
     },
 
@@ -1635,9 +1707,17 @@ fr: {
       manage: 'Contenu de cet ordinateur…',
       goodbye: 'Dire au revoir à Capri',
       quit: 'Quitter Capri',
+      screen: {
+        title: 'Écran',
+        follow: 'Me suivre d’un écran à l’autre',
+        pick: 'Choisir son écran',
+        current: 'Cet écran',
+        screens: { one: 'Écran {n}', other: 'Écrans' },
+      },
+      pcReactTitle: 'Réagir à mon PC',
+      pcReact: 'Réagir à mon PC',
     },
   },
-},
 };
 
 export function lifeLines(lang) {

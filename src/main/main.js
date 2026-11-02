@@ -44,6 +44,16 @@ const { createTranslationWindow } = require('./translation-window');
 const { createStructuredMemory } = require('./structured-memory');
 const { translateSource } = require('./translator');
 const { createTextDocument } = require('./documents');
+const { search: searchFiles, open: openFile, screenshot: takeScreenshot } = require('./files');
+
+let remindersClass = null;
+async function remindersCtor() {
+  if (!remindersClass) {
+    const mod = await import('./renderer/js/reminders.js');
+    remindersClass = mod.Reminders;
+  }
+  return remindersClass;
+}
 const { openVideoSearch } = require('./video-search');
 const { openWebSearch } = require('./web-search');
 const { installNavigationGuards } = require('./electron-security');
@@ -64,8 +74,19 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const DEV = process.argv.includes('--dev');
 const PORT = Number(process.env.CAPRI_PORT) || 47823;
 const SOUND_EXT = /\.(mp3|wav|ogg|m4a)$/i;
+let cpuSample = null;
 
 const OLLAMA_SITE = 'https://ollama.com';
+function cpuLoad() {
+  const cpus = os.cpus();
+  const total = cpus.reduce((sum, cpu) => sum + Object.values(cpu.times).reduce((a, b) => a + b, 0), 0);
+  const idle = cpus.reduce((sum, cpu) => sum + cpu.times.idle, 0);
+  const previous = cpuSample;
+  cpuSample = { total, idle };
+  if (!previous) return 0;
+  const totalDelta = total - previous.total;
+  return totalDelta > 0 ? Math.round((1 - (idle - previous.idle) / totalDelta) * 100) : 0;
+}
 /** Crée un texte neuf dans Documents puis demande à Launch Services d’ouvrir TextEdit. */
 function createUserTextDocument(filename, content) {
   return createTextDocument({
@@ -209,6 +230,7 @@ let trayMenu = null; // also what she opens when you right-click her
 let demoTimer = null;
 let windowWatch = null;
 let macWindowTimer = null;
+let followTimer = null;
 let handstandActive = false;
 let windowDetection = { ok: true, windows: [] };
 let mover = null; // moves the window she has taken over (mover.js)
@@ -357,7 +379,11 @@ function serveProtocol() {
 }
 
 function targetDisplay() {
-  const { displayId } = config.load();
+  const cfg = config.load();
+  if (cfg.follow !== false && screen.getAllDisplays().length > 1) {
+    return screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  }
+  const { displayId } = cfg;
   return screen.getAllDisplays().find((d) => d.id === displayId) || screen.getPrimaryDisplay();
 }
 
@@ -376,6 +402,23 @@ function fitOverlay() {
   const { area, gap } = overlayArea();
   overlay.setBounds(area);
   overlay.webContents.send('overlay:resize', { width: area.width, height: area.height, gap });
+}
+
+function followPointer() {
+  if (!overlay || overlay.isDestroyed() || config.load().follow === false) return;
+  const displays = screen.getAllDisplays();
+  if (displays.length < 2) return;
+  const target = targetDisplay();
+  const current = screen.getDisplayMatching(overlay.getBounds());
+  if (target.id === current.id) return;
+  fitOverlay();
+  rebuildTray();
+}
+
+function startFollowingPointer() {
+  clearInterval(followTimer);
+  followTimer = setInterval(followPointer, 100);
+  followTimer.unref?.();
 }
 
 // The pointer reaches her click-through window through a mouse hook, and Windows drops a hook that
@@ -634,33 +677,46 @@ async function downloadTerminalFile(url) {
   return target;
 }
 
-const terminal = createTerminal({
-  version: packageInfo.version,
-  lang: () => resolveLang(config.load().lang),
-  status: terminalStatus,
-  openApp: async (name) => {
-    const result = await launch.resolve(name);
-    if (result.status !== 'found') return result;
-    await launch.launch(result.item);
-    return { ok: true, name: result.item.name };
-  },
-  openFile: (file) => safeOpenPath(file, shell),
-  download: downloadTerminalFile,
-  musicControl: (request) => musicControl.command(request),
-  openMusicPlayer: () => musicPlayer.show(),
-  chess: (request) => chessWindow.command(request),
-  createTextDocument: createUserTextDocument,
-  videoSearch: (request) => performVideoSearch(request),
-  webSearch: (request) => openWebSearch({ ...request, openExternal: (url) => shell.openExternal(url) }),
-  mascot: (action, payload) => {
-    if (action === 'teleport') sendCommand('teleport');
-    else if (action === 'satellite') sendCommand('satellite');
-    else if (action === 'demo') playDemo();
-    else if (action === 'chat') sendCommand('chat');
-    else if (action === 'stow') toggleVisible();
-    else sendCommand(action, payload);
-  },
-});
+const terminal = (async () => {
+  const Reminders = await remindersCtor();
+  const host = {
+    setConfig: (patch) => {
+      if (patch && typeof patch === 'object' && 'reminders' in patch) updateConfig({ reminders: patch.reminders });
+    },
+    getConfig: () => ({ reminders: config.load().reminders }),
+  };
+  return createTerminal({
+    version: packageInfo.version,
+    lang: () => resolveLang(config.load().lang),
+    status: terminalStatus,
+    openApp: async (name) => {
+      const result = await launch.resolve(name);
+      if (result.status !== 'found') return result;
+      await launch.launch(result.item);
+      return { ok: true, name: result.item.name };
+    },
+    openFile: (file) => safeOpenPath(file, shell),
+    download: downloadTerminalFile,
+    musicControl: (request) => musicControl.command(request),
+    openMusicPlayer: () => musicPlayer.show(),
+    chess: (request) => chessWindow.command(request),
+    createTextDocument: createUserTextDocument,
+    videoSearch: (request) => performVideoSearch(request),
+    webSearch: (request) => openWebSearch({ ...request, openExternal: (url) => shell.openExternal(url) }),
+    reminders: new Reminders({ host, list: config.load().reminders }),
+    pcReact: async () => config.load().pcReact !== false,
+    setPcReact: async (value) => updateConfig({ pcReact: value }),
+    lookAtPc,
+    mascot: (action, payload) => {
+      if (action === 'teleport') sendCommand('teleport');
+      else if (action === 'satellite') sendCommand('satellite');
+      else if (action === 'demo') playDemo();
+      else if (action === 'chat') sendCommand('chat');
+      else if (action === 'stow') toggleVisible();
+      else sendCommand(action, payload);
+    },
+  });
+})();
 
 // 'auto' -> the first system language Capri speaks, English otherwise.
 /** Résout le réglage « auto » à partir des langues préférées du système. */
@@ -688,6 +744,7 @@ function updateConfig(patch) {
   const changed = config.save(patch);
   if (!changed.length) return rendererConfig();
   const did = (...keys) => keys.some((k) => changed.includes(k));
+  if (did('displayId', 'follow')) fitOverlay();
   if (did('rest')) {
     fitOverlay(); // the taskbar in her window or not
     if (config.load().rest === 'taskbar') raiseOverlay(); // and her legs over it
@@ -786,6 +843,19 @@ function buildTray() {
 
   const displays = screen.getAllDisplays();
   const current = targetDisplay().id;
+  const reminders = Array.isArray(cfg.reminders) ? [...cfg.reminders].sort((a, b) => a.at - b.at) : [];
+  const reminderLang = resolveLang(cfg.lang);
+  const reminderItems = reminders.length
+    ? [
+      ...reminders.map((reminder) => ({
+        label: `${reminder.made ? '✓ ' : ''}${new Intl.DateTimeFormat(reminderLang, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(reminder.at))} — ${String(reminder.text || '').slice(0, 100)}`,
+        enabled: !reminder.made,
+        click: () => updateConfig({ reminders: reminders.filter((item) => item.id !== reminder.id) }),
+      })),
+      { type: 'separator' },
+      { label: t.clearReminders, click: () => updateConfig({ reminders: [] }) },
+    ]
+    : [{ label: t.noReminders, enabled: false }];
   const macPermissionsItem = macPermissionsMenuItem(process.platform, t.macPermissions, () => macPermissions?.show());
   const detectedWindows = Array.isArray(lastWindows?.wins) ? lastWindows.wins : [];
   const handstandItems = process.platform === 'linux'
@@ -886,6 +956,7 @@ function buildTray() {
         { label: t.life, type: 'checkbox', checked: cfg.life !== false, click: (item) => updateConfig({ life: item.checked }) },
         { label: t.musicAware, type: 'checkbox', checked: cfg.musicAware !== false, enabled: process.platform === 'win32', click: (item) => updateConfig({ musicAware: item.checked }) },
         { label: t.dj, type: 'checkbox', checked: cfg.dj !== false, enabled: process.platform === 'win32' && cfg.musicAware !== false, click: (item) => updateConfig({ dj: item.checked }) },
+        { label: t.pcReact, type: 'checkbox', checked: cfg.pcReact !== false, click: (item) => updateConfig({ pcReact: item.checked }) },
         { type: 'separator' },
         // she gets to know you and adapts (bond.js); what she learned, and a button to wipe it
         { label: t.learn, type: 'checkbox', checked: cfg.learn !== false, click: (item) => updateConfig({ learn: item.checked }) },
@@ -934,17 +1005,31 @@ function buildTray() {
       ],
     },
     {
-      label: t.screen,
+      label: t.reminders,
+      submenu: [
+        ...reminderItems,
+      ],
+    },
+    {
+      label: t.screen?.title || t.screen,
       enabled: displays.length > 1,
       submenu: [
         { label: t.screenDescription, enabled: false },
+        { label: t.follow, type: 'checkbox', checked: cfg.follow !== false, click: (item) => updateConfig({ follow: item.checked }) },
+        { type: 'separator' },
         ...displays.map((d, i) => ({
           label: `${i + 1} — ${d.size.width}×${d.size.height}`,
           type: 'radio',
           checked: d.id === current,
-          click: () => { config.save({ displayId: d.id }); fitOverlay(); rebuildTray(); },
+          click: () => updateConfig({ displayId: d.id, follow: false }),
         })),
       ],
+    },
+    {
+      label: t.pcReactTitle || 'Réagir à mon PC',
+      type: 'checkbox',
+      checked: cfg.pcReact !== false,
+      click: (item) => updateConfig({ pcReact: item.checked }),
     },
     {
       label: t.chatModel,
@@ -1457,7 +1542,8 @@ function registerIpc() {
   });
   ipcMain.handle('config:get', () => rendererConfig());
   ipcMain.handle('app:version', () => packageInfo.version);
-  ipcMain.handle('terminal:execute', (_e, command) => terminal.execute(command));
+  ipcMain.handle('pc:cpu', () => cpuLoad());
+  ipcMain.handle('terminal:execute', async (_e, command) => (await terminal).execute(command));
   ipcMain.on('terminal:demoLog', (event, message) => {
     if (event.sender !== overlay?.webContents || !terminalWin || terminalWin.isDestroyed()) return;
     terminalWin.webContents.send('terminal:demoLog', String(message || '').slice(0, 400));
@@ -1660,11 +1746,53 @@ function registerIpc() {
   });
   ipcMain.handle('apps:music', (_e, query) => launch.music(query).catch(() => false));
   ipcMain.handle('apps:site', (_e, address) => launch.site(address).catch(() => false));
+  // un dossier système par son nom : explorateur, corbeille, bureau, documents…
+  ipcMain.handle('apps:openKnown', (_e, id) => launch.openKnown(id).then(() => ({ ok: true }), (err) => ({ ok: false, error: err.message || 'Dossier introuvable.' })));
   ipcMain.handle('apps:openPath', (_e, target) => safeOpenPath(target, shell)
     .then((ok) => ok ? { ok: true } : { ok: false, error: 'Fichier, dossier ou document introuvable.' }));
   ipcMain.handle('apps:roblox', (_e, query) => launch.roblox(query).catch((err) => ({ name: null, error: err.message })));
   ipcMain.handle('apps:videoSearch', (_e, request) => performVideoSearch(request || {}));
   ipcMain.handle('apps:webSearch', (_e, request) => openWebSearch({ ...(request || {}), openExternal: (url) => shell.openExternal(url) }));
+  // une chanson exacte sur YouTube ("mets Bohemian Rhapsody")
+  ipcMain.handle('apps:youtube', (_e, query) => {
+    const q = String(query || '').trim();
+    if (!q) return { ok: false, error: 'Rien à chercher.' };
+    return shell.openExternal(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`)
+      .then(() => ({ ok: true, service: 'youtube', query: q }))
+      .catch((err) => ({ ok: false, error: err.message || 'YouTube n’a pas pu s’ouvrir.' }));
+  });
+  // trouver et ouvrir tes fichiers et dossiers
+  ipcMain.handle('files:search', async (_e, query) => {
+    try {
+      const results = await searchFiles({ query });
+      return { ok: true, results };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Recherche impossible.' };
+    }
+  });
+  ipcMain.handle('files:open', async (_e, { file, reveal }) => {
+    try {
+      await openFile(file, { reveal: Boolean(reveal) });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Impossible d’ouvrir ce fichier.' };
+    }
+  });
+  // capture d’écran sans elle dessus
+  ipcMain.handle('files:screenshot', async () => {
+    try {
+      return await takeScreenshot();
+    } catch (err) {
+      return { ok: false, error: err.message || 'Capture impossible.' };
+    }
+  });
+  // la liste de ses écrans, pour qu’elle puisse y passer d’un clic droit
+  ipcMain.handle('screens:list', () => screen.getAllDisplays().map((d) => ({ id: d.id, bounds: d.bounds, size: d.size, workArea: d.workArea, primary: d.id === screen.getPrimaryDisplay().id })));
+  ipcMain.on('screens:move', (_e, id) => {
+    const d = screen.getAllDisplays().find((display) => display.id === Number(id));
+    if (!d) return;
+    updateConfig({ displayId: Number(id), follow: false });
+  });
   ipcMain.handle('documents:createText', async (_e, request) => {
     if (!request || typeof request.filename !== 'string' || typeof request.content !== 'string' || request.filename.length > 120 || request.content.length > 100000) {
       return { ok: false, stage: 'validate', error: 'Requête de document invalide.' };
@@ -1759,7 +1887,7 @@ function registerIpc() {
     const cfg = config.load();
     if (!cfg.vision) return { ok: false, error: 'off', code: 'off' };
     try {
-      const image = await vision.grab({ displayId: cfg.displayId, hideOverlay: hideOverlayForShot });
+      const image = await vision.grab({ displayId: cfg.follow !== false ? targetDisplay().id : cfg.displayId, hideOverlay: hideOverlayForShot });
       if (!image) return { ok: false, error: 'no picture', code: 'nocapture' };
       const text = await llm.see(cfg.provider, llmConfig(cfg), { image, prompt });
       return { ok: true, text };
@@ -1991,6 +2119,7 @@ function main() {
     serveProtocol();
     registerIpc();
     createOverlay();
+    startFollowingPointer();
     createTray();
     watchWindows();
     mover = createMover({
@@ -2077,6 +2206,8 @@ function main() {
     config.flush(); // the last changes, written now
     clearInterval(macWindowTimer);
     macWindowTimer = null;
+    clearInterval(followTimer);
+    followTimer = null;
     // what she started goes with her (each on its own: one failing must not leave the other running)
     for (const stop of [() => provision.cancel(), () => chatterbox.stop(), () => piper.stop(), () => ollamaHost.stop()]) {
       try { stop(); } catch (err) { console.error('[capri] stopping what she started:', err.message); }
