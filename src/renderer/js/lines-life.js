@@ -389,7 +389,6 @@ export const LIFE_LINES = {
       pcReact: 'Реагировать на мой ПК',
     },
   },
-fr: {
 
   en: {
     callGreeting: 'Hi, how can I help?',
@@ -1717,7 +1716,8 @@ fr: {
       pcReactTitle: 'Réagir à mon PC',
       pcReact: 'Réagir à mon PC',
     },
-  },
+  }
+}
 };
 
 export function lifeLines(lang) {

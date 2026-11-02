@@ -19,7 +19,7 @@ import { Rhythm } from './rhythm.js';
 import { Hands } from './hands.js';
 import { Ears } from './ears.js';
 import { Pc } from './pc.js';
-import { Reminders, clock } from './reminders.js';
+import { Reminders, clock } from './reminders.mjs';
 import { Bond } from './bond.js';
 import { Ring } from './ring.js';
 import { applyTheme, applyWindowTheme, resolveTheme, askedTheme } from './themes.js';

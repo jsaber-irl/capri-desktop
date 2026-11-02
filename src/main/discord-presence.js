@@ -13,6 +13,10 @@ let enabled = true;
 
 function logRpcError(prefix, error) {
     if (error?.message === 'connection closed') return;
+    // Discord n'est pas lancé ou pas accessible : pas une erreur de Capri, pas la peine de la signaler
+    if (!error?.message) return;
+    const msg = error.message;
+    if (msg.includes("Cannot read properties of null") || msg.includes('Could not connect')) return;
     console.error(`[Discord] ${prefix}:`, error);
 }
 
@@ -42,6 +46,7 @@ async function startDiscordPresence({
     const client = new RPC.Client({ transport: 'ipc' });
     rpc = client;
     startTimestamp = new Date();
+    let ready = false;
 
     client.on('disconnected', () => {
         console.log('[Discord] RPC disconnected');
@@ -51,6 +56,7 @@ async function startDiscordPresence({
         if (enabled) logRpcError('RPC error', error);
     });
     client.on('ready', async () => {
+        ready = true;
         if (!enabled || rpc !== client) {
             await closeClient(client);
             return;
@@ -78,7 +84,12 @@ async function startDiscordPresence({
     } catch (error) {
         if (enabled) logRpcError('RPC connection failed', error);
         if (rpc === client) rpc = null;
-        await closeClient(client);
+        // le client n'est jamais devenu ready : pas d'activité à effacer, juste détruire
+        if (ready) {
+            await closeClient(client);
+        } else {
+            try { await client.destroy(); } catch { /* transport déjà fermé */ }
+        }
     } finally {
         connecting = false;
     }

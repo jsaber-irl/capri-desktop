@@ -7,7 +7,7 @@ const fs = require('node:fs/promises');
 let remindersModule = null;
 async function loadReminders() {
   if (!remindersModule) {
-    remindersModule = await import('../renderer/js/reminders.js');
+    remindersModule = await import('../renderer/js/reminders.mjs');
   }
   return remindersModule;
 }

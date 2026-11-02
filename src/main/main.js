@@ -49,7 +49,7 @@ const { search: searchFiles, open: openFile, screenshot: takeScreenshot } = requ
 let remindersClass = null;
 async function remindersCtor() {
   if (!remindersClass) {
-    const mod = await import('./renderer/js/reminders.js');
+    const mod = await import('../renderer/js/reminders.mjs');
     remindersClass = mod.Reminders;
   }
   return remindersClass;
@@ -1411,10 +1411,7 @@ function watchWindows() {
 
 
 async function refreshMacWindows() {
-    console.log('[CAPRI DEBUG] refreshMacWindows appelée');
-
     if (process.platform !== 'darwin' || !overlay || overlay.isDestroyed()) {
-        console.log('[CAPRI DEBUG] Détection ignorée : overlay indisponible');
         return;
     }
 

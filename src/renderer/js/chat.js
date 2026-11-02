@@ -11,7 +11,7 @@ import { ASSISTANT_NAMES } from './lines.js';
 import { askedTheme } from './themes.js';
 import { lifeLines } from './lines-life.js';
 import { FORGET_ME } from './bond.js';
-import { parseReminder, parseCancel, clock } from './reminders.js';
+import { parseReminder, parseCancel, clock } from './reminders.mjs';
 
 const REMEMBER = 20; // messages she has in mind when answering
 const KEEP = 60;     // messages she remembers across restarts (memory.json)
