@@ -378,13 +378,45 @@ function serveProtocol() {
   });
 }
 
+// In development, one monitor can be split into two virtual displays to exercise
+// screen transitions without needing a second monitor.
+function displays() {
+  const real = screen.getAllDisplays();
+  if (!DEV || process.env.CAPRI_SCREENS !== '2' || real.length > 1) return real;
+  const display = screen.getPrimaryDisplay();
+  const half = (rect, index) => ({
+    x: rect.x + Math.floor(rect.width / 2) * index,
+    y: rect.y,
+    width: Math.floor(rect.width / 2),
+    height: rect.height,
+  });
+  return [0, 1].map((index) => ({
+    ...display,
+    id: display.id * 10 + index + 1,
+    bounds: half(display.bounds, index),
+    workArea: half(display.workArea, index),
+    size: { width: Math.floor(display.size.width / 2), height: display.size.height },
+  }));
+}
+
+function displayAt(point) {
+  const all = displays();
+  const inside = all.find(({ bounds }) =>
+    point.x >= bounds.x && point.y >= bounds.y &&
+    point.x < bounds.x + bounds.width && point.y < bounds.y + bounds.height);
+  if (inside) return inside;
+  const nearest = screen.getDisplayNearestPoint(point);
+  return all.find((display) => display.id === nearest.id) || all[0];
+}
+
 function targetDisplay() {
   const cfg = config.load();
-  if (cfg.follow !== false && screen.getAllDisplays().length > 1) {
-    return screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const all = displays();
+  if (cfg.follow !== false && all.length > 1) {
+    return displayAt(screen.getCursorScreenPoint());
   }
   const { displayId } = cfg;
-  return screen.getAllDisplays().find((d) => d.id === displayId) || screen.getPrimaryDisplay();
+  return all.find((display) => display.id === displayId) || all[0];
 }
 
 // Her window: the work area, or the whole screen while she rests on the taskbar (her legs hang
@@ -406,10 +438,11 @@ function fitOverlay() {
 
 function followPointer() {
   if (!overlay || overlay.isDestroyed() || config.load().follow === false) return;
-  const displays = screen.getAllDisplays();
-  if (displays.length < 2) return;
+  const all = displays();
+  if (all.length < 2) return;
   const target = targetDisplay();
-  const current = screen.getDisplayMatching(overlay.getBounds());
+  const bounds = overlay.getBounds();
+  const current = displayAt({ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 });
   if (target.id === current.id) return;
   fitOverlay();
   rebuildTray();
@@ -841,7 +874,7 @@ function buildTray() {
   const t = Object.fromEntries(Object.entries(TRAY[resolveLang(cfg.lang)]).map(([key, value]) =>
     [key, typeof value === 'string' && watched.id !== 'claude' ? value.replaceAll('Claude Code', watched.name) : value]));
 
-  const displays = screen.getAllDisplays();
+  const screens = displays();
   const current = targetDisplay().id;
   const reminders = Array.isArray(cfg.reminders) ? [...cfg.reminders].sort((a, b) => a.at - b.at) : [];
   const reminderLang = resolveLang(cfg.lang);
@@ -1012,12 +1045,12 @@ function buildTray() {
     },
     {
       label: t.screen?.title || t.screen,
-      enabled: displays.length > 1,
+      enabled: screens.length > 1,
       submenu: [
         { label: t.screenDescription, enabled: false },
         { label: t.follow, type: 'checkbox', checked: cfg.follow !== false, click: (item) => updateConfig({ follow: item.checked }) },
         { type: 'separator' },
-        ...displays.map((d, i) => ({
+        ...screens.map((d, i) => ({
           label: `${i + 1} — ${d.size.width}×${d.size.height}`,
           type: 'radio',
           checked: d.id === current,
@@ -1784,9 +1817,9 @@ function registerIpc() {
     }
   });
   // la liste de ses écrans, pour qu’elle puisse y passer d’un clic droit
-  ipcMain.handle('screens:list', () => screen.getAllDisplays().map((d) => ({ id: d.id, bounds: d.bounds, size: d.size, workArea: d.workArea, primary: d.id === screen.getPrimaryDisplay().id })));
+  ipcMain.handle('screens:list', () => displays().map((d) => ({ id: d.id, bounds: d.bounds, size: d.size, workArea: d.workArea, primary: d.id === targetDisplay().id && config.load().displayId === undefined })));
   ipcMain.on('screens:move', (_e, id) => {
-    const d = screen.getAllDisplays().find((display) => display.id === Number(id));
+    const d = displays().find((display) => display.id === Number(id));
     if (!d) return;
     updateConfig({ displayId: Number(id), follow: false });
   });

@@ -966,6 +966,15 @@ handstand: {
     ],
   },
 
+  // turned-over resting stance used after a hard throw
+  down: {
+    loop: true,
+    keys: [
+      [8, { head: 0.18, mane: -0.08, armL: -0.25, armR: -0.2, kickL: 0.12, kickR: 0.08 }],
+      [4, { head: 0.22, mane: -0.02, armL: -0.2, armR: -0.16, kickL: 0.16, kickR: 0.1 }],
+    ],
+  },
+
   // ---- thrown around (capri.js throwHer) ----
 
   // picked up: a jolt, arms flung up, the mane bristling, stretched for one drawing
@@ -1107,6 +1116,23 @@ handstand: {
   },
 
   // sulking: head turned away from you, mane down, arms in
+  // leaning into a hand that strokes her mane
+  petted: {
+    priority: 1,
+    directional: true,
+    keys: [
+      [2, { head: 0.1, mane: 0.12, tilt: 1, sy: 0.98, sx: 1.01 }],
+      [3, { head: 0.22, mane: 0.22, tilt: 2.5, sy: 0.96, sx: 1.03, bob: 2 }],
+      [3, { head: 0.24, mane: 0.15, tilt: 3, sy: 0.96, sx: 1.03, bob: 3 }],
+      [3, { head: 0.23, mane: 0.24, tilt: 2.6, sy: 0.965, sx: 1.025, bob: 2 }],
+      [3, { head: 0.25, mane: 0.15, tilt: 3, sy: 0.96, sx: 1.03, bob: 3 }],
+      [3, { head: 0.23, mane: 0.23, tilt: 2.6, sy: 0.965, sx: 1.025, bob: 2 }],
+      [3, { head: 0.24, mane: 0.16, tilt: 3, sy: 0.96, sx: 1.03, bob: 3 }],
+      [2, { head: 0.12, mane: 0.08, tilt: 1.2 }],
+      [1, {}],
+    ],
+  },
+
   huff: {
     priority: 2,
     directional: true,

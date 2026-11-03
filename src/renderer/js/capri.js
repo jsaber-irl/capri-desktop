@@ -23,6 +23,34 @@ const SLEEP_AFTER = 10 * 60 * 1000;
 const DOZE_AFTER = 20 * 1000; // asleep this long, she comes apart down to her mask
 const GRAVITY = 2600; // px/s²
 const THIGH = 73;     // hip to knee, sprite px (see sprite.js)
+const DEG = Math.PI / 180;
+const MID = { x: 118, y: 232 };
+const THROW_MIN = 650;
+const THROW_MAX = 4200;
+const SPUN = new Set(['held', 'fly', 'down']);
+const LYING_ACTS = new Set(['talk', 'look', 'split', 'petted']);
+const STROKE = 22;
+const PET_GAP = 700;
+const PET_ENOUGH = 8000;
+const THROW_BOUNCE = 0.62;
+const THROW_EDGE_RESTITUTION = 0.72;
+const THROW_KO_SPEED = 1050;
+
+function turnAround(p, o, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  const x = p.x - o.x, y = p.y - o.y;
+  return { x: o.x + x * c - y * s, y: o.y + x * s + y * c };
+}
+
+function buildHull(alpha) {
+  const r = [];
+  for (let y = 0; y < SPRITE.height; y += 3) {
+    for (let x = 0; x < SPRITE.width; x += 3) {
+      if (alpha[(y * SPRITE.width + x) * 4 + 3] > 40) r.push([x - SPRITE.feet.x, y - SPRITE.feet.y]);
+    }
+  }
+  return r.length ? r : [[-100, -200], [100, -200], [-100, 0], [100, 0]];
+}
 
 const UPLINK_DAY = 'capri.uplinkDay'; // the last day she sent the red light up
 
@@ -97,6 +125,18 @@ export class Capri {
     this.manePop = 0;        // a mane flare on a beat, decays each frame
     this.nextHome = 0;
     this.dragging = false;
+    this.track = [];
+    this.spin = 0;
+    this.held = null;
+    this.flight = null;
+    this.lying = null;
+    this.skid = null;
+    this.squash = null;
+    this.override = null;
+    this.throwId = 0;
+    this.refuseUntil = 0;
+    this.pet = null;
+    this.petRefuseUntil = 0;
     this.fallToFloor = false;
 
     this.p = {
@@ -146,6 +186,7 @@ export class Capri {
     this.onDoze = null;   // ('start', face) | 'waking' | 'end': down to her mask and back
 
     this.alphaMap = this.buildAlphaMap(image);
+    this.hull = buildHull(this.alphaMap);
     this.setScale(this.scale);
     this.bindPointer();
     this.loop = this.loop.bind(this);
@@ -182,14 +223,63 @@ export class Capri {
     this.place();
   }
 
+  pivotPoint() {
+    if (SPUN.has(this.stance) || this.lounge) return MID;
+    return this.stance === 'handstand' ? SPRITE.head : (this.stance === 'sit' ? { y: SPRITE.hip, x: SPRITE.feet.x } : SPRITE.feet);
+  }
+
   // Flip, lean and squash all pivot on her feet, or on her seat when she sits on a ledge
   // (so a squash presses her onto it instead of pulling her down through it).
   pivot() {
     const s = this.scale;
-    const support = this.stance === 'handstand' ? SPRITE.head : (this.stance === 'sit' ? { y: SPRITE.hip, x: SPRITE.feet.x } : SPRITE.feet);
+    const support = this.pivotPoint();
     const fx = (SPRITE.pad + support.x) * s;
     const fy = (SPRITE.pad + support.y) * s;
     this.canvas.style.transformOrigin = `${fx}px ${fy}px`;
+  }
+
+  flat(sx, sy) {
+    const s = this.scale;
+    return { x: this.pos.x + (sx - SPRITE.feet.x) * s * this.facing, y: this.pos.y + (sy - SPRITE.feet.y) * s + this.bob };
+  }
+
+  get turn() {
+    return (this.upside ? 180 : 0) + (SPUN.has(this.stance) ? this.spin : this.tilt);
+  }
+
+  screenPoint(sx, sy) {
+    const p = this.flat(sx, sy);
+    if (!this.turn) return p;
+    const P = this.pivotPoint();
+    return turnAround(p, this.flat(P.x, P.y), this.turn * DEG);
+  }
+
+  spritePoint(x, y) {
+    let at = { x, y };
+    if (this.turn) {
+      const P = this.pivotPoint();
+      at = turnAround(at, this.flat(P.x, P.y), -this.turn * DEG);
+    }
+    const s = this.scale;
+    return { x: SPRITE.feet.x + ((at.x - this.pos.x) / s) * this.facing, y: SPRITE.feet.y - (this.pos.y + this.bob - at.y) / s };
+  }
+
+  reachAt(deg, facing = this.facing) {
+    const a = deg * DEG, c = Math.cos(a), sn = Math.sin(a), s = this.scale;
+    const r = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, low: 0 };
+    for (const [hx, hy] of this.hull) {
+      const x = hx * facing;
+      const X = (x * c - hy * sn) * s, Y = (x * sn + hy * c) * s;
+      if (X < r.minX) r.minX = X; if (X > r.maxX) r.maxX = X;
+      if (Y < r.minY) r.minY = Y;
+      if (Y > r.maxY) { r.maxY = Y; r.low = X; }
+    }
+    return r;
+  }
+
+  setMid(c) {
+    const s = this.scale;
+    this.pos = { x: c.x - (MID.x - SPRITE.feet.x) * s * this.facing, y: c.y - (MID.y - SPRITE.feet.y) * s };
   }
 
   setView(w, h, floor = h) {
@@ -207,12 +297,12 @@ export class Capri {
 
   place() {
     const s = this.scale;
-    const anchor = this.stance === 'handstand' ? SPRITE.head : SPRITE.feet;
-    const left = this.pos.x - (SPRITE.pad + anchor.x) * s;
-    const top = this.pos.y - (SPRITE.pad + anchor.y) * s + this.bob;
-    const turn = (this.upside ? 180 : 0) + this.tilt;
+    const P = this.pivotPoint();
+    const o = this.flat(P.x, P.y);
+    const left = o.x - (SPRITE.pad + P.x) * s;
+    const top = o.y - (SPRITE.pad + P.y) * s;
     this.root.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
-    this.canvas.style.transform = `rotate(${turn.toFixed(2)}deg) scale(${(this.facing * this.sx).toFixed(3)}, ${this.sy.toFixed(3)})`;
+    this.canvas.style.transform = `rotate(${this.turn.toFixed(2)}deg) scale(${(this.facing * this.sx).toFixed(3)}, ${this.sy.toFixed(3)})`;
     this.onMove?.(this.head());
   }
 
@@ -222,6 +312,10 @@ export class Capri {
     const bob = at === this.pos ? this.bob : 0;
     const dx = (SPRITE.head.x - SPRITE.feet.x) * s * facing;
     const dy = (SPRITE.feet.y - SPRITE.head.y) * s;
+    if (at === this.pos && (SPUN.has(this.stance) || this.lounge) && this.tilt) {
+      const face = this.screenPoint(SPRITE.head.x, SPRITE.head.y);
+      return { ...face, top: face.y - 70 * s };
+    }
     if (at === this.pos && this.stance === 'handstand') return { x: at.x, y: at.y + bob, top: at.y - 30 * s + bob };
     if (at === this.pos && this.upside) {
       const y = at.y + dy + bob;
@@ -236,6 +330,11 @@ export class Capri {
     if (this.perch?.id === 'taskbar' && y > this.view.floor) return false; // the taskbar under her legs stays clickable
     const s = this.scale;
     const fy = this.pos.y + this.bob;
+    if (SPUN.has(this.stance)) {
+      const at = this.spritePoint(x, y);
+      x = at.x;
+      y = this.pos.y + this.bob - (at.y - SPRITE.feet.y) * s;
+    }
     if (this.upside) {
       x = 2 * this.pos.x - x;
       y = 2 * fy - y;
@@ -483,6 +582,9 @@ export class Capri {
       else if (this.moodName === 'shy') Object.assign(pose, { head: pose.head + 0.14, mane: pose.mane - 0.05 });
       else if (this.moodName === 'happy') Object.assign(pose, { mane: pose.mane + 0.06 });
     }
+    if (this.stance === 'fly') this.flyPose(pose);
+    else if (this.stance === 'held') this.heldPose(pose);
+    if (this.override) Object.assign(pose, this.override);
     // angry, her misregistered copy shakes loose: further off, a new offset every drawing
     if (this.moodName === 'angry') p.misreg = [-3.2 - Math.random() * 2.4 * (0.5 + this.moodLevel), 2.6 + Math.random() * 2];
     else if (p.misreg[0] !== -2.6) p.misreg = [-2.6, 2.2];
@@ -505,8 +607,8 @@ export class Capri {
     p.echo = pose.echo;
     // on a ledge she stays seated: no lifting off it, no sinking through it
     const bob = this.stance === 'sit' ? clamp(pose.bob, -3, 2) : pose.bob;
-    this.bob = this.dragging ? 0 : bob;
-    this.tilt = this.dragging ? 0 : pose.tilt;
+    this.bob = SPUN.has(this.stance) || this.dragging ? 0 : bob;
+    this.tilt = SPUN.has(this.stance) ? this.spin + pose.tilt : (this.dragging ? 0 : pose.tilt);
     this.sx = pose.sx;
     this.sy = pose.sy;
     if (this.debug) Object.assign(p, this.debug); // --dev pose overrides
@@ -518,6 +620,8 @@ export class Capri {
       this.updateFall(now);
       return;
     }
+    if (this.stance === 'fly') { this.updateFly(now); return; }
+    if (this.stance === 'held') { this.swing(now); return; }
     if (this.busy || this.dragging) return;
     if (this.stance === 'handstand') return; // a chosen perch stays put until replaced or stopped
 
@@ -2040,6 +2144,240 @@ export class Capri {
     if (!hidden) this.nudge();
   }
 
+  pointerSpeed() {
+    const now = performance.now(), pts = this.track.filter((p) => now - p.t < 100);
+    if (pts.length < 2) return { x: 0, y: 0 };
+    const a = pts[0], b = pts[pts.length - 1], dt = Math.max(0.012, (b.t - a.t) / 1000);
+    return { x: (b.x - a.x) / dt, y: (b.y - a.y) / dt };
+  }
+
+  pickUp(down) {
+    this.throwId++;
+    this.flight = this.skid = this.squash = this.override = null;
+    this.endAct(false);
+    this.dragging = true;
+    const at = this.spritePoint(down.x, down.y);
+    this.held = { at: { x: clamp(at.x, 24, SPRITE.width - 24), y: clamp(at.y, 24, SPRITE.height - 24) }, last: performance.now(), w: 0 };
+    this.setStance('held');
+    this.spin = 0;
+    this.pos = { x: down.x - (this.held.at.x - SPRITE.feet.x) * this.scale * this.facing, y: down.y - (this.held.at.y - SPRITE.feet.y) * this.scale };
+    down.pos = { ...this.pos };
+    this.perform('grabbed');
+    this.onTeleport?.('start');
+    this.place();
+  }
+
+  swing(now) {
+    if (!this.held) return;
+    const dt = Math.min(0.05, (now - this.held.last) / 1000);
+    this.held.last = now;
+    const target = clamp(this.pointerSpeed().x * 0.014, -40, 40);
+    this.held.w += ((target - this.spin) * 95 - this.held.w * 8.5) * dt;
+    this.spin += this.held.w * dt;
+  }
+
+  heldPose(pose) {
+    const v = this.pointerSpeed(), speed = Math.hypot(v.x, v.y);
+    if (speed < 80) return;
+    const k = Math.min(1, speed / 2200);
+    pose.hair = clamp(-v.x / speed * 7 * k, -7, 7);
+    pose.mane += 0.25 * k;
+    if (k > 0.35) pose.smear = [-v.x / speed * 20 * k, -v.y / speed * 20 * k];
+  }
+
+  throwHer(vx, vy) {
+    if (reducedMotion.matches) return this.drop();
+    const speed = Math.hypot(vx, vy), scale = Math.min(1, THROW_MAX / Math.max(speed, 1));
+    const c = this.screenPoint(MID.x, MID.y);
+    this.throwId++;
+    this.dragging = false;
+    this.held = null;
+    this.busy = true;
+    this.setStance('fly');
+    this.spin = Math.atan2(vx, -vy) / DEG;
+    this.flight = {
+      c,
+      v: { x: vx * scale, y: vy * scale },
+      a: this.spin,
+      w: clamp(speed * 0.08, -720, 720) * (vx < 0 ? -1 : 1),
+      last: performance.now(),
+      hits: 0,
+      id: this.throwId,
+    };
+    this.perform('tumble', vx < 0 ? -1 : 1);
+    this.setMid(c);
+    this.place();
+  }
+
+  flyPose(pose) {
+    if (!this.flight) return;
+    const v = this.flight.v, speed = Math.hypot(v.x, v.y), k = Math.min(1, speed / THROW_MAX);
+    if (speed) {
+      pose.hair = clamp(-v.x / speed * 9 * k, -8, 8);
+      pose.mane = Math.max(pose.mane, 0.28 + 0.4 * k);
+      pose.smear = [-v.x / speed * 24 * k, -v.y / speed * 24 * k];
+    }
+  }
+
+  updateFly(now) {
+    const f = this.flight;
+    if (!f) return;
+    const dt = Math.min(0.05, (now - f.last) / 1000);
+    f.last = now;
+    const previous = { ...f.c };
+    f.v.y += GRAVITY * dt;
+    f.c.x += f.v.x * dt;
+    f.c.y += f.v.y * dt;
+    f.a += f.w * dt;
+    this.spin = f.a;
+    const r = this.reachAt(f.a);
+
+    if (f.c.x + r.maxX > this.view.w || f.c.x + r.minX < 0) {
+      const right = f.c.x + r.maxX > this.view.w;
+      f.c.x = right ? this.view.w - r.maxX : -r.minX;
+      f.v.x = -f.v.x * THROW_EDGE_RESTITUTION;
+      f.v.y *= THROW_BOUNCE;
+      f.w *= -0.72;
+      f.hits++;
+      this.impact({ x: right ? -1 : 1, y: 0 }, Math.abs(f.v.x), { x: f.c.x, y: f.c.y });
+    }
+
+    const window = this.flightWindow(previous, f, r);
+    if (window) {
+      const upright = Math.abs(this.normalAngle(f.a)) < 45;
+      if (upright || Math.abs(f.v.y) < 600) {
+        this.catchFlight(window, f);
+        return;
+      }
+      f.c.y = window.y - r.maxY;
+      f.v.y = -Math.abs(f.v.y) * THROW_BOUNCE;
+      f.v.x *= 0.82;
+      f.w *= 0.6;
+      f.hits++;
+      this.impact({ x: 0, y: -1 }, Math.abs(f.v.y), { x: f.c.x, y: window.y });
+    }
+
+    if (f.c.y + r.maxY >= this.view.floor) {
+      const at = { x: f.c.x + r.low, y: this.view.floor - 2 };
+      if (Math.abs(this.normalAngle(f.a)) < 30 && Math.abs(f.v.y) < THROW_KO_SPEED) {
+        this.landFlight(f);
+      } else {
+        this.knockFlight(f, at);
+      }
+      return;
+    }
+    this.setMid(f.c); this.place();
+  }
+
+  normalAngle(angle) {
+    return ((angle + 180) % 360 + 360) % 360 - 180;
+  }
+
+  flightWindow(previous, flight, r) {
+    const from = previous.y + r.maxY;
+    const to = flight.c.y + r.maxY;
+    if (flight.v.y <= 0 || to < from) return null;
+    return this.windows.wins.find((win) =>
+      this.canSit(win) &&
+      from <= win.y + 2 && to >= win.y &&
+      flight.c.x + r.maxX > win.x + 30 &&
+      flight.c.x + r.minX < win.x + win.w - 30 &&
+      !this.covered(win, flight.c.x));
+  }
+
+  impact(normal, speed, at) {
+    const power = clamp(speed / 1800, 0.25, 1);
+    this.fx.ring(at.x, at.y, { size: 0.25 + power * 0.5 });
+    this.fx.burst(at.x, at.y, { count: 8 + Math.round(power * 8), power: 0.4 + power * 0.6, spread: 50 + power * 70 });
+    this.fx.crackle(at, { life: 220 + power * 260, radius: 34 + power * 48, count: 2 + Math.round(power * 3) });
+    this.p.glitch = Math.max(this.p.glitch, 0.25 + power * 0.35);
+    this.p.glitchSeed = Math.random() * 100;
+    this.voice.play(power > 0.65 ? 'crash' : 'land', { power: power * 0.7 });
+    this.onImpact?.({ normal, speed, x: at.x, y: at.y });
+  }
+
+  catchFlight(win, flight) {
+    this.flight = null;
+    this.busy = false;
+    const dx = clamp(flight.c.x - win.x, 50, win.w - 60);
+    this.pos = this.seat(win, dx);
+    this.setStance('sit', { perch: { id: win.id, dx } });
+    this.voice.play('land');
+    this.fx.burst(this.pos.x, win.y, { count: 8, power: 0.4, spread: 40 });
+    this.perform('plop');
+    this.onTeleport?.('end');
+    this.onThrown?.({ how: 'ledge', hard: false, hits: flight.hits });
+    this.place();
+  }
+
+  landFlight(flight) {
+    this.flight = null;
+    this.busy = false;
+    this.setStance('stand');
+    this.pos = {
+      x: clamp(flight.c.x - (MID.x - SPRITE.feet.x) * this.scale * this.facing, 40, this.view.w - 40),
+      y: this.floor,
+    };
+    this.impact({ x: 0, y: -1 }, Math.abs(flight.v.y), { x: this.pos.x, y: this.pos.y });
+    this.perform('touchdown');
+    this.onTeleport?.('end');
+    this.onThrown?.({ how: 'feet', hard: false, hits: flight.hits });
+    this.place();
+  }
+
+  knockFlight(flight, at) {
+    const id = flight.id;
+    const side = this.normalAngle(flight.a) >= 0 ? 1 : -1;
+    this.impact({ x: 0, y: -1 }, Math.abs(flight.v.y), at);
+    this.flight = null;
+    this.busy = true;
+    this.setStance('down');
+    this.spin = side * 90;
+    this.lying = { c: { x: flight.c.x, y: at.y }, side };
+    this.layFlightDown();
+    this.perform('ko');
+    marks.dizzy(this.fx, () => this.screenPoint(SPRITE.head.x, SPRITE.head.y - 20), { life: 2200 });
+    this.onTeleport?.('end');
+    this.place();
+    setTimeout(() => {
+      if (this.throwId !== id || this.stance !== 'down') return;
+      this.busy = false;
+      this.perform('shake').then(() => {
+        if (this.throwId !== id) return;
+        this.setStance('stand');
+        this.pos.y = this.floor;
+        this.perform('land');
+        this.onThrown?.({ how: 'ko', hard: true, hits: flight.hits });
+        this.place();
+      });
+    }, 1400);
+  }
+
+  layFlightDown() {
+    if (!this.lying) return;
+    const r = this.reachAt(this.spin);
+    this.lying.c.y = this.view.floor - 2 - r.maxY;
+    this.lying.c.x = clamp(this.lying.c.x, -r.minX, this.view.w - r.maxX);
+    this.setMid(this.lying.c);
+  }
+
+  stroke(x, y) {
+    if (this.busy || this.hidden || this.stance === 'fly') return;
+    const h = this.head(), d = Math.hypot(x - h.x, y - h.y);
+    if (d > 100 * this.scale) { this.unpet(); return; }
+    const now = performance.now(), p = this.pet;
+    if (!p) { this.pet = { x, dir: 0, turns: 0, since: now, last: now }; return; }
+    const dx = x - p.x;
+    if (Math.abs(dx) >= STROKE * this.scale) {
+      const dir = Math.sign(dx);
+      if (p.dir && dir !== p.dir && now - p.last < PET_GAP) p.turns++;
+      p.dir = dir; p.x = x; p.last = now;
+      if (p.turns >= 3 && now - p.since < PET_ENOUGH) this.perform('petted', x < this.pos.x ? -1 : 1);
+    }
+  }
+
+  unpet() { this.pet = null; }
+
   // ---------- pointer ----------
 
   bindPointer() {
@@ -2049,7 +2387,8 @@ export class Capri {
       if (this.hit(e.clientX, e.clientY)) this.onMenu?.(); // right-click: her menu
     });
     this.canvas.addEventListener('mousedown', (e) => {
-      if (e.button !== 0 || this.busy || !this.hit(e.clientX, e.clientY)) return;
+      const thrown = this.stance === 'fly' || this.stance === 'down';
+      if (e.button !== 0 || (this.busy && !thrown) || !this.hit(e.clientX, e.clientY)) return;
       down = {
         x: e.clientX,
         y: e.clientY,
@@ -2060,16 +2399,22 @@ export class Capri {
         ? { ...this.handstandTarget }
         : null,
 };
+      this.track = [{ x: e.clientX, y: e.clientY, t: performance.now() }];
+      if (this.stance === 'fly' || this.stance === 'down') this.pickUp(down);
     });
     
 window.addEventListener('mousemove', (e) => {
     this.mouse = { x: e.clientX, y: e.clientY };
 
     if (down) {
+        const now = performance.now();
+        this.track.push({ x: e.clientX, y: e.clientY, t: now });
+        while (this.track.length > 2 && now - this.track[0].t > 160) this.track.shift();
         const dx = e.clientX - down.x;
         const dy = e.clientY - down.y;
 
         if (!this.dragging && Math.hypot(dx, dy) > 5 && !this.busy) {
+            if (!down.handstand) this.pickUp(down);
             this.dragging = true;
             this.nudge();
 
@@ -2082,9 +2427,11 @@ window.addEventListener('mousemove', (e) => {
                     };
                 }
 
-                this.endAct(false);
-                this.setStance('stand');
-                this.onTeleport?.('start');
+                if (this.stance !== 'held') {
+                    this.endAct(false);
+                    this.setStance('stand');
+                    this.onTeleport?.('start');
+                }
             }
 
             this.p.glitch = 0.18;
@@ -2136,6 +2483,7 @@ window.addEventListener('mousemove', (e) => {
         return;
     }
 
+    this.stroke(e.clientX, e.clientY);
     this.notice(e.clientX, e.clientY);
 });
 
@@ -2151,10 +2499,16 @@ window.addEventListener('mouseup', (e) => {
     if (wasDragging) {
         tween(this.p, { glitch: 0, split: 0 }, 200, ease.out);
 
+        const v = this.pointerSpeed();
+        if (!handstand && Math.hypot(v.x, v.y) >= THROW_MIN && !reducedMotion.matches) {
+            this.throwHer(v.x, v.y);
+            return;
+        }
         if (handstand) {
             // Elle reste en poirier après le déplacement.
             this.nudge();
         } else {
+            this.setStance('stand');
             this.onTeleport?.('end');
 
             const where = this.drop();
@@ -2164,11 +2518,13 @@ window.addEventListener('mouseup', (e) => {
                 where
             });
         }
+
     } else {
         this.onClick?.({
             zone: this.zone(e.clientX, e.clientY)
         });
     }
+
 });
   }
 
