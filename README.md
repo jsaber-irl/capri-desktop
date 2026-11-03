@@ -1,4 +1,4 @@
-## **Project Capricorn (2.1.13)**
+## **Project Capricorn (2.1.14)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -439,6 +439,45 @@ Interface text is centralized in:
 - `src/renderer/js/lines-life.js` for autonomous behaviors.
 
 To add a language, add it to these dictionaries, to `LANGS`, to the voice locales and Piper voices, then update the corresponding tests.
+
+### Developer map: renderer lifecycle and interactions
+
+The renderer is assembled in `src/renderer/js/app.js`. New features should normally follow this
+flow: add a small component, create its callbacks in `boot()`, expose only the required Main
+operation through `src/preload.js`, then add a focused Node test.
+
+| Area | Entry points | Responsibility |
+|---|---|---|
+| Mascot and physics | `Capri.setView()`, `setStance()`, `perform()`, `react()`, `fall()`, `throwHer()`, `stroke()` | Position, animation state, dragging/throwing, falling, window ledges, petting and display-follow behavior. |
+| Animation | `ACTS`, `Player`, `SpriteRenderer`, `FxLayer` | Frame sheets, pose resolution, WebGL drawing and Canvas effects. |
+| Pointer interaction | `app.js` mouse listeners, `Heart.pointer()`, `Heart.moved()`, `Capri.stroke()` | Hit testing, tickling, head pats, caresses, cursor remarks and refusal cooldowns. |
+| Feelings and bond | `Mood.event()`, `Heart.event()`, `Bond.observe()`, `Bond.feel()` | Short-term mood, affection, relationship level and local persistence. |
+| Conversation | `Brain`, `Chat`, `linesFor()` | Provider selection, command routing, localized dialogue and assistant-specific wording. |
+| Notifications | `Reminders.check()`, `Reminders.onDue`, `Panel.notice()` | Reminder polling, completion notification, animation and notification sound. |
+| Audio | `Voice.play()`, `Voice.loadCustom()`, `Speech` | Synthesized cues, custom sounds, speech synthesis and output device selection. |
+| UI | `Panel`, `Ring`, `RingTabs`, `Themes` | Dialogue panel, radial settings menu, labels, themes and configuration controls. |
+
+Important interaction contracts:
+
+- `Capri.onPet` receives `{ kind: 'petted' | 'enough', x, y }`; the app layer decides what to
+  say and how to update `Heart`/`Bond`.
+- `Capri.onTeleport` brackets long movements so the panel can suspend while Capri is elsewhere.
+- `host.onResize()` must update `FxLayer`, `Chip`, and `Capri.setView()` together.
+- A new Main capability must be added to the preload API and validated in `SECURITY_AUDIT.md`;
+  renderer code must not import Node or Electron directly.
+
+### Developer map: Main process
+
+`src/main/main.js` owns the lifecycle. `main()` acquires the single-instance lock and starts
+`serveProtocol()`, `registerIpc()`, `createOverlay()`, `createTray()`, the bridge and watchers.
+`fitOverlay()` sizes the transparent window for the selected display; `targetDisplay()` and
+`displayAt()` resolve the display according to `follow` and `displayId`; `followPointer()` monitors
+cursor changes between monitors. `rendererConfig()` removes secrets before configuration reaches
+the renderer, and `updateConfig()` persists and broadcasts safe changes.
+
+Keep platform work in the service modules rather than in `main.js`: `windows.js` observes windows,
+`mover.js` moves them, `screen.js` captures displays, `control.js` performs approved actions,
+`launch.js` resolves applications, and `mac-permissions.js` reports macOS permission state.
 
 ## Authors and rights
 

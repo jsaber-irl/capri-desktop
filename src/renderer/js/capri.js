@@ -32,10 +32,14 @@ const LYING_ACTS = new Set(['talk', 'look', 'split', 'petted']);
 const STROKE = 22;
 const PET_GAP = 700;
 const PET_ENOUGH = 8000;
+const PET_REFUSE_AFTER = 8;
+const PET_REFUSE_MS = 12000;
 const THROW_BOUNCE = 0.62;
 const THROW_EDGE_RESTITUTION = 0.72;
 const THROW_KO_SPEED = 1050;
 
+// Pure geometry helpers are kept outside the class so the throw simulation remains easy to
+// reason about and can be exercised without a DOM or Electron runtime.
 function turnAround(p, o, a) {
   const c = Math.cos(a), s = Math.sin(a);
   const x = p.x - o.x, y = p.y - o.y;
@@ -137,6 +141,7 @@ export class Capri {
     this.refuseUntil = 0;
     this.pet = null;
     this.petRefuseUntil = 0;
+    this.onPet = null;       // ({ kind: 'petted' | 'enough', x, y }) => void
     this.fallToFloor = false;
 
     this.p = {
@@ -2121,21 +2126,98 @@ export class Capri {
     return Boolean(win && !win.max && win.w > 120 && win.y > -10 && !this.covered(win, win.x + win.w / 2));
   }
 
+  summonSpot(cursor) {
+    const { w } = this.view;
+    const side = 150 * this.scale + 30;
+    const dx = cursor.x > w / 2 ? -260 : 260;
+    return {
+      x: clamp(cursor.x + dx, side, w - side),
+      y: clamp(cursor.y + SPRITE.height * this.scale * 0.45, SPRITE.height * this.scale + 120, this.floor),
+    };
+  }
+
   // Show up next to the mouse pointer (used when Claude needs you).
   async summon(cursor) {
-    const { w } = this.view;
-    const s = this.scale;
-    const side = 150 * s + 30;
-    const dx = cursor.x > w / 2 ? -260 : 260;
-    const to = {
-      x: clamp(cursor.x + dx, side, w - side),
-      y: clamp(cursor.y + SPRITE.height * s * 0.45, SPRITE.height * s + 120, this.floor),
-    };
+    const to = this.summonSpot(cursor);
     if (this.stance === 'stand' && Math.hypot(to.x - this.pos.x, to.y - this.pos.y) < 160) {
       this.facing = cursor.x < this.pos.x ? 1 : -1;
       return;
     }
     await this.teleport(to, { face: cursor.x < to.x ? 1 : -1 });
+  }
+
+  async toPointer(cursor) {
+    if (!cursor) return null;
+    if (cursor.inside) {
+      await this.summon(cursor);
+      return cursor;
+    }
+    if (cursor.display == null || !this.onScreenOf) return null;
+    return this.onScreenOf(cursor);
+  }
+
+  get free() {
+    return !this.busy && !this.stowed && !this.dormant && !this.hidden && !this.dragging && !this.act
+      && (this.stance === 'stand' || this.stance === 'sit');
+  }
+
+  inFrame(x, y) {
+    const r = this.reachAt(this.spin);
+    return x + r.maxX >= 0 && x + r.minX <= this.view.w
+      && y + r.maxY >= 0 && y + r.minY <= this.view.floor;
+  }
+
+  async drain() {
+    if (!this.free) return false;
+    this.perform('drained');
+    if (reducedMotion.matches) return true;
+    const p = this.p;
+    for (const [alpha, ms] of [[0.45, 120], [1, 90], [0.3, 160], [0.85, 110], [0.5, 140], [1, 0]]) {
+      p.alpha = alpha;
+      p.glitchSeed = Math.random() * 100;
+      p.glitch = alpha < 0.6 ? 0.25 : 0;
+      await sleep(ms);
+    }
+    p.glitch = 0;
+    return true;
+  }
+
+  recharge() {
+    if (this.stowed || this.dormant || this.hidden) return;
+    const h = this.head();
+    if (!reducedMotion.matches) {
+      this.fx.burst(h.x, h.y + 60 * this.scale, { count: 16, inward: true, power: 0.6, spread: 140 * this.scale });
+      tween(this.p, { sparkle: 1.9 }, 300, ease.out).then(() => tween(this.p, { sparkle: 1 }, 700, ease.inOut));
+    }
+    this.voice.play('rise');
+    if (this.free) this.perform('hop');
+  }
+
+  async visit(at) {
+    if (!this.free || reducedMotion.matches) return false;
+    this.busy = true;
+    this.wake();
+    this.onTeleport?.('start');
+    await this.perform('dive');
+    const head = await this.vanish({ beam: false });
+    this.fx.streak(head.x, head.y, at.x, at.y);
+    this.fx.burst(at.x, at.y, { count: 12, inward: true, power: 0.5, spread: 30 });
+    this.fx.ring(at.x, at.y, { size: 0.3 });
+    this.voice.play('bolt');
+    for (let i = 0; i < 3; i++) {
+      await sleep(650);
+      this.fx.crackle(at, { life: 380, radius: 40, count: 2 });
+    }
+    await sleep(300);
+    const to = this.spot('post');
+    const toHead = this.head(to);
+    this.fx.ring(at.x, at.y, { size: 0.35 });
+    this.fx.burst(at.x, at.y, { count: 12, power: 0.6, spread: 30 });
+    this.fx.streak(at.x, at.y, toHead.x, toHead.y);
+    await sleep(60);
+    await this.arrive(to);
+    await this.settle();
+    return true;
   }
 
   setHidden(hidden) {
@@ -2363,20 +2445,54 @@ export class Capri {
 
   stroke(x, y) {
     if (this.busy || this.hidden || this.stance === 'fly') return;
+    const now = performance.now();
+    if (now < this.petRefuseUntil) {
+      this.unpet();
+      return;
+    }
     const h = this.head(), d = Math.hypot(x - h.x, y - h.y);
     if (d > 100 * this.scale) { this.unpet(); return; }
-    const now = performance.now(), p = this.pet;
+    const p = this.pet;
     if (!p) { this.pet = { x, dir: 0, turns: 0, since: now, last: now }; return; }
     const dx = x - p.x;
     if (Math.abs(dx) >= STROKE * this.scale) {
       const dir = Math.sign(dx);
       if (p.dir && dir !== p.dir && now - p.last < PET_GAP) p.turns++;
       p.dir = dir; p.x = x; p.last = now;
-      if (p.turns >= 3 && now - p.since < PET_ENOUGH) this.perform('petted', x < this.pos.x ? -1 : 1);
+      if (p.turns >= 3 && now - p.since < PET_ENOUGH) {
+        p.turns = 0;
+        p.since = now;
+        p.count = (p.count || 0) + 1;
+        if (p.count >= PET_REFUSE_AFTER) {
+          this.petRefuseUntil = now + PET_REFUSE_MS;
+          this.unpet();
+          this.onPet?.({ kind: 'enough', x, y });
+          this.endAct(false);
+          this.zap(x, y);
+          return;
+        }
+        this.petGlow(x, y);
+        this.perform('petted', x < this.pos.x ? -1 : 1);
+        this.onPet?.({ kind: 'petted', x, y });
+      }
     }
   }
 
   unpet() { this.pet = null; }
+
+  get pettingRefused() {
+    return performance.now() < this.petRefuseUntil;
+  }
+
+  petGlow(x, y) {
+    const h = this.head();
+    this.manePop = Math.min(0.7, this.manePop + 0.42);
+    tween(this.p, { sparkle: 1.8 }, 180, ease.out)
+      .then(() => tween(this.p, { sparkle: 1 }, 900, ease.inOut));
+    this.fx.burst(h.x, h.y - 28 * this.scale, { count: 8, power: 0.35, spread: 70 * this.scale });
+    this.fx.sparkle?.(x, y, 7 * this.scale, COLORS.paper);
+    this.voice.play('purr');
+  }
 
   // ---------- pointer ----------
 

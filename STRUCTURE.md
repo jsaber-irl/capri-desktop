@@ -317,6 +317,42 @@ capri-desktop-main-main/
 - `brain.js`, `mood.js`, `heart.js`, `bond.js`, `life.js`, and `mission.js` compose personality, mood, and autonomous behaviors.
 - `ears.js`, `speech.js`, `voice.js`, and `rhythm.js` connect the microphone, recognition, synthesis, and audio systems.
 
+### Renderer API map
+
+The following are the extension points most contributors should use:
+
+| File | Public functions/classes | Use |
+|---|---|---|
+| `app.js` | `boot()`, `runCommand()` | Compose components, wire IPC callbacks and handle debug/menu commands. |
+| `capri.js` | `Capri`, `perform()`, `react()`, `stroke()`, `fall()`, `throwHer()`, `setView()` | Mascot state machine, physics, pointer interactions and display-local geometry. |
+| `acting.js` | `ACTS`, `FIDGETS`, `Player` | Add or play frame-based poses without changing the renderer. |
+| `sprite.js` | `SpriteRenderer`, `draw()` | Draw the mascot texture and apply pose uniforms. |
+| `fx.js` / `fx-life.js` | `FxLayer`, `burst()`, `bolt()`, `sparkle()`, `heart()`, `dizzy()` | Add transient Canvas/WebGL effects. |
+| `heart.js` / `mood.js` | `Heart`, `event()`, `pointer()`, `Mood` | Convert user actions into mood and affection changes. |
+| `bond.js` | `Bond`, `observe()`, `feel()`, `levelOf()` | Persist relationship learning and compatibility reactions. |
+| `panel.js` / `ring.js` | `Panel`, `notice()`, `say()`, `Ring` | Display dialogue, reminders and settings. |
+| `reminders.mjs` | `Reminders`, `add()`, `check()`, `cancelByText()` | Parse, persist and deliver reminders through `onDue`. |
+| `voice.js` / `speech.js` | `Voice`, `play()`, `Speech` | Audio cues, custom sound files and spoken dialogue. |
+| `lines.js` / `lines-life.js` | `linesFor()`, `lifeLines()` | Localized UI, reactions and autonomous-life dialogue. |
+| `chip.js` | `Chip`, `Mask` | Low-cost sleeping and stowed visual states. |
+| `eyes.js` / `ears.js` / `rhythm.js` | `Eyes`, `Ears`, `Rhythm` | Optional screen vision, microphone input and music-reactive animation. |
+| `hands.js` / `possession.js` / `ledges.js` | `Hands`, movement helpers | Confirmed window/file actions, possession trajectories and ledge geometry. |
+
+### Main service map
+
+| File | Public responsibility |
+|---|---|
+| `main.js` | Electron lifecycle, overlay, tray, IPC, display selection and watchers. |
+| `bridge.js` | Loopback hook server for Claude Code, Codex and Antigravity events. |
+| `config.js` / `setup.js` | User configuration, defaults and encrypted key storage. |
+| `llm.js` / `anthropic.js` / `ollama.js` | Provider selection and AI requests. |
+| `tts.js` / `stt.js` / `piper.js` / `chatterbox.js` | Voice engines and transcription services. |
+| `windows.js` / `mover.js` / `control.js` | Window observation, movement and approved OS controls. |
+| `screen.js` / `mac-permissions.js` | Screen capture and permission reporting. |
+| `files.js` / `documents.js` / `cleanup.js` | Safe file operations, document creation and owned-resource cleanup. |
+| `terminal.js` / `launch.js` / `apps.js` | Terminal commands, application resolution and application control. |
+| `electron-security.js` / `preload.js` | Navigation policy and least-privilege renderer bridge. |
+
 ## Services
 
 - **AI:** `llm.js` selects the provider; `anthropic.js` and `ollama.js` provide dedicated clients; other providers may be OpenAI-compatible.

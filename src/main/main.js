@@ -444,6 +444,8 @@ function followPointer() {
   const bounds = overlay.getBounds();
   const current = displayAt({ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 });
   if (target.id === current.id) return;
+  // Keep the display-following decision in one place. Renderer animation can use this transition
+  // boundary without changing how display selection and configuration are resolved.
   fitOverlay();
   rebuildTray();
 }

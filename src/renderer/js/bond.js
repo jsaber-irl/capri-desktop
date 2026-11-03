@@ -26,6 +26,21 @@ const FEEDBACK_MS = 10 * 60000; // your message says something about her last an
 const SAVE_MS = 4000;
 const LEARN = 0.07;             // how far one reaction moves her
 const CAPS = { facts: 14, likes: 10, dislikes: 10 };
+const FEELINGS = {
+  thrown: ['The user just threw you across the screen and you crashed. You are shaken, and let them know.', 4],
+  fun: ['The user just threw you across the screen and you loved it. You are excited and want to go again.', 3],
+  dizzy: ['The user threw you across the screen twice in a row. You are still dizzy and grumpy about it.', 5],
+  angry: ['The user threw you across the screen three times in a row. Answer coldly and remind them why you are angry.', 8],
+  petted: ['The user just petted your mane. You liked it more than you will admit.', 3],
+  forgiven: ['The user just said sorry. You forgive them, a little grudgingly.', 3],
+};
+const SORRY = /(?<![\p{L}])(sorry|my bad|i apologi[sz]e|pardon|d[ée]sol[ée]e?|dsl|excuse[- ]moi|je m['’]excuse|прости|извини)(?![\p{L}])/iu;
+
+export const RIVALS = {
+  chatgpt: 'ChatGPT', claude: 'Claude', codex: 'Codex', gemini: 'Gemini', copilot: 'Copilot',
+  perplexity: 'Perplexity', deepseek: 'DeepSeek', grok: 'Grok', lechat: 'Le Chat',
+  characterai: 'Character.AI', metaai: 'Meta AI',
+};
 
 const L = '(?<![\\p{L}\\p{N}])';
 const R = '(?![\\p{L}\\p{N}])';
@@ -98,6 +113,8 @@ export class Bond {
     this.saveTimer = 0;
     this.onLevel = null;     // (level, line) => void: she grew closer (app.js shows it)
     this.agent = false;      // her chat is Claude Code: no notebook entries (chat.js keeps it)
+    this.mood = null;        // short-lived physical reactions, retained for legacy callers
+    this.onCalm = null;
   }
 
   get t() {
@@ -112,6 +129,33 @@ export class Bond {
 
   configure(cfg) {
     this.enabled = cfg.learn !== false;
+  }
+
+  feel(kind) {
+    if (!FEELINGS[kind]) return false;
+    this.mood = { kind, until: Date.now() + FEELINGS[kind][1] * 60000 };
+    return true;
+  }
+
+  get feeling() {
+    if (this.mood && Date.now() > this.mood.until) this.mood = null;
+    return this.mood?.kind || null;
+  }
+
+  heard(text) {
+    if (!['angry', 'dizzy', 'thrown'].includes(this.feeling) || !SORRY.test(String(text || ''))) return false;
+    this.feel('forgiven');
+    this.onCalm?.();
+    return true;
+  }
+
+  moodLine() {
+    const kind = this.feeling;
+    return kind ? FEELINGS[kind][0] : '';
+  }
+
+  persona() {
+    return `${LEVELS[this.data.level]} You have talked with the user for ${this.data.days} day${this.data.days === 1 ? '' : 's'}.`;
   }
 
   // ---------- learning ----------

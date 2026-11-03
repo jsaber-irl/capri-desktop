@@ -2,6 +2,10 @@
 
 ## Executive Summary
 
+This document describes the current static review baseline. It was updated alongside the
+interaction and multi-display documentation on 2026-11-03; it is not a replacement for a
+penetration test or a dependency audit.
+
 The static review covers the 244 paths tracked by Git at the beginning of the audit, including Electron, preloads, IPC calls, processes, downloads, network integrations, permissions, and configuration. No confirmed malicious behavior was identified in the reviewed version-controlled code. This does not prove the absence of threats.
 
 A plaintext storage issue affecting newly entered API keys and the lack of a general navigation guard have been fixed. IPC sender validation remains inconsistent; previously stored plaintext keys are still read for compatibility.
@@ -25,6 +29,11 @@ The reviewed windows enable `contextIsolation` and `sandbox`, while disabling `n
 **Remaining Risk — IPC (Medium).** Several handlers in `src/main/main.js` do not consistently verify that a call originates from an expected Capri window and its main frame. External navigation is blocked, but script injection into a local page could still invoke certain configuration, application-launching, file-handling, or automation functions exposed through the preload.
 
 Recommendation: Apply a common validation mechanism for the window, main frame, and origin to every sensitive handler, then strictly validate parameter types, sizes, and values. Existing handlers were not refactored all at once in order to avoid changing their interfaces.
+
+The renderer's newer interaction features do not add privileged access: caresses, reminder
+notifications, animation state, and display transitions remain local UI behavior. Display
+following changes the bounds of the existing transparent overlay; it does not create a second
+window or grant access to the other monitor.
 
 ## Keys and Local Data
 
@@ -82,3 +91,16 @@ The navigation guard test is located at `tests/electron-security.test.js`. The a
 This review does not validate actual macOS permissions, cloud services, downloaded binaries, future dependency versions, or attacks requiring graphical interaction.
 
 No files were deleted. `FEATURES.md` and `FEATURES.fr.md` are not tracked in this copy; local copies are stored in `.private/`, which is ignored by Git.
+
+## Feature security notes
+
+| Feature | Data or authority used | Security boundary |
+|---|---|---|
+| Reminder notification | Local reminder text and timer | Renderer panel and local audio only; no network request. |
+| Caressing Capri | Pointer coordinates and local mood/bond state | Renderer-only; the refusal lightning is visual/audio feedback. |
+| Following the pointer across displays | Cursor position, display geometry, overlay bounds | Main process selects the display; renderer receives geometry through the preload callback. |
+| Window possession and movement | Window metadata and platform automation APIs | Requires the configured feature and applicable OS permissions. |
+
+When extending any of these features, preserve the rule that user-controlled coordinates are
+validated at the Main boundary and that Renderer code receives capabilities, not raw Electron
+objects.

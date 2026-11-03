@@ -12,6 +12,7 @@ const NAP_MS = 20000; // this long with no sound: her audio goes to sleep (costs
 export const CUES = [
   'teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick', 'star', 'land', 'rise', 'bolt', 'charge', 'possess',
   'throw', 'crash', 'remind', 'jealous',
+  'purr',
   // her moods and her own little life (mood.js, life.js)
   'growl', 'rage', 'huff', 'giggle', 'laugh', 'sigh', 'sting', 'shy', 'startle', 'dizzy', 'yawn', 'skip', 'win', 'lose'
 ];
@@ -175,6 +176,7 @@ export class Voice {
       skip: () => this.skip(),
       win: () => this.win(),
       lose: () => this.lose(),
+      purr: () => this.purr(),
     }[cue];
     fn?.();
   }
@@ -246,6 +248,31 @@ export class Voice {
     this.osc(feel.wave || 'square', f, t, 0.035, 0.035 * k);
     this.osc('triangle', f * 1.498, t + 0.004, 0.03, 0.025 * k); // a fifth up
     this.osc('square', f * 0.501, t + 0.008, 0.03, 0.018 * k);   // an octave down, slightly off
+  }
+
+  purr() {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const oscillator = ctx.createOscillator();
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(rand(54, 62), t);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 420;
+    const tremolo = ctx.createGain();
+    tremolo.gain.value = 0.5;
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = rand(21, 25);
+    const depth = ctx.createGain();
+    depth.gain.value = 0.5;
+    lfo.connect(depth).connect(tremolo.gain);
+    const gain = ctx.createGain();
+    this.env(gain, t, 0.12, 0.22, 0.95);
+    oscillator.connect(filter).connect(tremolo).connect(gain).connect(this.master);
+    oscillator.start(t);
+    lfo.start(t);
+    oscillator.stop(t + 1.15);
+    lfo.stop(t + 1.15);
   }
 
   // ---------- her moods ----------

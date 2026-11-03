@@ -160,6 +160,18 @@ async function boot() {
   bond.configure(config);
   bond.start().catch(() => {});
   brain.bond = bond;
+  capri.onPet = ({ kind }) => {
+    if (kind === 'enough') {
+      panel.say({ kind: 'error', face: 'annoyed', line: pick(brain.t.pet.enough), hold: 3000 });
+      return;
+    }
+    heart.event('petted');
+    bond.feel('petted');
+    const lines = bond.data.level >= 2 ? brain.t.pet.high : brain.t.pet.low;
+    if (Math.random() < 0.35) {
+      panel.say({ kind: 'info', face: bond.data.level >= 2 ? 'shy' : 'look', line: pick(lines), hold: 2800 });
+    }
+  };
   // Her voice (speech.js): her chat answers read out, or everything she says
   const speech = new Speech({ voice, host });
   speech.configure(config);
@@ -228,7 +240,7 @@ async function boot() {
     heart.moved(mouse.x, mouse.y);
     if (!capri.hidden && capri.stance !== 'fall') {
       const h = onHer && capri.head();
-      const onHead = onHer && Math.hypot(mouse.x - h.x, mouse.y - (h.y - 34 * capri.scale)) < 62 * capri.scale;
+      const onHead = onHer && !capri.pettingRefused && Math.hypot(mouse.x - h.x, mouse.y - (h.y - 34 * capri.scale)) < 62 * capri.scale;
       heart.pointer(onHer, onHead);
     }
   });
