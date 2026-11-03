@@ -73,11 +73,14 @@
     </div>
   </div>
 
-  <!-- un rappel qui a sonné : une note qui tient en haut à droite, style fenêtre -->
-  <div id="notice" class="notice" hidden>
+  <!-- un rappel qui a sonné : une notification qui tient en haut à droite -->
+  <div id="notice" class="notice" hidden role="status" aria-live="polite">
     <div class="notice__plate">
-      <span class="notice__dot" aria-hidden="true"></span>
-      <span class="notice__line"></span>
+      <div class="notice__icon" aria-hidden="true">!</div>
+      <div class="notice__content">
+        <strong class="notice__title">RAPPEL TERMINÉ</strong>
+        <span class="notice__line"></span>
+      </div>
       <button class="notice__close" type="button">✕</button>
     </div>
   </div>

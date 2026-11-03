@@ -70,6 +70,8 @@ export class Panel {
     this.missed = null; // a Claude message that came while you were chatting with her, shown after
     this.held = null;   // the same, for while her circular menu was open (see `quiet`)
     this.onUrgent = null; // () => void: something the menu has to step aside for
+    this.noticeSound = new Audio('../../assets/songs/notification-song.mp3');
+    this.noticeSound.preload = 'auto';
 
     // talking to her (chat.js): a line to type in, under her answer
     this.chatForm = panel.querySelector('.panel__chat');
@@ -90,9 +92,10 @@ export class Panel {
     });
     this.chatClose.addEventListener('click', () => this.hide());
 
-    const notice = document.getElementById('notice');
-    notice?.querySelector('.notice__close')?.addEventListener('click', () => {
-      notice.setAttribute('hidden', '');
+    this.noticeEl = document.getElementById('notice');
+    console.log('[reminder-notice] DOM element', this.noticeEl);
+    this.noticeEl?.querySelector('.notice__close')?.addEventListener('click', () => {
+      this.noticeEl.setAttribute('hidden', '');
       clearTimeout(this.noticeTimer);
     });
 
@@ -511,13 +514,37 @@ export class Panel {
 
   // A top-right reminder notice: a line that stays until you close it (or a new one replaces it).
   notice(msg) {
-    const el = document.getElementById('notice');
-    if (!el) return;
+    const el = this.noticeEl;
+    if (!el) {
+      console.log('[reminder-notice] cannot display: #notice is missing', msg);
+      return;
+    }
     const line = el.querySelector('.notice__line');
+    if (!line) {
+      console.log('[reminder-notice] cannot display: .notice__line is missing', msg);
+      return;
+    }
     line.textContent = msg.line || '';
+    el.setAttribute('aria-label', msg.line || '');
     el.removeAttribute('hidden');
+    const rect = el.getBoundingClientRect();
+    console.log('[reminder-notice] displayed', {
+      line: line.textContent,
+      hidden: el.hidden,
+      rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+    });
+    this.noticeSound.pause();
+    this.noticeSound.currentTime = 0;
+    this.noticeSound.play().then(() => {
+      console.log('[reminder-notice] notification sound played');
+    }).catch((error) => {
+      console.error('[reminder-notice] notification sound failed', error);
+    });
     clearTimeout(this.noticeTimer);
-    this.noticeTimer = setTimeout(() => { el.setAttribute('hidden', ''); }, 10000);
+    this.noticeTimer = setTimeout(() => {
+      el.setAttribute('hidden', '');
+      console.log('[reminder-notice] hidden after timeout');
+    }, 10000);
   }
 
   hide() {

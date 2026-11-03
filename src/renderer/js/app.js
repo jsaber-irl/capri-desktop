@@ -113,9 +113,7 @@ async function boot() {
   const brain = new Brain({ capri, panel, voice, host, mission, lang: config.lang, assistant: config.assistant });
   const reminders = new Reminders({ host, list: config.reminders });
   reminders.onDue = (reminder) => {
-    reminder.made = Date.now();
-    reminders.save();
-    capri.perform('remind');
+    console.log('[reminders] app onDue received', { id: reminder.id, text: reminder.text, at: reminder.at });
     const lang = brain.lang === 'fr' ? 'fr-FR' : brain.lang === 'ru' ? 'ru-RU' : 'en-US';
     panel.say({
       kind: 'remind',
@@ -127,15 +125,23 @@ async function boot() {
           : `Reminder: ${reminder.text} (${clock(reminder.at, lang, true)}).`,
       hold: null,
     });
-    panel.notice({
+    const notice = {
       line: brain.lang === 'fr'
-        ? `Rappel : ${reminder.text}`
+        ? `Rappel terminé : ${reminder.text}`
         : brain.lang === 'ru'
-          ? `Напоминание: ${reminder.text}`
-          : `Reminder: ${reminder.text}`,
+          ? `Напоминание выполнено: ${reminder.text}`
+          : `Reminder finished: ${reminder.text}`,
       kind: 'remind',
-    });
+    };
+    console.log('[reminders] requesting top-right notice', notice);
+    panel.notice(notice);
+    try {
+      capri.perform('remind');
+    } catch (error) {
+      console.error('[reminders] reminder animation failed', error);
+    }
   };
+  reminders.start();
 
   // Her feelings (heart.js, mood.js): what she shows, and her colours when they follow her mood.
   const heart = new Heart({ capri, panel, voice, brain, host });

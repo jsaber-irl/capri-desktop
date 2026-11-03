@@ -405,6 +405,17 @@ handstand: {
     ],
   },
 
+  // A small bright reaction when a scheduled reminder arrives.
+  remind: {
+    priority: 3,
+    keys: [
+      [1, { sy: 1.08, sx: 0.94, bob: -8, mane: 0.35, arms: 0.28, smear: [0, 8] }, 'startle'],
+      [4, { bob: -5, mane: 0.2, arms: 0.18, head: -0.04 }],
+      [8, { bob: 0, mane: 0.08, arms: 0.04 }],
+      [2, {}],
+    ],
+  },
+
   // Dizzy after being dragged around: her head going round, her stars too.
   dizzy: {
     priority: 2,

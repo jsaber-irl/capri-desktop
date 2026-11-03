@@ -975,7 +975,7 @@ html[data-motion='reduced'] .panel__bar {
   right: 14px;
   top: 14px;
   z-index: 5;
-  max-width: clamp(300px, 28vw, 420px);
+  width: min(460px, calc(100vw - 28px));
   color: var(--paper);
   filter: drop-shadow(4px 4px 0 var(--violet));
   will-change: transform;
@@ -986,29 +986,50 @@ html[data-motion='reduced'] .panel__bar {
 .notice__plate {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 8px 10px 7px;
+  gap: 14px;
+  min-height: 82px;
+  padding: 16px 18px 15px;
   background: var(--ink);
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--violet) 35%, transparent);
   clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
 }
 
-.notice__dot {
+.notice__icon {
   flex: none;
-  width: 8px;
-  height: 8px;
-  background: var(--green);
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: var(--red);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
   border-radius: 50%;
-  box-shadow: 0 0 0 3px var(--green);
+  box-shadow: 0 0 0 4px var(--red);
+}
+
+.notice__content {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.notice__title {
+  color: var(--paper-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  line-height: 1;
 }
 
 .notice__line {
-  flex: 1;
   min-width: 0;
   font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--text-line);
-  line-height: 1.22;
+  font-size: clamp(18px, 1.4vw, 23px);
+  font-weight: 700;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
@@ -1016,11 +1037,11 @@ html[data-motion='reduced'] .panel__bar {
   flex: none;
   appearance: none;
   border: 0;
-  padding: 2px 6px;
+  padding: 7px 10px;
   background: var(--ink-2);
   color: var(--paper);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1043,7 +1064,7 @@ html[data-motion='reduced'] .panel__bar {
     100% 100%, 22px 100%, 0 calc(100% - 22px)
   );
 }
-:where(html[data-theme='classic']) .notice__dot {
+:where(html[data-theme='classic']) .notice__icon {
   background: var(--red);
   box-shadow: 0 0 0 3px var(--red);
 }
@@ -1057,7 +1078,7 @@ html[data-window-theme='nightcity'] .notice__plate {
   background: #10151b;
   box-shadow: inset 0 0 0 1px var(--window-yellow);
 }
-html[data-window-theme='nightcity'] .notice__dot {
+html[data-window-theme='nightcity'] .notice__icon {
   background: var(--window-cyan);
   box-shadow: 0 0 0 3px var(--window-cyan);
 }

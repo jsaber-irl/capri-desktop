@@ -161,7 +161,22 @@ export class Reminders {
     this.list = Array.isArray(list) ? list : [];
     this.onDue = null;
     this.firing = new Set(); // ids being shown right now
-    setInterval(() => this.check(), 5000);
+    this.timer = null;
+    console.log('[reminders] initialized', { count: this.list.length, reminders: this.list });
+  }
+
+  start() {
+    if (this.timer) {
+      console.log('[reminders] polling already started');
+      return;
+    }
+    if (!this.onDue) {
+      console.log('[reminders] polling not started: onDue callback is not set');
+      return;
+    }
+    this.timer = setInterval(() => this.check(), 5000);
+    this.timer.unref?.();
+    console.log('[reminders] polling started');
   }
 
   // the list as saved (after one was cancelled from her menu)
@@ -212,12 +227,21 @@ export class Reminders {
 
   check() {
     if (!this.onDue) return;
-    const due = this.upcoming.find((r) => !r.made && r.at <= Date.now());
+    const now = Date.now();
+    const due = this.upcoming.find((r) => !r.made && !this.firing.has(r.id) && r.at <= now);
     if (!due) return;
+    console.log('[reminders] reminder due', { id: due.id, text: due.text, at: due.at, now });
     this.firing.add(due.id);
-    this.onDue(due);
-    this.firing.delete(due.id);
-    // le rappel a sonné : on le retire de la liste (il n'encombre plus le menu ni la config)
-    this.remove(due.id);
+    try {
+      due.made = Date.now();
+      this.save();
+      console.log('[reminders] calling onDue', { id: due.id });
+      this.onDue(due);
+    } finally {
+      this.firing.delete(due.id);
+      // le rappel a sonné : on le retire de la liste (il n'encombre plus le menu ni la config)
+      this.remove(due.id);
+      console.log('[reminders] reminder removed after onDue', { id: due.id });
+    }
   }
 }

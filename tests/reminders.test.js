@@ -1,6 +1,6 @@
 'use strict';
 
-// Tests des rappels (src/renderer/js/reminders.js) :
+// Tests des rappels (src/renderer/js/reminders.mjs) :
 //   node --test tests/reminders.test.js
 
 const test = require('node:test');
@@ -26,7 +26,7 @@ const makeHost = () => {
 const FIXED_NOW = new Date('2026-03-15T14:00:00Z').getTime();
 
 test('rappelle-moi dans 20 minutes de sortir la pizza -> rappel à +20 min', async () => {
-  const { parseReminder } = await load('reminders.js');
+  const { parseReminder } = await load('reminders.mjs');
   const r = parseReminder('rappelle-moi dans 20 minutes de sortir la pizza', FIXED_NOW);
   assert.ok(r, 'doit reconnaître le rappel');
   assert.equal(r.text, 'sortir la pizza');
@@ -34,7 +34,7 @@ test('rappelle-moi dans 20 minutes de sortir la pizza -> rappel à +20 min', asy
 });
 
 test('rappel sans heure demandé -> at null et demande l\'heure', async () => {
-  const { parseReminder } = await load('reminders.js');
+  const { parseReminder } = await load('reminders.mjs');
   const r = parseReminder('rappelle-moi de sortir la pizza', FIXED_NOW);
   assert.ok(r);
   assert.equal(r.at, null);
@@ -42,21 +42,21 @@ test('rappel sans heure demandé -> at null et demande l\'heure', async () => {
 });
 
 test('Annule le rappel : Sortir la pizza -> cancelReminder avec le texte', async () => {
-  const { parseCancel } = await load('reminders.js');
+  const { parseCancel } = await load('reminders.mjs');
   const c = parseCancel('Annule le rappel : Sortir la pizza');
   assert.ok(c);
   assert.equal(c.text, 'Sortir la pizza');
 });
 
 test('cancel le rappel sans texte -> cible le plus ancien à venir', async () => {
-  const { parseCancel } = await load('reminders.js');
+  const { parseCancel } = await load('reminders.mjs');
   const c = parseCancel('Annule le rappel');
   assert.ok(c);
   assert.equal(c.text, '');
 });
 
 test('classe Reminders.add crée un rappel non "fait" (made null)', async () => {
-  const { Reminders } = await load('reminders.js');
+  const { Reminders } = await load('reminders.mjs');
   const host = makeHost();
   const reminders = new Reminders({ host, list: [] });
   const r = reminders.add(FIXED_NOW + 60000, 'sortir la pizza');
@@ -66,7 +66,7 @@ test('classe Reminders.add crée un rappel non "fait" (made null)', async () => 
 });
 
 test('Reminders.check déclenche le rappel arrivé à échéance une seule fois', async () => {
-  const { Reminders } = await load('reminders.js');
+  const { Reminders } = await load('reminders.mjs');
   const host = makeHost();
   const reminders = new Reminders({ host, list: [] });
   let fired = null;
@@ -82,7 +82,7 @@ test('Reminders.check déclenche le rappel arrivé à échéance une seule fois'
 });
 
 test('Reminders.cancelByText annule le rappel correspondant', async () => {
-  const { Reminders } = await load('reminders.js');
+  const { Reminders } = await load('reminders.mjs');
   const host = makeHost();
   const reminders = new Reminders({ host, list: [] });
   reminders.add(FIXED_NOW + 60000, 'sortir la pizza');
@@ -95,7 +95,7 @@ test('Reminders.cancelByText annule le rappel correspondant', async () => {
 });
 
 test('Reminders.cancelByText sans texte annule le plus ancien à venir', async () => {
-  const { Reminders } = await load('reminders.js');
+  const { Reminders } = await load('reminders.mjs');
   const host = makeHost();
   const reminders = new Reminders({ host, list: [] });
   reminders.add(FIXED_NOW + 120000, 'le plus tard');
@@ -107,7 +107,7 @@ test('Reminders.cancelByText sans texte annule le plus ancien à venir', async (
 });
 
 test('Reminders.cancelByText ne trouve rien quand tous les rappels sont délivrés', async () => {
-  const { Reminders } = await load('reminders.js');
+  const { Reminders } = await load('reminders.mjs');
   const host = makeHost();
   const reminders = new Reminders({ host, list: [] });
   const r = reminders.add(FIXED_NOW + 60000, 'quelque chose');
@@ -116,8 +116,10 @@ test('Reminders.cancelByText ne trouve rien quand tous les rappels sont délivr�
 });
 
 test('clock affiche les secondes quand on le demande', async () => {
-  const { clock } = await load('reminders.js');
-  const at = new Date('2026-03-15T14:05:09Z').getTime();
+  const { clock } = await load('reminders.mjs');
+  const atDate = new Date();
+  atDate.setHours(14, 5, 9, 0);
+  const at = atDate.getTime();
   assert.equal(clock(at, 'fr-FR', true), '14:05:09');
   assert.equal(clock(at, 'fr-FR'), '14:05');
 });
