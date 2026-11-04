@@ -262,6 +262,13 @@ export class FxLayer {
     this.size = { w: width, h: height };
   }
 
+  clear() {
+    this.items = [];
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.running = false;
+    this.last = 0;
+  }
+
   // Showing you something: a lock-on reticle that slams onto `rect`, a dashed wire from her
   // fingertip (`from`, a function) to `aim` with data running down it, two of her eyes opening
   // on the reticle's corners, and a word on a tag. When `rect` is off her screen (the tray, down

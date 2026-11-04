@@ -120,6 +120,7 @@ const placesNextToHer = () => {
     .filter(Boolean).filter((p, i, all) => all.indexOf(p) === i);
 };
 let overlay = null; // her window
+let screenTransitionTarget = null;
 let terminalWin = null;
 let terminalBounds = null;
 let terminalExpandedBounds = null;
@@ -444,10 +445,30 @@ function followPointer() {
   const bounds = overlay.getBounds();
   const current = displayAt({ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 });
   if (target.id === current.id) return;
-  // Keep the display-following decision in one place. Renderer animation can use this transition
-  // boundary without changing how display selection and configuration are resolved.
-  fitOverlay();
-  rebuildTray();
+  if (screenTransitionTarget === target.id) return;
+  screenTransitionTarget = target.id;
+  const side = target.bounds.x >= current.bounds.x + current.bounds.width ? 1 : -1;
+  overlay.webContents.send('overlay:screen-transition', { id: target.id, side });
+}
+
+function moveOverlayToDisplay(id) {
+  const target = displays().find((display) => display.id === Number(id));
+  if (!target || !overlay || overlay.isDestroyed()) return null;
+  const { area, gap } = (() => {
+    const { workArea, bounds } = target;
+    const area = config.load().rest === 'taskbar' ? { ...bounds, y: bounds.y + 1, height: bounds.height - 1 } : workArea;
+    return { area, gap: area.y + area.height - (workArea.y + workArea.height) };
+  })();
+  overlay.setBounds(area);
+  overlay.webContents.send('overlay:resize', { width: area.width, height: area.height, gap });
+  screenTransitionTarget = null;
+  const point = screen.getCursorScreenPoint();
+  return {
+    x: point.x - area.x,
+    y: point.y - area.y,
+    inside: point.x >= area.x && point.y >= area.y && point.x < area.x + area.width && point.y < area.y + area.height,
+    display: target.id,
+  };
 }
 
 function startFollowingPointer() {
@@ -1570,8 +1591,17 @@ function registerIpc() {
   ipcMain.handle('overlay:cursor', () => {
     const p = screen.getCursorScreenPoint();
     const b = overlay.getBounds();
-    return { x: p.x - b.x, y: p.y - b.y, inside: p.x >= b.x && p.y >= b.y && p.x < b.x + b.width && p.y < b.y + b.height };
+    const current = displayAt({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+    const target = displayAt(p);
+    return {
+      x: p.x - b.x,
+      y: p.y - b.y,
+      inside: p.x >= b.x && p.y >= b.y && p.x < b.x + b.width && p.y < b.y + b.height,
+      display: target.id,
+      side: target.bounds.x >= current.bounds.x + current.bounds.width ? 1 : -1,
+    };
   });
+  ipcMain.handle('overlay:move-screen', (_event, id) => moveOverlayToDisplay(id));
   ipcMain.handle('config:get', () => rendererConfig());
   ipcMain.handle('app:version', () => packageInfo.version);
   ipcMain.handle('pc:cpu', () => cpuLoad());
@@ -1579,6 +1609,10 @@ function registerIpc() {
   ipcMain.on('terminal:demoLog', (event, message) => {
     if (event.sender !== overlay?.webContents || !terminalWin || terminalWin.isDestroyed()) return;
     terminalWin.webContents.send('terminal:demoLog', String(message || '').slice(0, 400));
+  });
+  ipcMain.on('capri:animation', (event, name) => {
+    if (!DEV || event.sender !== overlay?.webContents) return;
+    console.log(`[capri] animation: ${String(name || '').slice(0, 100)}`);
   });
 
   // Lancement d'un jeu Roblox

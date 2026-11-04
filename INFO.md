@@ -10,8 +10,12 @@
 
 ### Credits and Attribution
 
-The source code in both repositories referenced above belongs to their respective authors and contributors. This project builds upon their existing work, including both the original Capri project and the further development carried out in the repository used for the `V2` branch.
+The source code in both repositories referenced above belongs to their respective authors and contributors.
 
-I do not claim authorship of any pre-existing code. My contribution consists solely of modifying the project and adding a few features.
+This project builds upon their existing work, including the original Capri project and the further development carried out in the repository used as the reference for the `v2` branch.
 
-All credit for the pre-existing code remains with its respective authors. The additions and modifications I have made represent my personal contributions to the project, in accordance with the applicable licenses.
+**Additionally, some of the new features and improvements introduced in the `v2` branch are inspired by newer developments and features implemented in the original [mochiiwuff/capri-desktop](https://github.com/mochiiwuff/capri-desktop) repository.** These developments serve as inspiration and references for further modifications and additions to this project.
+
+I do not claim authorship of any pre-existing code. My contributions consist of modifying and adapting existing code, implementing inspired features, and adding new functionality.
+
+All credit for pre-existing code remains with its respective authors and contributors. My additions and modifications represent my personal contributions to the project, in accordance with the applicable licenses.

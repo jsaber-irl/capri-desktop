@@ -70,6 +70,7 @@ export class Panel {
     this.missed = null; // a Claude message that came while you were chatting with her, shown after
     this.held = null;   // the same, for while her circular menu was open (see `quiet`)
     this.onUrgent = null; // () => void: something the menu has to step aside for
+    this.onNotice = null; // (visible) => the host should accept clicks for the reminder notice
     this.noticeSound = new Audio('../../assets/songs/notification-song.mp3');
     this.noticeSound.preload = 'auto';
 
@@ -94,9 +95,9 @@ export class Panel {
 
     this.noticeEl = document.getElementById('notice');
     console.log('[reminder-notice] DOM element', this.noticeEl);
-    this.noticeEl?.querySelector('.notice__close')?.addEventListener('click', () => {
-      this.noticeEl.setAttribute('hidden', '');
-      clearTimeout(this.noticeTimer);
+    this.noticeEl?.querySelector('.notice__close')?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.hideNotice();
     });
 
     this.el.addEventListener('click', () => {
@@ -527,6 +528,7 @@ export class Panel {
     line.textContent = msg.line || '';
     el.setAttribute('aria-label', msg.line || '');
     el.removeAttribute('hidden');
+    this.onNotice?.(true);
     const rect = el.getBoundingClientRect();
     console.log('[reminder-notice] displayed', {
       line: line.textContent,
@@ -542,9 +544,15 @@ export class Panel {
     });
     clearTimeout(this.noticeTimer);
     this.noticeTimer = setTimeout(() => {
-      el.setAttribute('hidden', '');
-      console.log('[reminder-notice] hidden after timeout');
+      this.hideNotice();
     }, 10000);
+  }
+
+  hideNotice() {
+    if (!this.noticeEl || this.noticeEl.hidden) return;
+    this.noticeEl.setAttribute('hidden', '');
+    clearTimeout(this.noticeTimer);
+    this.onNotice?.(false);
   }
 
   hide() {

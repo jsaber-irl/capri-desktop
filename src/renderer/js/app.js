@@ -96,6 +96,7 @@ async function boot() {
     image,
     fx,
     voice,
+    onAnimation: (name) => host.animationLog(name),
   });
   capri.onHandstandState = (active) => host.handstandState(active);
   capri.wander = config.wander;
@@ -194,6 +195,11 @@ async function boot() {
     interactive = on;
     host.setInteractive(on);
   };
+  panel.onNotice = (visible) => {
+    if (visible) setInteractive(true);
+    else refreshHit();
+  };
+  const noticeEl = document.getElementById('notice');
   const onChip = () => Boolean(chip.visible && mouse && chip.contains(mouse.x, mouse.y, 0));
   let onHer = false; // the pointer is on her body (as of the last refreshHit)
   let ring = null; // her circular menu (below): while it's open the whole overlay takes clicks
@@ -203,10 +209,12 @@ async function boot() {
     if (!mouse) return setInteractive(false);
     const r = panel.rect();
     const onPanel = r && mouse.x >= r.left && mouse.x <= r.right && mouse.y >= r.top && mouse.y <= r.bottom;
+    const nr = noticeEl && !noticeEl.hidden ? noticeEl.getBoundingClientRect() : null;
+    const onNotice = nr && mouse.x >= nr.left && mouse.x <= nr.right && mouse.y >= nr.top && mouse.y <= nr.bottom;
     const chipHit = onChip();
     document.body.style.cursor = chipHit ? 'pointer' : '';
     onHer = capri.hit(mouse.x, mouse.y);
-    return setInteractive(Boolean(onPanel || onHer || chipHit));
+    return setInteractive(Boolean(onPanel || onNotice || onHer || chipHit));
   };
   // Her biochip: her eyes on it follow the pointer over it, and she comes out when you click it
   // (only then, so the pointer passing through that corner doesn't call her back).
@@ -290,6 +298,22 @@ async function boot() {
       panel.suspend();
     } else panel.resume();
   };
+  let leapTarget = null;
+  capri.canCross = (side) => leapTarget?.side === side;
+  capri.onCross = async () => {
+    const target = leapTarget;
+    if (!target) return null;
+    const cursor = await host.moveScreen(target.id);
+    leapTarget = null;
+    return cursor ? { y: cursor.y } : null;
+  };
+  const startScreenLeap = async (id, side) => {
+    leapTarget = { id, side: side === 1 ? 1 : -1 };
+    for (let i = 0; capri.busy && i < 40; i++) await new Promise((resolve) => setTimeout(resolve, 100));
+    const started = await capri.leapTo(leapTarget.side);
+    if (!started) leapTarget = null;
+  };
+  capri.onScreenOf = (cursor) => startScreenLeap(cursor.display, cursor.side);
   capri.chipAt = () => chip.center();
   capri.onStow = () => {
     chip.setMode(capri.mode);
@@ -649,6 +673,15 @@ async function boot() {
     fx.resize(width, height);
     chip.place(width, height - gap);
     capri.setView(width, height, height - gap);
+  });
+  let screenTransition = null;
+  host.onScreenTransition(({ id, side }) => {
+    if (screenTransition) return;
+    screenTransition = startScreenLeap(id, side).catch((error) => {
+      console.error('[capri] screen transition failed:', error);
+    }).finally(() => {
+      screenTransition = null;
+    });
   });
   window.addEventListener('resize', () => {
     fx.resize(innerWidth, innerHeight);

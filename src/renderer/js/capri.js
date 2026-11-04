@@ -36,6 +36,7 @@ const PET_REFUSE_AFTER = 8;
 const PET_REFUSE_MS = 12000;
 const THROW_BOUNCE = 0.62;
 const THROW_EDGE_RESTITUTION = 0.72;
+const LEAP_GRAVITY = 3000;
 const THROW_KO_SPEED = 1050;
 
 // Pure geometry helpers are kept outside the class so the throw simulation remains easy to
@@ -88,12 +89,13 @@ const SAY = {
 };
 
 export class Capri {
-  constructor({ root, canvas, image, fx, voice }) {
+  constructor({ root, canvas, image, fx, voice, onAnimation = null }) {
     this.root = root;
     this.canvas = canvas;
     this.sprite = new SpriteRenderer(canvas, image);
     this.fx = fx;
     this.voice = voice;
+    this.onAnimation = onAnimation;
 
     this.scale = 0.6;
     this.view = { w: innerWidth, h: innerHeight, floor: innerHeight }; // floor: the top of the taskbar
@@ -189,6 +191,9 @@ export class Capri {
     this.onUnstow = null; // she's coming out of it
     this.chipAt = null;   // () => the biochip's middle on screen
     this.onDoze = null;   // ('start', face) | 'waking' | 'end': down to her mask and back
+    this.canCross = null; // (side, y) => is there another screen past that side's edge
+    this.onCross = null;  // async (side, at) => moves her window over to it: { y } there, or null
+    this.onScreenOf = null; // async (cursor) => moves her window to the screen the pointer is on
 
     this.alphaMap = this.buildAlphaMap(image);
     this.hull = buildHull(this.alphaMap);
@@ -746,6 +751,7 @@ export class Capri {
     this.nudge(); // an act starts on the next frame, not after the loop's nap
     if (this.act && this.act.player.priority > next.priority) return Promise.resolve();
     this.endAct(false);
+    this.onAnimation?.(name);
     return new Promise((done) => {
       this.act = { player: next, done };
     });
@@ -1488,14 +1494,14 @@ export class Capri {
   // ---------- moving around ----------
 
   // Collapse into a line of light and go. Leaves her invisible; the caller puts her somewhere.
-  async vanish({ beam = true } = {}) {
+  async vanish({ beam = true, force = false } = {}) {
     const p = this.p;
     const s = this.scale;
     const from = { ...this.pos };
     const head = this.head();
     if (this.sky) this.endAct(false); // the satellite stays here, she doesn't
     this.stopPointing(); // nor does what she was showing you
-    if (reducedMotion.matches) {
+    if (reducedMotion.matches && !force) {
       await tween(p, { alpha: 0 }, 160, ease.linear);
       return head;
     }
@@ -1516,12 +1522,12 @@ export class Capri {
   }
 
   // Come back at `to`: a column of light down to her, the body unfolding, two impact frames.
-  async arrive(to, { face = null, stance = 'stand', perch = null, peekSide = null, dir = 0, fromHead = null, beam = true } = {}) {
+  async arrive(to, { face = null, stance = 'stand', perch = null, peekSide = null, dir = 0, fromHead = null, beam = true, force = false } = {}) {
     const p = this.p;
     const s = this.scale;
     const facing = face ?? (to.x > this.view.w / 2 ? 1 : -1);
     const toHead = this.head(to, facing);
-    if (fromHead && !reducedMotion.matches) {
+    if (fromHead && (!reducedMotion.matches || force)) {
       this.fx.streak(fromHead.x, fromHead.y, toHead.x, toHead.y);
       await sleep(60);
     }
@@ -1530,7 +1536,7 @@ export class Capri {
     this.setStance(stance, { perch, peekSide, dir });
     this.place();
 
-    if (reducedMotion.matches) {
+    if (reducedMotion.matches && !force) {
       p.collapse = 0;
       p.dissolve = 0;
       await tween(p, { alpha: this.mode === 'sleep' ? 0.55 : 1 }, 160, ease.linear);
@@ -2303,18 +2309,27 @@ export class Capri {
 
   updateFly(now) {
     const f = this.flight;
-    if (!f) return;
-    const dt = Math.min(0.05, (now - f.last) / 1000);
+    if (!f || f.crossing) return;
+    const dt = Math.min(0.05, Math.max(0.001, (now - f.last) / 1000));
     f.last = now;
     const previous = { ...f.c };
-    f.v.y += GRAVITY * dt;
+    f.v.y += (f.kind === 'leap' ? LEAP_GRAVITY : GRAVITY) * dt;
     f.c.x += f.v.x * dt;
     f.c.y += f.v.y * dt;
     f.a += f.w * dt;
     this.spin = f.a;
     const r = this.reachAt(f.a);
 
-    if (f.c.x + r.maxX > this.view.w || f.c.x + r.minX < 0) {
+    for (const side of [-1, 1]) {
+      const out = side < 0 ? f.c.x + r.minX < 0 : f.c.x + r.maxX > this.view.w;
+      if (!out || Math.sign(f.v.x) !== side) continue;
+      if (f.phase === 'air' && this.canCross?.(side, f.c.y)) {
+        if (side < 0 ? f.c.x + r.maxX < -6 : f.c.x + r.minX > this.view.w + 6) {
+          this.crossOver(side);
+          return;
+        }
+        continue;
+      }
       const right = f.c.x + r.maxX > this.view.w;
       f.c.x = right ? this.view.w - r.maxX : -r.minX;
       f.v.x = -f.v.x * THROW_EDGE_RESTITUTION;
@@ -2322,6 +2337,7 @@ export class Capri {
       f.w *= -0.72;
       f.hits++;
       this.impact({ x: right ? -1 : 1, y: 0 }, Math.abs(f.v.x), { x: f.c.x, y: f.c.y });
+      break;
     }
 
     const window = this.flightWindow(previous, f, r);
@@ -2341,7 +2357,7 @@ export class Capri {
 
     if (f.c.y + r.maxY >= this.view.floor) {
       const at = { x: f.c.x + r.low, y: this.view.floor - 2 };
-      if (Math.abs(this.normalAngle(f.a)) < 30 && Math.abs(f.v.y) < THROW_KO_SPEED) {
+      if (f.kind === 'leap' || (Math.abs(this.normalAngle(f.a)) < 30 && Math.abs(f.v.y) < THROW_KO_SPEED)) {
         this.landFlight(f);
       } else {
         this.knockFlight(f, at);
@@ -2441,6 +2457,102 @@ export class Capri {
     this.lying.c.y = this.view.floor - 2 - r.maxY;
     this.lying.c.x = clamp(this.lying.c.x, -r.minX, this.view.w - r.maxX);
     this.setMid(this.lying.c);
+  }
+
+  // Through the edge of her screen to the next one: the host moves the overlay while she is
+  // hidden, then she continues the same flight through the matching edge.
+  async crossOver(side) {
+    const f = this.flight;
+    if (!f || f.crossing) return;
+    f.crossing = true;
+    this.root.hidden = true;
+    this.fx.clear();
+    const there = this.onCross ? await this.onCross(side, { ...f.c }).catch(() => null) : null;
+    if (this.flight !== f) return;
+    this.root.hidden = this.hidden;
+    const r = this.reachAt(f.a);
+    f.crossing = false;
+    f.last = performance.now();
+    if (!there) {
+      f.c.x = side > 0 ? this.view.w - r.maxX : -r.minX;
+      f.v.x = -f.v.x * 0.4;
+      return;
+    }
+    f.c = {
+      x: side > 0 ? -r.maxX - 4 : this.view.w - r.minX + 4,
+      y: clamp(there.y, 80, this.view.floor - 80),
+    };
+    this.fx.streak(side > 0 ? 0 : this.view.w, f.c.y, f.c.x, f.c.y, { life: 180 });
+    this.voice.play('teleport-in');
+    this.setMid(f.c);
+    this.place();
+  }
+
+  // Jump through a shared edge to the adjacent screen.
+  async leapTo(side) {
+    if (this.busy || this.stowed || this.dormant || this.hidden || this.dragging || reducedMotion.matches) return false;
+    if (this.stance !== 'stand' && this.stance !== 'sit') return false;
+    this.busy = true;
+    this.wake();
+    this.onTeleport?.('start');
+    this.stopPointing();
+    this.endAct(false);
+    this.facing = side > 0 ? -1 : 1;
+    await this.perform('crouch', side);
+    const s = this.scale;
+    const c = this.flat(MID.x, MID.y);
+    const dist = Math.max(80, side > 0 ? this.view.w - c.x : c.x) + 160 * s;
+    const duration = clamp(dist / 1700, 0.32, 0.85);
+    const through = clamp(c.y - 140, 120, c.y);
+    this.throwId += 1;
+    this.flight = {
+      kind: 'leap',
+      id: this.throwId,
+      c,
+      v: { x: (side * dist) / duration, y: (through - c.y - 0.5 * LEAP_GRAVITY * duration * duration) / duration },
+      a: side * 10,
+      w: 0,
+      last: performance.now(),
+      release: 1,
+      frame: 0,
+      phase: 'air',
+      hits: 0,
+      hard: 0,
+      crossing: false,
+    };
+    this.setStance('fly', { dir: side });
+    this.spin = side * 10;
+    this.setMid(c);
+    this.voice.play('rise');
+    this.fx.burst(this.pos.x, this.pos.y, { count: 10, power: 0.5, spread: 50 * s });
+    this.place();
+    return true;
+  }
+
+  // Move the overlay to the screen containing the pointer, then arrive beside it.
+  async jumpScreen(go, { toPointer = false } = {}) {
+    if (this.stowed) {
+      await go();
+      return;
+    }
+    if (this.dormant) await this.rouse();
+    for (let i = 0; (this.busy || this.dragging) && i < 40; i++) await sleep(100);
+    this.busy = true;
+    this.wake();
+    this.onTeleport?.('start');
+    await this.vanish({ force: true });
+    this.root.hidden = true;
+    this.fx.clear();
+    this.setStance('stand');
+    const cursor = await go().catch(() => null);
+    // Let the resize event update the new screen geometry before placing the first arrival frame.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    this.root.hidden = this.hidden;
+    const near = toPointer && cursor?.inside;
+    const to = near ? this.summonSpot(cursor) : this.spot('post');
+    await this.arrive(to, { face: near ? (cursor.x < to.x ? 1 : -1) : null, force: true });
+    await this.settle();
+    return cursor;
   }
 
   stroke(x, y) {

@@ -974,11 +974,12 @@ html[data-motion='reduced'] .panel__bar {
   position: fixed;
   right: 14px;
   top: 14px;
-  z-index: 5;
+  z-index: 10;
   width: min(460px, calc(100vw - 28px));
   color: var(--paper);
   filter: drop-shadow(4px 4px 0 var(--violet));
   will-change: transform;
+  pointer-events: auto;
 }
 
 .notice[hidden] { display: none !important; }
