@@ -102,8 +102,27 @@ test('app launch commands are not mistaken for YouTube searches', async () => {
   });
   assert.deepEqual(chat.asked('Lance Discord'), { kind: 'open', text: 'Lance Discord' });
   assert.deepEqual(chat.asked('Ouvre Discord'), { kind: 'open', text: 'Ouvre Discord' });
+  assert.deepEqual(chat.asked('Ouvre discord et lance Spotify'), {
+    kind: 'multi',
+    parts: [{ kind: 'open', text: 'Ouvre discord' }, { kind: 'open', text: 'lance Spotify' }],
+  });
   assert.deepEqual(chat.asked('Mets Bohemian Rhapsody'), { kind: 'youtube', song: 'Bohemian Rhapsody' });
   assert.deepEqual(chat.asked('Mets Bohemian Rhapsody sur YouTube'), { kind: 'youtube', song: 'Bohemian Rhapsody' });
+});
+
+test('website commands can target a named browser', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), {
+    hands: null,
+    askedToClose: () => null,
+    mediaAsked: Chat.prototype.mediaAsked,
+    life: { media: { playing: false } },
+  });
+  assert.deepEqual(chat.asked('Ouvre ipinfo.io sur safari'), {
+    kind: 'openSite',
+    address: 'https://ipinfo.io',
+    browser: 'safari',
+  });
 });
 
 test('French mini-player requests from chat open the integrated music player', async () => {
@@ -131,6 +150,7 @@ test('natural TextEdit document requests preserve the quoted text for the verifi
 test('verified automatic actions replace the model answer instead of appending to it', async () => {
   const { Chat } = await load('chat.js');
   const rendered = [];
+  const spoken = [];
   const chat = Object.assign(Object.create(Chat.prototype), {
     open: true,
     turn: 0,
@@ -139,10 +159,12 @@ test('verified automatic actions replace the model answer instead of appending t
       stream: (line, options) => rendered.push({ line, options }),
       setFace: () => {},
     },
+    onSpokenText: (line) => spoken.push(line),
     addLine: () => assert.fail('the unverified model answer must not be kept'),
   });
   await chat.after('[[open: Weather]] Je ne peux pas ouvrir Weather.', 'Je ne peux pas ouvrir Weather.', { kind: 'open' }, Promise.resolve({ line: 'Weather est ouvert.', face: 'laugh' }), 'Ouvre Weather');
   assert.deepEqual(rendered, [{ line: 'Weather est ouvert.', options: { done: true } }]);
+  assert.deepEqual(spoken, ['Weather est ouvert.']);
 });
 
 test('chess requests from French and English chat are routed to the shared game action', async () => {

@@ -76,7 +76,8 @@ function resolveInCatalog(text, items) {
   const appItems = catalog.filter((item) => item.kind === 'app');
   const unique = (rows) => [...new Map(rows.map((item) => [item.path || `${item.kind}:${item.id}`, item])).values()];
   const exactNames = catalog.filter((item) => [item.name, ...(item.localizedNames || [])].some((name) => normalizeRequest(name) === query));
-  if (unique(exactNames).length) return resolution(unique(exactNames));
+  const exactUnique = [...new Map(exactNames.map((item) => [item.bundleId || item.id || item.path, item])).values()];
+  if (exactUnique.length) return resolution(exactUnique);
 
   const aliasMatches = [];
   for (const [canonical, entry] of Object.entries(APP_ALIASES)) {
@@ -852,10 +853,28 @@ function siteUrl(address) {
   }
 }
 
-async function site(address) {
+async function site(address, browser = '') {
   const url = siteUrl(String(address || '').trim());
   if (!url) return false;
-  await shell.openExternal(url.toString());
+  const requested = String(browser || '').trim().toLowerCase();
+  const appNames = {
+    safari: 'Safari',
+    chrome: 'Google Chrome',
+    firefox: 'Firefox',
+    edge: 'Microsoft Edge',
+    opera: 'Opera',
+    brave: 'Brave Browser',
+    vivaldi: 'Vivaldi',
+  };
+  if (process.platform === 'darwin' && appNames[requested]) {
+    const child = spawn('/usr/bin/open', ['-a', appNames[requested], url.toString()], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+  } else {
+    await shell.openExternal(url.toString());
+  }
   return true;
 }
 

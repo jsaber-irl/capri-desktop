@@ -6,6 +6,8 @@ function createIncomingCall({ BrowserWindow, ipcMain, preload, protocolUrl, send
   let accepted = false;
   let serial = 0;
   let terminalSent = false;
+  let ready = false;
+  const pending = [];
 
   const close = () => {
     const current = win;
@@ -13,7 +15,15 @@ function createIncomingCall({ BrowserWindow, ipcMain, preload, protocolUrl, send
     if (current && !current.isDestroyed()) current.close();
   };
   const tell = (state, message = '') => {
-    if (win && !win.isDestroyed()) win.webContents.send('call:uiState', { state, message });
+    if (!win || win.isDestroyed()) return;
+    const event = ['call:uiState', { state, message }];
+    if (!ready) pending.push(event);
+    else win.webContents.send(...event);
+  };
+  const flush = () => {
+    if (!win || win.isDestroyed()) return;
+    ready = true;
+    for (const [channel, payload] of pending.splice(0)) win.webContents.send(channel, payload);
   };
   const fromWindow = (event) => Boolean(win && !win.isDestroyed() && event.sender === win.webContents);
   const place = (position) => {
@@ -55,7 +65,11 @@ function createIncomingCall({ BrowserWindow, ipcMain, preload, protocolUrl, send
   ipcMain.on('call:transcript', (event, message) => {
     if (!accepted || event.sender !== getOverlayWebContents() || !message || !['capri', 'user'].includes(message.speaker)) return;
     const text = String(message.text || '').trim().slice(0, 2000);
-    if (text) win?.webContents.send('call:transcript', { speaker: message.speaker, text, final: message.final !== false });
+    if (text) {
+      const event = ['call:transcript', { speaker: message.speaker, text, final: message.final !== false }];
+      if (!ready) pending.push(event);
+      else win?.webContents.send(...event);
+    }
   });
 
   return {
@@ -67,6 +81,7 @@ function createIncomingCall({ BrowserWindow, ipcMain, preload, protocolUrl, send
       }
       accepted = false;
       terminalSent = false;
+      pending.length = 0;
       serial += 1;
       const ownSerial = serial;
       win = new BrowserWindow({
@@ -76,12 +91,20 @@ function createIncomingCall({ BrowserWindow, ipcMain, preload, protocolUrl, send
         transparent: true, backgroundColor: '#00000000', hasShadow: false, autoHideMenuBar: true,
         webPreferences: { preload, contextIsolation: true, nodeIntegration: false, sandbox: true, autoplayPolicy: 'no-user-gesture-required' },
       });
+      if (typeof win.webContents.once === 'function') {
+        ready = false;
+        win.webContents.once('did-finish-load', flush);
+      } else {
+        ready = true;
+      }
       place('center');
       win.once('ready-to-show', () => { if (serial === ownSerial) win?.show(); });
       win.on('closed', () => {
         if (serial !== ownSerial) return;
         const hadAccepted = accepted;
         win = null;
+        ready = false;
+        pending.length = 0;
         accepted = false;
         if (!terminalSent) sendCommand(hadAccepted ? 'callEnded' : 'callCancelled', { id: ownSerial });
         terminalSent = false;

@@ -1814,7 +1814,10 @@ function registerIpc() {
     return { ok: true };
   });
   ipcMain.handle('apps:music', (_e, query) => launch.music(query).catch(() => false));
-  ipcMain.handle('apps:site', (_e, address) => launch.site(address).catch(() => false));
+  ipcMain.handle('apps:site', (_e, request) => {
+    const value = request && typeof request === 'object' ? request : { address: request };
+    return launch.site(value.address, value.browser).catch(() => false);
+  });
   // un dossier système par son nom : explorateur, corbeille, bureau, documents…
   ipcMain.handle('apps:openKnown', (_e, id) => launch.openKnown(id).then(() => ({ ok: true }), (err) => ({ ok: false, error: err.message || 'Dossier introuvable.' })));
   ipcMain.handle('apps:openPath', (_e, target) => safeOpenPath(target, shell)

@@ -115,7 +115,7 @@ contextBridge.exposeInMainWorld('host', {
   openFile: (file, reveal) => ipcRenderer.invoke('files:open', { file, reveal }),
   screenshot: () => ipcRenderer.invoke('files:screenshot'),
   webSearch: (query) => ipcRenderer.invoke('web:search', query),
-  openSite: (address) => ipcRenderer.invoke('apps:site', address),
+  openSite: (address, browser = '') => ipcRenderer.invoke('apps:site', { address, browser }),
   openPath: (target) => ipcRenderer.invoke('apps:openPath', String(target || '')),
   openKnown: (id) => ipcRenderer.invoke('apps:openKnown', String(id || '')),
   videoSearch: (request) => ipcRenderer.invoke('apps:videoSearch', request || {}),

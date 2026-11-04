@@ -31,8 +31,8 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
   ipcMain.handle('music-player:media', (event, action) => owns(event) ? media({ action }) : { ok: false, error: 'Accès refusé.' });
   ipcMain.handle('music-player:sessions', (event) => owns(event) ? listMedia() : { ok: false, error: 'Accès refusé.' });
   ipcMain.handle('music-player:close', (event) => {
-    if (!owns(event)) return { ok: false, error: 'Accès refusé.' };
-    win.destroy();
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return { ok: false, error: 'Accès refusé.' };
+    win.close();
     return { ok: true };
   });
   ipcMain.on('music-player:close-window', (event) => {

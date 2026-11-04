@@ -180,6 +180,7 @@ const SITES = {
 };
 // a browser named with a site ("open youtube on chrome"): the site, in the browser you use
 const BROWSER = /chrome|edge|firefox|opera|brave|vivaldi|duckduckgo|browser/i;
+const REQUESTED_BROWSER = /\b(?:sur|dans|with|on|in)\s+(safari|chrome|firefox|edge|opera|brave|vivaldi)\b/i;
 // local models this small mostly talk nonsense ("llama3.2:1b", "qwen2.5:0.5b"…)
 const TINY = /[:-](0\.5b|1b|1\.5b|135m|270m|360m)\b/i;
 // the feeling her AI says it answers with: [[mood: angry]] (or a sloppier [mood: angry]) at the start
@@ -394,6 +395,7 @@ export class Chat {
       this.turn = 0;
       this.shown = lines.join(' ');
       this.panel.stream(this.shown, { done: true });
+      if (this.shown) this.onSpokenText?.(this.shown);
       if (asked.parts.some((p) => p.kind === 'hands' && p.intent.kind !== 'message')) {
         const firstHands = asked.parts.find((p) => p.kind === 'hands' && p.intent.kind !== 'message');
         await this.hands.op(firstHands.intent);
@@ -413,6 +415,7 @@ export class Chat {
       this.turn = 0;
       this.shown = done?.line || '';
       this.panel.stream(this.shown, { done: true });
+      if (this.shown) this.onSpokenText?.(this.shown);
       if (done?.face) this.panel.setFace(done.face);
       this.remember({ role: 'assistant', content: this.shown });
       this.panel.setChatBusy(false);
@@ -420,6 +423,24 @@ export class Chat {
       this.sayLater();
       this.listApps();
       return;
+    }
+    // Calls must not wait for a second AI turn after a deterministic command. Finish the
+    // verified action immediately so the microphone can accept the next request.
+    if (this.speech?.callMode && early) {
+      const done = await early;
+      if (done && !done.confirm) {
+        this.turn = 0;
+        this.shown = done.line || '';
+        this.panel.stream(this.shown, { done: true });
+        if (this.shown) this.onSpokenText?.(this.shown);
+        if (done.face) this.panel.setFace(done.face);
+        this.remember({ role: 'assistant', content: this.shown });
+        this.panel.setChatBusy(false);
+        this.actionTurn = false;
+        this.sayLater();
+        this.listApps();
+        return;
+      }
     }
     // you asked about the screen: she takes a quiet look first, so her answer is about what's really there
     this.screenNow = '';
@@ -483,8 +504,10 @@ export class Chat {
     const expr = this.heart?.answered(MOOD_TAG.exec(res.text)?.[1], { already: felt.reaction }) || null;
     this.panel.setFace(expr ? this.heart.face(expr) : mood(answer));
     if (!expr && felt.tags.includes('jokeAsk')) this.capri.react('laugh'); // her own joke cracks her up
+    // The call window mirrors every answer, including answers attached to an automatic action.
+    // Normal chat still only speaks ordinary model answers.
+    this.onSpokenText?.(answer);
     if (!actionOnly) {
-      this.onSpokenText?.(answer);
       this.speech?.say(answer, { mood: expr || this.heart?.mood.mood || 'calm', kind: 'chat' });
     }
     this.panel.setChatBusy(false);
@@ -588,6 +611,15 @@ export class Chat {
     }
     if (CHESS_ASK.test(text)) return { kind: 'chess' };
     if (SCREENSHOT_ASK.test(text)) return { kind: 'screenshot' };
+    const requestedUrl = /(?:https?:\/\/|www\.)?[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.[a-z]{2,}(?:\/[^\s"'<>]*)?/i.exec(text)?.[0];
+    const requestedBrowser = REQUESTED_BROWSER.exec(text)?.[1];
+    if (requestedUrl && requestedBrowser && OPEN_ASK.test(text)) {
+      const address = /^https?:\/\//i.test(requestedUrl) ? requestedUrl : `https://${requestedUrl}`;
+      return { kind: 'openSite', address, browser: requestedBrowser };
+    }
+    // A launch verb names an application, even when the application is also a media service.
+    // "Lance Spotify" must not become a media play command.
+    if (OPEN_APP_ASK.test(text) && !DOCUMENT_CREATE.test(text)) return { kind: 'open', text };
     const requestedService = /\b(spotify|deezer)\b/i.exec(text)?.[1]?.toLowerCase() || null;
     const requestedMusicAction = musicAction(text);
     if (requestedService && requestedMusicAction) {
@@ -948,6 +980,13 @@ export class Chat {
       }
       return (await this.host.media(asked.action)) ? { line: t.media[asked.action], face: 'smug' } : null;
     }
+    if (asked.kind === 'openSite') {
+      const ok = await this.host.openSite(asked.address, asked.browser);
+      const fr = this.brain.lang === 'fr';
+      return ok
+        ? { line: fr ? `Ouvert dans ${asked.browser} : ${asked.address}.` : `Opened in ${asked.browser}: ${asked.address}.`, face: 'laugh' }
+        : { line: fr ? `Je n’ai pas pu ouvrir ${asked.address}.` : `I could not open ${asked.address}.`, face: 'aside' };
+    }
     if (asked.kind === 'music') {
       this.zap();
       return (await this.host.music(asked.song)) ? { line: fmt(t.music, { song: asked.song }), face: 'laugh' } : null;
@@ -1055,6 +1094,7 @@ export class Chat {
 
       this.shown = done.line;
       this.panel.stream(done.line, { done: true });
+      this.onSpokenText?.(done.line);
       if (done.face) this.panel.setFace(done.face);
       return;
     }
