@@ -9,25 +9,29 @@ import { SPRITE } from './sprite.js';
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const HIP_DROP = (scale) => (SPRITE.feet.y - SPRITE.hip) * scale; // from her hips to her feet
+const HANDSTAND_LIFT = -89;
 
 // Where her feet go so that her hips rest on the window's top edge.
 export function seat(win, dx, scale) {
   return { x: win.x + dx, y: win.y + 3 + HIP_DROP(scale) };
 }
 
-// The top of Capri's head is her support point for a handstand; the body extends upward.
-export function handstandSeat(win, dx) {
-  return { x: win.x + dx, y: win.y + 2 };
+// `pos` is always Capri's feet, including in a handstand. Keep her head on the
+// window edge, while leaving enough room above it for the rotated body.
+export function handstandSeat(win, dx, scale = 0.6) {
+  const clearance = (SPRITE.feet.y - SPRITE.head.y) * scale;
+  const supportY = win.y + 2;
+  return { x: win.x + dx, y: supportY + clearance - HANDSTAND_LIFT };
 }
 
-export function followHandstand(perch, wins, view) {
+export function followHandstand(perch, wins, view, scale = 0.6) {
   const win = wins.find((w) => w.id === perch.id);
   if (!win || win.minimized || win.w < 80 || win.h < 40) return { fall: true };
   const lo = Math.max(24, -win.x + 24);
   const hi = Math.min(win.w - 24, view.w - 24 - win.x);
   if (lo > hi) return { fall: true };
   const dx = clamp(perch.dx, lo, hi);
-  return { pos: handstandSeat(win, dx), perch: { id: perch.id, dx } };
+  return { pos: handstandSeat(win, dx, scale), perch: { id: perch.id, dx } };
 }
 
 // The top of the taskbar (the bottom of her screen), as a ledge like a window's: her legs hang down over it.

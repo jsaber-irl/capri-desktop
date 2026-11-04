@@ -1,4 +1,4 @@
-## **Project Capricorn (2.2.0)**
+## **Project Capricorn (2.2.1)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -22,6 +22,7 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 - **Custom voice**: Chatterbox can use a voice sample lasting 5 to 30 seconds.
 - **Cleanup**: the menu shows how much space downloaded components occupy and lets you remove items that belong to Capri.
 - **Structured memory**: the bond panel can export and import local Markdown memory. Entries remain on this computer, can be removed selectively, and are not transmitted unless you explicitly send them to a provider.
+- **Native PC control from chat**: ask Capri to open system settings, report battery/disk/RAM/IP information, set or mute the volume, start a timer, capture a region, arrange or minimize windows, switch the system theme, or schedule a shutdown/restart. Lock, sleep, shutdown, and restart always require an explicit confirmation button.
 
 ## Table of contents
 
@@ -210,6 +211,29 @@ When Claude is waiting for permission, Capri moves closer to the relevant window
 
 The chat clearly indicates whether a response comes from a local AI or an online service. Responses can trigger actions such as opening a website or application, but sensitive operations always require confirmation.
 
+### Native PC control
+
+Capri can execute supported operating-system actions from natural-language chat through the
+secure Renderer → Preload → Main IPC path. Examples include:
+
+- **Settings**: “Ouvre le Bluetooth”, “Paramètres du son”, Windows Update, display, network,
+  notifications, mouse, power, battery, background, and storage settings.
+- **Information**: battery level and charging state, free disk space, RAM usage, and the local
+  IPv4 address.
+- **Audio**: set the system volume or enable/disable mute.
+- **Windows and capture**: open the native region-capture tool, minimize or restore windows, and
+  place named Windows applications on the left or right side of the display.
+- **Appearance**: switch Windows between dark and light mode.
+- **Timers and power**: start a countdown shown in Capri’s ticker, schedule shutdown/restart,
+  or cancel a scheduled shutdown. Locking, sleeping, shutting down, and restarting are never
+  executed directly from a parsed sentence: Capri first displays confirmation buttons.
+
+Windows has the broadest native support for system settings, audio, window placement, theme,
+and power actions. macOS supports selected settings, volume, disk/RAM/IP information, and
+interactive region capture. Linux support depends on installed desktop utilities such as
+`pavucontrol`, `nm-connection-editor`, `blueman-manager`, and `gnome-screenshot`; unsupported
+operations return an explicit failure instead of being simulated.
+
 ## Configuration
 
 Settings are stored in `config.json` in Capri's data directory. Important settings include:
@@ -308,6 +332,8 @@ The demo plays through a complete fictional session, then shows Capri's autonomo
 - Hooks are backed up before modification and can be removed from the menu.
 - Vision and the microphone are disabled by default, and indicators show when they are active.
 - Actions that can affect another person or remove data use confirmation where the feature implements it. Application and website opening may execute immediately after an explicit user request.
+- Native power actions (lock, sleep, shutdown, and restart) require a confirmation button. Delayed shutdown/restart operations display a ticker countdown and can be cancelled before execution.
+- Native PC commands use a narrow IPC surface (`pc:do`) and platform adapters; unsupported operations return failure rather than a success-shaped fallback.
 - Capri only removes her own installations and checks that each path is inside her data directory.
 - Windows are moved temporarily and then restored. Any manual user action interrupts the control.
 
@@ -498,6 +524,7 @@ The following are present in the current source tree. Capabilities that depend o
 - **Voice calls:** the incoming-call screen can accept or decline; accepting uses Capri’s existing microphone, speech-recognition, conversation and speech-synthesis services. A microphone permission and configured speech services are required.
 - **Mac permissions:** macOS-only controls report Accessibility, microphone, screen recording and per-target Automation states where Electron/macOS can verify them. Some TCC states are inherently unknown until a real operation is attempted.
 - **Application and file actions:** application names are resolved from installed application metadata and aliases. Explicit document creation writes a new text file without overwriting an existing one, verifies it by reading it back, and opens it in TextEdit on macOS when that step succeeds. It does not automate arbitrary document editing inside every application.
+- **Native PC control:** chat commands are parsed in `src/renderer/js/chat.js` and sent through `preload.js` to `src/main/system.js`. Supported operations include system settings, hardware/network information, audio volume, native capture, Windows arrangement/minimization, appearance, timers, and confirmed power actions. Availability is platform-specific and failures are reported.
 - **Video search:** a latest-video request opens YouTube search results ordered by date. Capri does not verify which result is genuinely newest or automatically select a video; inspect the results page yourself.
 - **Music:** terminal, chat and voice requests use the shared media controller and available platform adapters. Say **« ouvre le mini-lecteur de musique »** in the chat or run `/music player`. On macOS, the mini-player can detect an open Deezer desktop session, its current track and playlist metadata when Deezer exposes it through Apple Events; browser tabs remain limited by the operating system. Track metadata, volume control, native apps and browser sessions vary by operating system and reader.
 - **Translation:** open **Translate a page or file** from Capri's menu, or ask in chat to translate a file or web page. The window can be closed with its × button and accepts an HTTP(S) page, a text/Markdown/HTML file, or pasted text. MyMemory is used free of charge by default; DeepL, Google Cloud Translation and LibreTranslate can be selected with their API key or endpoint. API keys are stored with the system's encrypted storage.

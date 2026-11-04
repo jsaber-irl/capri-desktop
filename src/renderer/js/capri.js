@@ -326,7 +326,14 @@ export class Capri {
       const face = this.screenPoint(SPRITE.head.x, SPRITE.head.y);
       return { ...face, top: face.y - 70 * s };
     }
-    if (at === this.pos && this.stance === 'handstand') return { x: at.x, y: at.y + bob, top: at.y - 30 * s + bob };
+    if (at === this.pos && this.stance === 'handstand') {
+      const face = this.screenPoint(SPRITE.head.x, SPRITE.head.y);
+      return {
+        x: face.x,
+        y: face.y,
+        top: face.y - (SPRITE.feet.y - SPRITE.head.y) * s,
+      };
+    }
     if (at === this.pos && this.upside) {
       const y = at.y + dy + bob;
       return { x: at.x - dx, y, top: y - 30 * s };
@@ -415,7 +422,7 @@ export class Capri {
   // happened while she was busy (a teleport, an act) is not told again: the loop asks here every drawing.
   syncPerch() {
     if (this.stance === 'handstand' && this.handstandTarget && !this.busy && !this.dragging) {
-      const next = ledges.followHandstand(this.handstandTarget, this.windows.wins, this.view);
+      const next = ledges.followHandstand(this.handstandTarget, this.windows.wins, this.view, this.scale);
       if (next.fall) { this.stopHandstand(); return; }
       this.handstandTarget = next.perch;
       if (next.pos.x !== this.pos.x || next.pos.y !== this.pos.y) { this.pos = next.pos; this.place(); }
@@ -548,8 +555,11 @@ export class Capri {
   // Pick the drawing: the stance's cycle underneath, the current act on top.
   animate(now) {
     const p = this.p;
+    // In a handstand only the upper half of the source drawing is exposed. The
+    // sprite is then rotated around the head, so the rest stays hidden behind
+    // the window edge instead of showing through it.
     p.clipEnabled = this.stance === 'handstand';
-    p.clipY = 245;  
+    p.clipY = 245;
     p.seed = Math.random() * 100; // a fresh drawing, so the line boils
 
     const under = this.base.sample(now);
@@ -801,7 +811,7 @@ export class Capri {
     if (!win || this.busy || this.dormant || this.stowed) return false;
     const dx = Math.max(24, Math.min(win.w - 24, this.pos.x - win.x));
     this.handstandTarget = { id: win.id, dx };
-    const to = ledges.handstandSeat(win, dx);
+    const to = ledges.handstandSeat(win, dx, this.scale);
     this.teleport(to, { stance: 'handstand' });
     return true;
   }
@@ -2691,7 +2701,7 @@ window.addEventListener('mousemove', (e) => {
                     dx: dxOnWindow
                 };
 
-                this.pos = ledges.handstandSeat(win, dxOnWindow);
+                this.pos = ledges.handstandSeat(win, dxOnWindow, this.scale);
             } else {
                 // Déplacement normal.
                 this.pos = {

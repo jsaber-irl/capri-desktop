@@ -25,15 +25,18 @@ test('her hips rest on the top edge of a window: her feet are lower by the lengt
 
 test('a handstand uses her head as the support point and follows a replacement target', async () => {
   const { handstandSeat, followHandstand } = await load('ledges.js');
+  const { SPRITE } = await load('sprite.js');
   const first = win('app::one', 300, 250, 640, 400);
   const perch = { id: first.id, dx: 200 };
-  assert.deepEqual(handstandSeat(first, perch.dx), { x: 500, y: 252 });
-  assert.deepEqual(followHandstand(perch, [win(first.id, 500, 180, 700, 420)], VIEW), {
-    pos: { x: 700, y: 182 }, perch,
+  const clearance = (SPRITE.feet.y - SPRITE.head.y) * 0.8;
+  assert.deepEqual(handstandSeat(first, perch.dx, SCALE), { x: 500, y: 250 + 2 + clearance - 70 });
+  assert.deepEqual(followHandstand(perch, [win(first.id, 500, 180, 700, 420)], VIEW, SCALE), {
+    pos: { x: 700, y: 180 + 2 + clearance - 70 }, perch,
   }, 'window position and size changes are followed');
   assert.deepEqual(followHandstand(perch, [win('other', 300, 250)], VIEW), { fall: true }, 'closed/minimized target ends the pose');
+  assert.deepEqual(followHandstand(perch, [win(first.id, 500, 180, 700, 420, { minimized: true })], VIEW, SCALE), { fall: true }, 'minimized target ends the pose');
   const replacement = win('app::two', 800, 340, 600, 300);
-  assert.deepEqual(followHandstand({ id: replacement.id, dx: 170 }, [replacement], VIEW).pos, { x: 970, y: 342 });
+  assert.deepEqual(followHandstand({ id: replacement.id, dx: 170 }, [replacement], VIEW, SCALE).pos, { x: 970, y: 340 + 2 + clearance - 70 });
 });
 
 test('which windows she can sit on: a real, wide one with room above and below it; never a maximized one', async () => {

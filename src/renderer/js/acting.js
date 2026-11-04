@@ -55,9 +55,9 @@ export const ACTS = {
     ],
   },
 
-  // Poirier : corps retourné, bras en appui et jambes relevées
-  // avec les genoux visibles et un léger mouvement d'équilibre.
-handstand: {
+  // Poirier : la tête reste le point d'appui, les bras restent gainés et les jambes
+  // bougent légèrement pour donner l'équilibre sans déplacer le point de contact.
+  handstand: {
     loop: true,
     keys: [
         [8, {
@@ -65,36 +65,32 @@ handstand: {
             kickR: -0.08,
             hair: -1,
             arms: -0.72,
-            rotation: 180,
             tilt: -0.8,
-            bob: 84
+            bob: 0
         }],
         [3, {
             kickL: 0.20,
             kickR: -0.14,
             hair: 1,
             arms: -0.78,
-            rotation: 180,
             tilt: 0.8,
-            bob: 80
+            bob: 0
         }],
         [8, {
             kickL: -0.08,
             kickR: 0.12,
             hair: 1,
             arms: -0.72,
-            rotation: 180,
             tilt: 0.8,
-            bob: 84
+            bob: 0
         }],
         [3, {
             kickL: -0.14,
             kickR: 0.20,
             hair: -1,
             arms: -0.78,
-            rotation: 180,
             tilt: -0.8,
-            bob: 80
+            bob: 0
         }],
     ],
 },

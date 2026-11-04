@@ -59,6 +59,8 @@ test('the handstand is a stable looping pose with braced arms and balancing legs
   assert.ok(pose.keys.length >= 4);
   assert.ok(pose.keys.every(([, frame]) => frame.arms < -0.6));
   assert.ok(pose.keys.some(([, frame]) => frame.kickL !== undefined && frame.kickR !== undefined));
+  assert.ok(pose.keys.every(([, frame]) => frame.bob === 0), 'the head support does not bounce');
+  assert.ok(pose.keys.every(([, frame]) => !('rotation' in frame)), 'rotation is handled by the stance');
 });
 
 test('fidget(): by stance and mood, not the same twice, and only when nothing is going on', async () => {

@@ -3,7 +3,7 @@
 ## Executive Summary
 
 This document describes the current static review baseline. It was updated alongside the
-interaction and multi-display documentation on 2026-11-03; it is not a replacement for a
+native PC-control and multi-display documentation on 2026-11-04; it is not a replacement for a
 penetration test or a dependency audit.
 
 The static review covers the 244 paths tracked by Git at the beginning of the audit, including Electron, preloads, IPC calls, processes, downloads, network integrations, permissions, and configuration. No confirmed malicious behavior was identified in the reviewed version-controlled code. This does not prove the absence of threats.
@@ -34,6 +34,18 @@ The renderer's newer interaction features do not add privileged access: caresses
 notifications, animation state, and display transitions remain local UI behavior. Display
 following changes the bounds of the existing transparent overlay; it does not create a second
 window or grant access to the other monitor.
+
+**Native PC control.** The chat's `pc:do` capability is exposed through the preload rather than
+through Node.js in the Renderer. `src/main/system.js` restricts requests to named operations and
+uses platform APIs or fixed executable names with argument arrays. Settings, volume, capture,
+window arrangement, theme, and power operations are not implemented as arbitrary command
+execution. Unsupported platform operations return failure.
+
+Power operations are confirmation-gated in `src/renderer/js/chat.js`: parsing a request only
+produces a confirmation prompt, and the Main operation is invoked after the user selects the
+confirmation button. Delayed shutdown/restart uses the operating system scheduler and can be
+cancelled through the same controlled operation. The security boundary still depends on the
+broader IPC sender-validation limitation described above.
 
 ## Keys and Local Data
 
@@ -74,6 +86,7 @@ Accessibility, Screen Recording, Microphone, and Automation permissions are sepa
 | Low to Medium — Fixed | `src/main/electron-security.js`, `src/main/main.js` | Navigation and child windows lacked a common security guard. | Blocked popups and navigation outside `capri://app/`; added a unit test. |
 | Medium — Fixed for New Keys | `src/main/setup.js`, `src/main/main.js` | API keys could be stored in plaintext if `safeStorage` was unavailable. | Saving is now rejected with an explicit error message. |
 | Medium — To Be Fixed | `src/main/main.js`, `src/preload.js` | Not all IPC handlers verify the identity of the `WebContents` and frame. | Common validation and strict parameter limits are recommended. |
+| Medium — Partially Mitigated | `src/renderer/js/chat.js`, `src/preload.js`, `src/main/system.js` | Native PC control can change system state and move windows. | Power actions require explicit UI confirmation; requests are limited to named actions. Complete IPC sender validation remains recommended. |
 | Low to Medium — To Be Reviewed Depending on the Threat Model | `src/main/bridge.js`, `scripts/demo.js` | The local bridge does not authenticate other local processes; debug routes are available in development mode. | A random token and debug restrictions are recommended. |
 | Low — Supply Chain | `src/main/fetch-files.js`, `src/main/piper.js`, `src/main/chatterbox-setup.js`, installation scripts | Third-party binaries, models, and packages are downloaded; not all sources are verified through signatures or checksums. | Pin versions and hashes/signatures, and restrict the list of allowed hosts whenever possible. |
 | No Confirmed Issues | Reviewed tracked source files | No use of `eval`/`Function`, intentional obfuscation, or hidden data exfiltration was established. | Maintain ongoing code and dependency reviews. |
@@ -100,6 +113,7 @@ No files were deleted. `FEATURES.md` and `FEATURES.fr.md` are not tracked in thi
 | Caressing Capri | Pointer coordinates and local mood/bond state | Renderer-only; the refusal lightning is visual/audio feedback. |
 | Following the pointer across displays | Cursor position, display geometry, overlay bounds | Main process selects the display; renderer receives geometry through the preload callback. |
 | Window possession and movement | Window metadata and platform automation APIs | Requires the configured feature and applicable OS permissions. |
+| Native PC control | Named system requests, OS settings, audio, capture, window and power APIs | Renderer can request only exposed operations; power changes require confirmation; availability depends on the OS. |
 
 When extending any of these features, preserve the rule that user-controlled coordinates are
 validated at the Main boundary and that Renderer code receives capabilities, not raw Electron

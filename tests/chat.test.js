@@ -47,6 +47,32 @@ test('"next", "pause" and "go on" in talk are not the music keys; asking for the
   assert.deepEqual(ask('сделай громче'), { kind: 'media', action: 'volup' });
 });
 
+test('native PC commands are parsed without executing power actions', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), {
+    hands: null,
+    askedToClose: () => null,
+    mediaAsked: Chat.prototype.mediaAsked,
+    life: { media: { playing: false } },
+  });
+  assert.deepEqual(chat.asked('Ouvre le Bluetooth'), { kind: 'pc', what: 'settings', page: 'bluetooth' });
+  assert.deepEqual(chat.asked('Quel est le niveau de ma batterie ?'), { kind: 'pc', what: 'info', info: 'battery' });
+  assert.deepEqual(chat.asked('Règle le volume à 30'), { kind: 'pc', what: 'volume', level: 30 });
+  assert.deepEqual(chat.asked('Minuteur de 10 minutes'), { kind: 'pc', what: 'timer', ms: 600000 });
+  assert.deepEqual(chat.asked('Mets Discord à gauche et Chrome à droite'), {
+    kind: 'pc',
+    what: 'arrange',
+    places: [{ name: 'Discord', side: 'left' }, { name: 'Chrome', side: 'right' }],
+  });
+  assert.deepEqual(chat.asked('Éteins mon PC dans une heure'), {
+    kind: 'pc',
+    what: 'power',
+    power: 'shutdown',
+    seconds: 3600,
+  });
+  assert.deepEqual(chat.asked('Annule l’arrêt'), { kind: 'pc', what: 'power', power: 'cancel' });
+});
+
 test('plain French app-opening commands from text or voice enter the shared app resolver path', async () => {
   const { Chat } = await load('chat.js');
   const ask = (text) => Chat.prototype.asked.call({
@@ -64,6 +90,20 @@ test('plain French app-opening commands from text or voice enter the shared app 
   Object.assign(voiceChat, { later: '', turn: 0, send: (text) => { voiceRequest = ask(text); } });
   voiceChat.say('Ouvre l’application météo'); // the voice recognizer forwards its transcript through say()
   assert.deepEqual(voiceRequest, { kind: 'open', text: 'Ouvre l’application météo' });
+});
+
+test('app launch commands are not mistaken for YouTube searches', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), {
+    hands: null,
+    askedToClose: () => null,
+    mediaAsked: Chat.prototype.mediaAsked,
+    life: { media: { playing: false } },
+  });
+  assert.deepEqual(chat.asked('Lance Discord'), { kind: 'open', text: 'Lance Discord' });
+  assert.deepEqual(chat.asked('Ouvre Discord'), { kind: 'open', text: 'Ouvre Discord' });
+  assert.deepEqual(chat.asked('Mets Bohemian Rhapsody'), { kind: 'youtube', song: 'Bohemian Rhapsody' });
+  assert.deepEqual(chat.asked('Mets Bohemian Rhapsody sur YouTube'), { kind: 'youtube', song: 'Bohemian Rhapsody' });
 });
 
 test('French mini-player requests from chat open the integrated music player', async () => {

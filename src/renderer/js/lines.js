@@ -188,7 +188,74 @@ export const LINES = {
       "refused": "Le service a refusé de répondre. Essaie de reformuler ta demande.",
       "youtubeSong": "Sur YouTube : {song}.",
       "screenshot": "Capture d’écran enregistrée : {name}.",
-      "version": "Je suis Capri, version {version}."
+      "version": "Je suis Capri, version {version}.",
+      "pc": {
+        "settings": "Je t’ouvre les paramètres : {page}.",
+        "pages": {
+          "bluetooth": "Bluetooth",
+          "sound": "Son",
+          "wifi": "Wi-Fi",
+          "network": "Réseau",
+          "update": "Windows Update",
+          "display": "Écran",
+          "notifications": "Notifications",
+          "mouse": "Souris",
+          "power": "Alimentation",
+          "battery": "Batterie",
+          "background": "Fond d’écran",
+          "storage": "Stockage"
+        },
+        "battery": "Batterie : {percent} %.",
+        "charging": "Batterie : {percent} %, en charge.",
+        "noBattery": "Pas de batterie : ton PC est sur secteur.",
+        "disk": "Il te reste {free} de libre sur {total} ({drive}).",
+        "ram": "RAM : {used} utilisés sur {total}.",
+        "ip": "Ton IP sur ton réseau : {ip}.",
+        "noIp": "Je ne trouve pas de réseau.",
+        "gb": "Go",
+        "volume": "Son à {level} %.",
+        "muted": "Son coupé.",
+        "unmuted": "Son remis.",
+        "timer": "Minuteur lancé : {time}.",
+        "timerVerb": "Minuteur",
+        "timerDone": "Fin du minuteur ({time}).",
+        "snip": "Sélectionne la zone : elle ira dans ton presse-papiers.",
+        "tidy": "Rangé.",
+        "back": "Tes fenêtres sont de retour.",
+        "placed": "{app} à {side}.",
+        "sides": {
+          "left": "gauche",
+          "right": "droite"
+        },
+        "notOpen": "Je ne vois pas « {app} » ouvert.",
+        "dark": "Mode sombre.",
+        "light": "Mode clair.",
+        "ask": {
+          "lock": "Je verrouille ton PC ?",
+          "sleep": "Je mets ton PC en veille ?",
+          "shutdown": "J’éteins ton PC {when} ?",
+          "restart": "Je redémarre ton PC {when} ?"
+        },
+        "yes": {
+          "lock": "Verrouiller",
+          "sleep": "Mettre en veille",
+          "shutdown": "Éteindre",
+          "restart": "Redémarrer"
+        },
+        "no": "Annuler",
+        "now": "dans 30 secondes",
+        "in": "dans {time}",
+        "planned": {
+          "shutdown": "Ton PC s’éteint {when}. Dis « annule l’extinction » pour l’arrêter.",
+          "restart": "Ton PC redémarre {when}. Dis « annule l’extinction » pour l’arrêter."
+        },
+        "powerVerb": {
+          "shutdown": "Extinction",
+          "restart": "Redémarrage"
+        },
+        "cancelled": "Extinction annulée.",
+        "kept": "D’accord, je ne touche à rien."
+      }
     },
     "report": {
       "title": "Journal des missions",
@@ -904,7 +971,74 @@ export const LINES = {
       "badkey": "They refused that key. Check it in my menu › AI.",
       "refused": "They declined to answer that one. Try rephrasing?",
       "youtubeSong": "On YouTube: “{song}”.",
-      "screenshot": "Screenshot saved: {name}."
+      "screenshot": "Screenshot saved: {name}.",
+      "pc": {
+        "settings": "Opening your settings: {page}.",
+        "pages": {
+          "bluetooth": "Bluetooth",
+          "sound": "Sound",
+          "wifi": "Wi-Fi",
+          "network": "Network",
+          "update": "Windows Update",
+          "display": "Display",
+          "notifications": "Notifications",
+          "mouse": "Mouse",
+          "power": "Power",
+          "battery": "Battery",
+          "background": "Background",
+          "storage": "Storage"
+        },
+        "battery": "Battery: {percent}%.",
+        "charging": "Battery: {percent}%, charging.",
+        "noBattery": "No battery: your PC runs off the wall.",
+        "disk": "You have {free} free out of {total} ({drive}).",
+        "ram": "RAM: {used} used out of {total}.",
+        "ip": "Your IP on your network: {ip}.",
+        "noIp": "I can’t find a network.",
+        "gb": "GB",
+        "volume": "Sound at {level}%.",
+        "muted": "Sound off.",
+        "unmuted": "Sound back on.",
+        "timer": "Timer started: {time}.",
+        "timerVerb": "Timer",
+        "timerDone": "Time’s up ({time}).",
+        "snip": "Pick the area: it goes to your clipboard.",
+        "tidy": "Tidied up.",
+        "back": "Your windows are back.",
+        "placed": "{app} on the {side}.",
+        "sides": {
+          "left": "left",
+          "right": "right"
+        },
+        "notOpen": "I don’t see “{app}” open.",
+        "dark": "Dark mode.",
+        "light": "Light mode.",
+        "ask": {
+          "lock": "Lock your PC?",
+          "sleep": "Put your PC to sleep?",
+          "shutdown": "Shut your PC down {when}?",
+          "restart": "Restart your PC {when}?"
+        },
+        "yes": {
+          "lock": "Lock",
+          "sleep": "Sleep",
+          "shutdown": "Shut down",
+          "restart": "Restart"
+        },
+        "no": "Cancel",
+        "now": "in 30 seconds",
+        "in": "in {time}",
+        "planned": {
+          "shutdown": "Your PC shuts down {when}. Say “cancel the shutdown” to stop it.",
+          "restart": "Your PC restarts {when}. Say “cancel the shutdown” to stop it."
+        },
+        "powerVerb": {
+          "shutdown": "Shutdown",
+          "restart": "Restart"
+        },
+        "cancelled": "Shutdown cancelled.",
+        "kept": "Okay, I’m not touching anything."
+      }
     },
     "report": {
       "title": "Mission log",
@@ -1612,6 +1746,73 @@ export const LINES = {
         "volup": "Más alto.",
         "voldown": "Más bajo.",
         "mute": "Le di a silenciar."
+      },
+      "pc": {
+        "settings": "Te abro la configuración: {page}.",
+        "pages": {
+          "bluetooth": "Bluetooth",
+          "sound": "Sonido",
+          "wifi": "Wi-Fi",
+          "network": "Red",
+          "update": "Windows Update",
+          "display": "Pantalla",
+          "notifications": "Notificaciones",
+          "mouse": "Ratón",
+          "power": "Energía",
+          "battery": "Batería",
+          "background": "Fondo",
+          "storage": "Almacenamiento"
+        },
+        "battery": "Batería: {percent} %.",
+        "charging": "Batería: {percent} %, cargando.",
+        "noBattery": "No hay batería: tu PC va enchufado.",
+        "disk": "Te quedan {free} libres de {total} ({drive}).",
+        "ram": "RAM: {used} usados de {total}.",
+        "ip": "Tu IP en tu red: {ip}.",
+        "noIp": "No encuentro ninguna red.",
+        "gb": "GB",
+        "volume": "Sonido al {level} %.",
+        "muted": "Sonido silenciado.",
+        "unmuted": "Sonido de vuelta.",
+        "timer": "Temporizador en marcha: {time}.",
+        "timerVerb": "Temporizador",
+        "timerDone": "Se acabó el tiempo ({time}).",
+        "snip": "Elige la zona: irá a tu portapapeles.",
+        "tidy": "Ordenado.",
+        "back": "Tus ventanas han vuelto.",
+        "placed": "{app} a la {side}.",
+        "sides": {
+          "left": "izquierda",
+          "right": "derecha"
+        },
+        "notOpen": "No veo «{app}» abierto.",
+        "dark": "Modo oscuro.",
+        "light": "Modo claro.",
+        "ask": {
+          "lock": "¿Bloqueo tu PC?",
+          "sleep": "¿Suspendo tu PC?",
+          "shutdown": "¿Apago tu PC {when}?",
+          "restart": "¿Reinicio tu PC {when}?"
+        },
+        "yes": {
+          "lock": "Bloquear",
+          "sleep": "Suspender",
+          "shutdown": "Apagar",
+          "restart": "Reiniciar"
+        },
+        "no": "Cancelar",
+        "now": "en 30 segundos",
+        "in": "en {time}",
+        "planned": {
+          "shutdown": "Tu PC se apaga {when}. Di «cancela el apagado» para pararlo.",
+          "restart": "Tu PC se reinicia {when}. Di «cancela el apagado» para pararlo."
+        },
+        "powerVerb": {
+          "shutdown": "Apagado",
+          "restart": "Reinicio"
+        },
+        "cancelled": "Apagado cancelado.",
+        "kept": "Vale, no toco nada."
       }
     },
     "report": {
@@ -2376,6 +2577,73 @@ export const LINES = {
         "volup": "Mais alto.",
         "voldown": "Mais baixo.",
         "mute": "Apertei o mudo."
+      },
+      "pc": {
+        "settings": "Abrindo as configurações: {page}.",
+        "pages": {
+          "bluetooth": "Bluetooth",
+          "sound": "Som",
+          "wifi": "Wi-Fi",
+          "network": "Rede",
+          "update": "Windows Update",
+          "display": "Tela",
+          "notifications": "Notificações",
+          "mouse": "Mouse",
+          "power": "Energia",
+          "battery": "Bateria",
+          "background": "Plano de fundo",
+          "storage": "Armazenamento"
+        },
+        "battery": "Bateria: {percent}%.",
+        "charging": "Bateria: {percent}%, carregando.",
+        "noBattery": "Sem bateria: seu PC está na tomada.",
+        "disk": "Você tem {free} livres de {total} ({drive}).",
+        "ram": "RAM: {used} usados de {total}.",
+        "ip": "Seu IP na sua rede: {ip}.",
+        "noIp": "Não acho nenhuma rede.",
+        "gb": "GB",
+        "volume": "Som em {level}%.",
+        "muted": "Som desligado.",
+        "unmuted": "Som de volta.",
+        "timer": "Timer ligado: {time}.",
+        "timerVerb": "Timer",
+        "timerDone": "Acabou o tempo ({time}).",
+        "snip": "Escolhe a área: vai pra sua área de transferência.",
+        "tidy": "Arrumado.",
+        "back": "Suas janelas voltaram.",
+        "placed": "{app} na {side}.",
+        "sides": {
+          "left": "esquerda",
+          "right": "direita"
+        },
+        "notOpen": "Não vejo “{app}” aberto.",
+        "dark": "Modo escuro.",
+        "light": "Modo claro.",
+        "ask": {
+          "lock": "Bloqueio seu PC?",
+          "sleep": "Coloco seu PC em suspensão?",
+          "shutdown": "Desligo seu PC {when}?",
+          "restart": "Reinicio seu PC {when}?"
+        },
+        "yes": {
+          "lock": "Bloquear",
+          "sleep": "Suspender",
+          "shutdown": "Desligar",
+          "restart": "Reiniciar"
+        },
+        "no": "Cancelar",
+        "now": "em 30 segundos",
+        "in": "em {time}",
+        "planned": {
+          "shutdown": "Seu PC desliga {when}. Fala “cancela o desligamento” pra parar.",
+          "restart": "Seu PC reinicia {when}. Fala “cancela o desligamento” pra parar."
+        },
+        "powerVerb": {
+          "shutdown": "Desligamento",
+          "restart": "Reinício"
+        },
+        "cancelled": "Desligamento cancelado.",
+        "kept": "Tá bom, não mexo em nada."
       }
     },
     "report": {
@@ -3148,7 +3416,74 @@ export const LINES = {
       "badkey": "Они не принимают этот ключ. Проверь его в моём меню › ИИ.",
       "refused": "Они отказались отвечать на это. Попробуй перефразировать?",
       "youtubeSong": "На YouTube: «{song}».",
-      "screenshot": "Снимок экрана сохранён: {name}."
+      "screenshot": "Снимок экрана сохранён: {name}.",
+      "pc": {
+        "settings": "Открываю настройки: {page}.",
+        "pages": {
+          "bluetooth": "Bluetooth",
+          "sound": "Звук",
+          "wifi": "Wi-Fi",
+          "network": "Сеть",
+          "update": "Центр обновления",
+          "display": "Дисплей",
+          "notifications": "Уведомления",
+          "mouse": "Мышь",
+          "power": "Питание",
+          "battery": "Батарея",
+          "background": "Фон",
+          "storage": "Память"
+        },
+        "battery": "Батарея: {percent} %.",
+        "charging": "Батарея: {percent} %, заряжается.",
+        "noBattery": "Батареи нет: твой ПК от сети.",
+        "disk": "Свободно {free} из {total} ({drive}).",
+        "ram": "ОЗУ: занято {used} из {total}.",
+        "ip": "Твой IP в сети: {ip}.",
+        "noIp": "Не вижу сети.",
+        "gb": "ГБ",
+        "volume": "Громкость {level} %.",
+        "muted": "Звук выключен.",
+        "unmuted": "Звук включён.",
+        "timer": "Таймер запущен: {time}.",
+        "timerVerb": "Таймер",
+        "timerDone": "Время вышло ({time}).",
+        "snip": "Выдели область: она попадёт в буфер обмена.",
+        "tidy": "Убрала.",
+        "back": "Окна вернулись.",
+        "placed": "{app}: {side}.",
+        "sides": {
+          "left": "слева",
+          "right": "справа"
+        },
+        "notOpen": "Не вижу открытого «{app}».",
+        "dark": "Тёмная тема.",
+        "light": "Светлая тема.",
+        "ask": {
+          "lock": "Заблокировать ПК?",
+          "sleep": "Перевести ПК в спящий режим?",
+          "shutdown": "Выключить ПК {when}?",
+          "restart": "Перезагрузить ПК {when}?"
+        },
+        "yes": {
+          "lock": "Заблокировать",
+          "sleep": "Спящий режим",
+          "shutdown": "Выключить",
+          "restart": "Перезагрузить"
+        },
+        "no": "Отмена",
+        "now": "через 30 секунд",
+        "in": "через {time}",
+        "planned": {
+          "shutdown": "ПК выключится {when}. Скажи «отмени выключение», чтобы остановить.",
+          "restart": "ПК перезагрузится {when}. Скажи «отмени выключение», чтобы остановить."
+        },
+        "powerVerb": {
+          "shutdown": "Выключение",
+          "restart": "Перезагрузка"
+        },
+        "cancelled": "Выключение отменено.",
+        "kept": "Хорошо, ничего не трогаю."
+      }
     },
     "report": {
       "title": "Журнал миссий",

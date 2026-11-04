@@ -58,6 +58,7 @@ const MUSIC_STATUS = /(?:qu['’]est-ce que j['’]écoute|quel (?:morceau|titre
 const SPOTIFY_ASK = /(?:play|put on|put|включи|поставь)\s+(?:me\s+)?(.+?)\s+(?:on|в)\s+spotify/i;
 // "mets Bohemian Rhapsody", "joue Bohemian Rhapsody", "lance Bohemian Rhapsody" (sur YouTube)
 const YOUTUBE_ASK = /\b(?:mets|joue|lance|play|put on)\s+(.+?)(?:\s*(?:sur|on|dans|in)\s+youtube\b|\s*[.!?]*$)/iu;
+const OPEN_APP_ASK = /\b(?:ouvre|ouvrir|lance|lancer|démarre|demarre|open|launch|start|run)\b[\s,:]*(?:le|la|l['’]|the)?\s*(?:application|app|appli)?\s*(?:discord|slack|telegram|whatsapp|spotify|deezer|chrome|firefox|safari|edge|steam|roblox|textedit|weather|météo|meteo)\b/iu;
 // "trouve mon projet After Effects", "cherche un fichier pdf", "ouvre le dossier de mon projet"
 const FIND_FILES_ASK = /\b(?:trouve|trouver|cherche|chercher|find|search|ouvre le dossier de|open the folder of)\b\s+(.+?)(?:\s*(?:et\s+)?(?:ouvre|open|lance|launch)\s+(?:le\s+)?dossier)?\s*[.!?]*$/iu;
 // "prends une capture d'écran", "fais une capture", "screenshot"
@@ -75,8 +76,64 @@ const FOLDER_ID = {
   'vidéos': 'videos', videos: 'videos',
 };
 // plusieurs actions dans un même message, séparées par "et" / "and" / " puis "
-const SPLIT_ACTIONS = /\s+(?:et|and|puis|then|,)\s+/iu;
+const SPLIT_ACTIONS = /\s+(?:et|and|puis|then|,)\s+(?=(?:ouvre|ouvrir|lance|lancer|démarre|demarre|joue|jouer|mets|met|play|put|open|launch|start|find|finde|cherche|trouve|search|run)\b)/iu;
 const MEDIA_ACTIONS = new Set(MEDIA_ASK.map(([action]) => action));
+const PC_WORD = /\b(?:pc|ordinateur|computer|windows|système|system)\b/i;
+const SETTINGS_PAGES = [
+  ['bluetooth', /\bbluetooth\b/i],
+  ['sound', /\b(?:son|audio|sound)\b/i],
+  ['wifi', /\b(?:wi[- ]?fi|wifi)\b/i],
+  ['network', /\b(?:réseau|reseau|network)\b/i],
+  ['update', /\b(?:mise(?:s)? à jour|windows update|updates?)\b/i],
+  ['display', /\b(?:écran|ecran|display)\b/i],
+  ['notifications', /\bnotifications?\b/i],
+  ['mouse', /\b(?:souris|mouse|touchpad)\b/i],
+  ['power', /\b(?:alimentation|power|veille)\b/i],
+  ['battery', /\bbatter(?:ie|y)\b/i],
+  ['background', /\b(?:fond d'écran|wallpaper|background)\b/i],
+  ['storage', /\b(?:stockage|storage)\b/i],
+];
+const INFO_ASK = [
+  ['battery', /\b(?:batterie|battery)\b/i],
+  ['disk', /\b(?:espace|place|disque|disk|drive)\b/i],
+  ['ram', /\b(?:ram|mémoire vive|memoire vive)\b/i],
+  ['ip', /\b(?:adresse ip|mon ip|ip address)\b/i],
+];
+const POWER_ASK = [
+  ['cancel', /\b(?:annule|annuler|cancel)\b.*\b(?:arrêt|arret|extinction|shutdown|redémarrage|redemarrage|restart)\b/i],
+  ['lock', /\b(?:verrouille|verrouiller|lock)\b/i],
+  ['sleep', /\b(?:mets?|mettre|put)\b.*\b(?:veille|sleep)\b/i],
+  ['shutdown', /(?:^|\s)(?:étein(?:s|dre)?|etein(?:s|dre)?|shutdown|shut down)\b/i],
+  ['restart', /\b(?:redémarre|redemarre|redémarrer|redemarrer|restart|reboot)\b/i],
+];
+const SNIP_ASK = /\b(?:capture(?: une zone)?|capture d'écran|screenshot|snip)\b/i;
+const TIDY_ASK = /\b(?:range|ranger|masque|masquer|minimise|minimize)\b.*\b(?:fenêtres|fenetres|windows)\b/i;
+const UNTIDY_ASK = /\b(?:restaure|restaurer|affiche|ramène|ramene|undo)\b.*\b(?:fenêtres|fenetres|windows)\b/i;
+const DARK_ASK = /\b(?:mode|thème|theme)\s+sombre\b|\b(?:dark mode|dark theme)\b/i;
+const LIGHT_ASK = /\b(?:mode|thème|theme)\s+clair\b|\b(?:light mode|light theme)\b/i;
+const TIMER_ASK = /\b(?:minuteur|timer|compte à rebours|countdown)\b/i;
+const VOLUME_ASK = /\b(?:volume|son)\b.*?(?:à|a|at|to)\s*(\d{1,3})\b/i;
+const MUTE_ASK = /\b(?:mets?|mettre|put|set)\b.*\b(?:sourdine|silencieux|mute)\b/i;
+const UNMUTE_ASK = /\b(?:désactive|desactive|enlève|enleve|retire|unmute)\b.*\b(?:sourdine|silencieux|mute)\b/i;
+const PLACE_VERB = /\b(?:mets?|mettre|place|placer|put|move)\b/i;
+const SIDE = [['left', /\b(?:gauche|left)\b/i], ['right', /\b(?:droite|right)\b/i]];
+
+function duration(text) {
+  const m = /(\d+(?:[.,]\d+)?|un|une|one|a)\s*(secondes?|secs?|s|minutes?|mins?|m|heures?|hours?|h)\b/i.exec(text);
+  if (!m) return 0;
+  const n = /^(?:un|une|one|a)$/i.test(m[1]) ? 1 : Number(m[1].replace(',', '.'));
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const unit = m[2].toLowerCase();
+  return Math.round(n * (/^(h|heure|heures|hour|hours)$/.test(unit) ? 3600000 : /^(s|sec|secs|seconde|secondes)$/.test(unit) ? 1000 : 60000));
+}
+
+function span(ms) {
+  const seconds = Math.max(1, Math.round(ms / 1000));
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}`;
+}
 function musicAction(text) {
   if (MUSIC_STATUS.test(text)) return 'current';
   if (/\b(play|resume)\b|reprends?|relance|remets?\s+(?:la\s+)?musique/i.test(text)) return 'play';
@@ -270,6 +327,9 @@ export class Chat {
   close() {
     if (!this.open) return;
     this.open = false;
+    clearInterval(this.pcCountdownTimer);
+    this.pcCountdownTimer = null;
+    this.panel.setTicker(null);
     this.speech?.stop();
     if (this.turn) this.host.chatStop(this.turn);
     this.turn = 0;
@@ -516,6 +576,8 @@ export class Chat {
     if (cancel) return { kind: 'cancelReminder', text: cancel.text };
     const reminder = parseReminder(text);
     if (reminder) return { kind: 'reminder', ...reminder };
+    const pc = (this.askedPc || Chat.prototype.askedPc).call(this, text, count);
+    if (pc) return pc;
     if (FORGET_ME.test(text)) return { kind: 'forgetMe' };
     if (LATEST_VIDEO_ASK.test(text) && /youtube/i.test(text)) {
       const browserMatch = /\b(?:dans|depuis|in)\s+(safari|firefox|chrome)\b/i.exec(text);
@@ -526,11 +588,33 @@ export class Chat {
     }
     if (CHESS_ASK.test(text)) return { kind: 'chess' };
     if (SCREENSHOT_ASK.test(text)) return { kind: 'screenshot' };
+    const requestedService = /\b(spotify|deezer)\b/i.exec(text)?.[1]?.toLowerCase() || null;
+    const requestedMusicAction = musicAction(text);
+    if (requestedService && requestedMusicAction) {
+      const value = requestedMusicAction === 'volume' ? Number(/\b(\d{1,3})\b/.exec(text)?.[1]) : undefined;
+      return { kind: 'media', action: requestedMusicAction, service: requestedService, ...(value !== undefined ? { volume: value } : {}) };
+    }
+    if (requestedMusicAction && (MUSIC_WORD.test(text) || SOUND.test(text))) {
+      const value = requestedMusicAction === 'volume' ? Number(/\b(\d{1,3})\b/.exec(text)?.[1]) : undefined;
+      return {
+        kind: 'media',
+        action: requestedMusicAction,
+        ...((requestedMusicAction === 'current' || requestedService) ? { service: requestedService } : {}),
+        ...(value !== undefined ? { volume: value } : {}),
+      };
+    }
+    const documentContent = DOCUMENT_CREATE.exec(text)?.[1];
+    if (documentContent !== undefined) {
+      const filename = /(?:named|called|nommé|nommee|nommée)\s+["“]?([^"”\s]+)["”]?/iu.exec(text)?.[1] || 'Note.txt';
+      return { kind: 'createText', filename, content: documentContent, openIn: /text\s*edit/i.test(text) ? 'TextEdit' : '' };
+    }
+    // App commands must win over the deliberately broad music wording above:
+    // "lance Discord" is an app launch, never a YouTube search for "Discord".
+    if (OPEN_APP_ASK.test(text) && !DOCUMENT_CREATE.test(text)) return { kind: 'open', text };
     const yt = YOUTUBE_ASK.exec(text);
-    const musicSvc = /\b(spotify|deezer)\b/i.exec(text)?.[1]?.toLowerCase();
-    if (yt && yt[1] && !musicSvc && !/on youtube|sur youtube/i.test(text)) return { kind: 'youtube', song: yt[1].trim() };
+    if (yt && yt[1] && !requestedService) return { kind: 'youtube', song: yt[1].trim() };
     const find = FIND_FILES_ASK.exec(text);
-    if (find && find[1]) return { kind: 'findFiles', query: find[1].trim() };
+    if (find && find[1] && !WEB_SEARCH_ASK.test(text)) return { kind: 'findFiles', query: find[1].trim() };
     const folder = OPEN_SYSTEM_FOLDER.exec(text);
     if (folder) return { kind: 'openSystemFolder', name: FOLDER_ID[folder[1].toLowerCase()] || folder[1].toLowerCase() };
     const pathMatch = OPEN_PATH_ASK.exec(text);
@@ -561,24 +645,19 @@ export class Chat {
     if (directPath && /(?:^|[\s"'“])(?:~|\/|[A-Za-z]:[\\/])/.test(directPath)) {
       return { kind: 'openPath', path: cleanRequestedPath(directPath) };
     }
-    const documentContent = DOCUMENT_CREATE.exec(text)?.[1];
-    if (documentContent !== undefined) {
-      const filename = /(?:named|called|nommé|nommee|nommée)\s+["“]?([^"”\s]+)["”]?/iu.exec(text)?.[1] || 'Note.txt';
-      return { kind: 'createText', filename, content: documentContent, openIn: /text\s*edit/i.test(text) ? 'TextEdit' : '' };
-    }
     const theme = askedTheme(text);
     if (theme) return { kind: 'theme', theme };
     // her hands on the PC (windows, a message): what you asked, read plainly (hands.js)
     const intent = this.hands?.parse(text);
     if (intent) return { kind: 'hands', intent };
-    const service = /\b(spotify|deezer)\b/i.exec(text)?.[1]?.toLowerCase() || null;
+    const service = requestedService;
     if (MUSIC_STATUS.test(text)) return { kind: 'media', action: 'current', service };
-    const specificAction = musicAction(text);
+    const specificAction = requestedMusicAction;
     if (service && specificAction) {
       const value = specificAction === 'volume' ? Number(/\b(\d{1,3})\b/.exec(text)?.[1]) : undefined;
       return { kind: 'media', action: specificAction, service, ...(value !== undefined ? { volume: value } : {}) };
     }
-    if (MUSIC_STATUS.test(text)) return { kind: 'media', action: 'current' };
+    if (MUSIC_STATUS.test(text)) return { kind: 'media', action: 'current', service };
     if (specificAction && (MUSIC_WORD.test(text) || SOUND.test(text))) {
       const value = specificAction === 'volume' ? Number(/\b(\d{1,3})\b/.exec(text)?.[1]) : undefined;
       return { kind: 'media', action: specificAction, ...(value !== undefined ? { volume: value } : {}) };
@@ -593,12 +672,57 @@ export class Chat {
     return null;
   }
 
+  // Native PC actions are parsed before generic media/theme handling so "son", "sombre"
+  // and "arrêt" cannot be mistaken for chat or music requests.
+  askedPc(text, count) {
+    const pc = (what, more = {}) => ({ kind: 'pc', what, ...more });
+    const power = POWER_ASK.find(([, re]) => re.test(text))?.[0];
+    if (power === 'cancel') return pc('power', { power });
+    if (power && (PC_WORD.test(text) || ['lock', 'sleep'].includes(power))) {
+      const when = /(?:dans|in)\s+(\d+(?:[.,]\d+)?|un|une|one|a)\s*(secondes?|secs?|s|minutes?|mins?|m|heures?|hours?|h)\b/i.exec(text);
+      const seconds = when ? Math.max(0, Math.round(duration(when[0]) / 1000)) : 30;
+      return pc('power', { power, seconds });
+    }
+    if (SNIP_ASK.test(text)) return pc('snip');
+    if (UNTIDY_ASK.test(text)) return pc('tidy', { back: true });
+    if (TIDY_ASK.test(text)) return pc('tidy');
+    if (DARK_ASK.test(text)) return pc('theme', { dark: true });
+    if (LIGHT_ASK.test(text)) return pc('theme', { dark: false });
+    if (TIMER_ASK.test(text)) {
+      const ms = duration(text);
+      if (ms > 0) return pc('timer', { ms });
+    }
+    const level = VOLUME_ASK.exec(text)?.[1];
+    if (level && Number(level) <= 100) return pc('volume', { level: Number(level) });
+    if (MUTE_ASK.test(text)) return pc('volume', { mute: true });
+    if (UNMUTE_ASK.test(text)) return pc('volume', { mute: false });
+    if (PLACE_VERB.test(text) && SIDE.some(([, re]) => re.test(text))) {
+      const places = text.split(/\s+(?:et|and|y|e)\s+/i).map((part) => {
+        const side = SIDE.find(([, re]) => re.test(part));
+        if (!side) return null;
+        const name = part.replace(PLACE_VERB, '').replace(side[1], '')
+          .replace(/(?:^|\s)(?:la|le|les|l['’]|the|à|a|fenêtre|fenetre|window)(?=\s|$)/gi, ' ')
+          .replace(/[\s.!?,]+/g, ' ').trim();
+        return name.length >= 2 ? { name, side: side[0] } : null;
+      }).filter(Boolean);
+      if (places.length) return pc('arrange', { places });
+    }
+    if (count <= 12) {
+      const page = SETTINGS_PAGES.find(([, re]) => re.test(text))?.[0];
+      if (page && (OPEN_ASK.test(text) || /\b(?:paramètres|parametres|settings)\b/i.test(text))) return pc('settings', { page });
+      const info = INFO_ASK.find(([, re]) => re.test(text))?.[0];
+      if (info && (/\b(?:combien|quel|quelle|what|how much|how many)\b/i.test(text) || count <= 5)) return pc('info', { info });
+    }
+    return null;
+  }
+
   // What you asked plainly, possibly two things at once ("ouvre Discord et lance Spotify").
   // Returns { kind: 'multi', parts: [...] } or the single askedOne result.
   asked(whole) {
     const text = whole.length > ASK_MAX ? whole.slice(0, ASK_MAX) : whole;
     const parts = text.split(SPLIT_ACTIONS);
-    const asked = parts.map((part) => this.askedOne(part.trim())).filter(Boolean);
+    const parse = this.askedOne || Chat.prototype.askedOne;
+    const asked = parts.map((part) => parse.call(this, part.trim())).filter(Boolean);
     if (asked.length > 1) return { kind: 'multi', parts: asked };
     return asked[0] || null;
   }
@@ -616,6 +740,70 @@ export class Chat {
   async doNow(asked) {
     const { t } = this;
     const custom = this.brain.custom;
+    if (asked.kind === 'pc') {
+      const pc = t.pc || {};
+      const fr = this.brain.lang === 'fr';
+      const run = (request) => this.host.pcDo?.(request);
+      const failed = fr ? 'Je n’ai pas pu effectuer cette action sur ce système.' : 'I could not perform that action on this system.';
+      if (asked.what === 'power') {
+        if (asked.power === 'cancel') {
+          const result = await run({ action: 'power', what: 'cancel' });
+          return result ? { line: pc.cancelled || (fr ? 'Arrêt programmé annulé.' : 'Scheduled shutdown cancelled.'), face: 'smug' } : { line: failed, face: 'aside' };
+        }
+        const key = asked.power;
+        const when = asked.seconds > 30 ? `${fr ? 'dans' : 'in'} ${span(asked.seconds * 1000)}` : (pc.now || (fr ? 'dans 30 secondes' : 'in 30 seconds'));
+        return {
+          line: fmt(pc.ask?.[key] || (fr ? 'Confirmer cette opération ?' : 'Confirm this operation?'), { when }),
+          face: 'aside',
+          confirm: { power: key, seconds: asked.seconds },
+        };
+      }
+      if (asked.what === 'settings') {
+        const result = await run({ action: 'settings', page: asked.page });
+        return result ? { line: fmt(pc.settings, { page: pc.pages[asked.page] }), face: 'smug' } : { line: failed, face: 'aside' };
+      }
+      if (asked.what === 'info') {
+        const result = await run({ action: 'info', what: asked.info });
+        if (!result) return { line: failed, face: 'aside' };
+        const gb = (bytes) => `${(bytes / 1024 ** 3).toFixed(bytes < 100 * 1024 ** 3 ? 1 : 0)} ${pc.gb || 'GB'}`;
+        if (asked.info === 'battery') {
+          if (result.none) return { line: pc.noBattery, face: 'look' };
+          return { line: fmt(result.charging ? pc.charging : pc.battery, { percent: result.percent }), face: 'look' };
+        }
+        if (asked.info === 'disk') return { line: fmt(pc.disk, { free: gb(result.free), total: gb(result.total), drive: result.drive }), face: 'look' };
+        if (asked.info === 'ram') return { line: fmt(pc.ram, { used: gb(result.used), total: gb(result.total) }), face: 'look' };
+        return { line: result.ip ? fmt(pc.ip, { ip: result.ip }) : pc.noIp, face: 'look' };
+      }
+      if (asked.what === 'volume') {
+        const result = await run({ action: 'volume', level: asked.level, mute: asked.mute });
+        if (!result) return { line: failed, face: 'aside' };
+        return { line: asked.mute === true ? pc.muted : asked.mute === false ? pc.unmuted : fmt(pc.volume, { level: result.level }), face: 'smug' };
+      }
+      if (asked.what === 'timer') {
+        if (!this.reminders) return { line: fr ? 'Je ne peux pas démarrer de minuteur pour le moment.' : 'I cannot start a timer right now.', face: 'aside' };
+        const time = span(asked.ms);
+        this.reminders.add(Date.now() + asked.ms, fmt(pc.timerDone, { time }), { timer: true });
+        this.startPcCountdown(Date.now() + asked.ms, pc.timerVerb || (fr ? 'Minuteur' : 'Timer'));
+        return { line: fmt(pc.timer, { time }), face: 'smug' };
+      }
+      if (asked.what === 'snip') {
+        const result = await run({ action: 'snip' });
+        return result ? { line: pc.snip, face: 'smug' } : { line: failed, face: 'aside' };
+      }
+      if (asked.what === 'tidy') {
+        const result = await run({ action: 'tidy', back: asked.back });
+        return result ? { line: asked.back ? pc.back : pc.tidy, face: 'smug' } : { line: failed, face: 'aside' };
+      }
+      if (asked.what === 'theme') {
+        const result = await run({ action: 'theme', dark: asked.dark });
+        return result ? { line: asked.dark ? pc.dark : pc.light, face: 'smug' } : { line: failed, face: 'aside' };
+      }
+      if (asked.what === 'arrange') {
+        const results = await Promise.all(asked.places.map(({ name, side }) => run({ action: 'arrange', name, side })));
+        const placed = results.filter((result) => result?.found).map((result, index) => fmt(pc.placed, { app: result.name || asked.places[index].name, side: pc.sides[asked.places[index].side] }));
+        return placed.length ? { line: placed.join(' '), face: 'smug' } : { line: failed, face: 'aside' };
+      }
+    }
     if (asked.kind === 'name') {
       custom.userName = asked.name; // her answer, being written now, already knows it
       this.host.setConfig({ userName: asked.name });
@@ -811,12 +999,51 @@ export class Chat {
     return { line: res.ok ? fmt(t.opened, { app: item.name }) : `${t.failed} ${res.error}`, face: res.ok ? 'laugh' : 'aside' };
   }
 
+  startPcCountdown(at, verb) {
+    clearInterval(this.pcCountdownTimer);
+    this.pcCountdownAt = at;
+    const update = () => {
+      const left = Math.max(0, this.pcCountdownAt - Date.now());
+      if (left === 0) {
+        clearInterval(this.pcCountdownTimer);
+        this.pcCountdownTimer = null;
+        this.panel.setTicker(null);
+        return;
+      }
+      this.panel.setTicker({ verb, target: span(left), thinking: true, countdown: true });
+    };
+    update();
+    this.pcCountdownTimer = setInterval(update, 1000);
+  }
+
   // Once she has answered: her line about what she did, else the app you asked to close, else what
   // her tag asks for, if your message (text) asked for that kind of thing.
   async after(raw, answer, asked, early, text) {
     const { t } = this;
     const done = early && (await early);
     if (done) {
+      if (done.confirm) {
+        const { power, seconds } = done.confirm;
+        const pc = t.pc || {};
+        this.panel.setActions(
+          [{ id: 'yes', label: pc.yes?.[power] || t.yes || 'Confirm', primary: true }, { id: 'no', label: pc.no || t.no || 'Cancel' }],
+          async (id) => {
+            this.panel.setActions([]);
+            if (id !== 'yes') return;
+            const result = await this.host.pcDo?.({ action: 'power', what: power, seconds });
+            if (!result) {
+              this.addLine(answer, this.brain.lang === 'fr' ? 'L’opération a échoué.' : 'The operation failed.', 'aside');
+              return;
+            }
+            if (seconds > 30) this.startPcCountdown(Date.now() + seconds * 1000, pc.powerVerb?.[power] || power);
+            const when = seconds > 30 ? `${this.brain.lang === 'fr' ? 'dans' : 'in'} ${span(seconds * 1000)}` : (pc.now || (this.brain.lang === 'fr' ? 'dans 30 secondes' : 'in 30 seconds'));
+            this.addLine(answer, fmt(pc.planned?.[power] || pc.kept || 'Scheduled.', { when }), 'smug');
+          },
+        );
+        this.panel.stream(done.line, { done: true });
+        if (done.face) this.panel.setFace(done.face);
+        return;
+      }
       // Pour Roblox, afficher uniquement le résultat réel du lancement.
       if (asked?.kind === 'roblox') {
         this.shown = done.line;

@@ -20,6 +20,7 @@ const { createMover } = require('./mover');
 const llm = require('./llm');
 const setup = require('./setup');
 const apps = require('./apps');
+const system = require('./system');
 const launch = require('./launch');
 const tts = require('./tts');
 const { Chatterbox } = require('./chatterbox');
@@ -1604,6 +1605,8 @@ function registerIpc() {
   ipcMain.handle('overlay:move-screen', (_event, id) => moveOverlayToDisplay(id));
   ipcMain.handle('config:get', () => rendererConfig());
   ipcMain.handle('app:version', () => packageInfo.version);
+  // your PC itself, from her chat: settings, what's left, sound, snip, windows, theme, power
+  ipcMain.handle('pc:do', (_e, req) => Promise.resolve(system.act(req, { display: targetDisplay() })).catch(() => null));
   ipcMain.handle('pc:cpu', () => cpuLoad());
   ipcMain.handle('terminal:execute', async (_e, command) => (await terminal).execute(command));
   ipcMain.on('terminal:demoLog', (event, message) => {

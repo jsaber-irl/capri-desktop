@@ -8,7 +8,7 @@ Typical flow: hook event or user action → Main/IPC → business service (AI, s
 
 ## Complete Version-Controlled Directory Tree
 
-Tree generated from the 244 paths tracked by Git at the beginning of the audit. Four files created for this audit or its security fixes are also listed in the index: `STRUCTURE.md`, `SECURITY_AUDIT.md`, `src/main/electron-security.js`, and `tests/electron-security.test.js`. `node_modules` and ignored local files are excluded.
+Tree maintained for the current Capri source layout. `node_modules` and ignored local files are excluded.
 
 ```text
 capri-desktop-main-main/
@@ -145,6 +145,7 @@ capri-desktop-main-main/
 │   │   ├── setup.js
 │   │   ├── stacking.js
 │   │   ├── stt.js
+│   │   ├── system.js
 │   │   ├── terminal.js
 │   │   ├── tts.js
 │   │   ├── tune.js
@@ -180,6 +181,7 @@ capri-desktop-main-main/
 │   │   │   ├── mission.js
 │   │   │   ├── mood.js
 │   │   │   ├── panel.js
+│   │   │   ├── pc.js
 │   │   │   ├── pointer-life.js
 │   │   │   ├── possession.js
 │   │   │   ├── prepare.js
@@ -313,6 +315,8 @@ capri-desktop-main-main/
 - `capri.js`, `acting.js`, `sprite.js`, `fx.js`, and `fx-life.js` handle the mascot, its sprites, and Canvas effects.
 - `panel.js`, `ring.js`, `ring-tabs.js`, `ring-ui.js`, and `themes.js` compose the conversation interface, radial menu, and settings.
 - `chat.js` routes explicit requests to available actions and delegates other requests to the AI provider.
+- `chat.js` also parses native PC commands and routes them through `host.pcDo`; power operations stop at a confirmation UI until the user accepts.
+- `pc.js` monitors local CPU, battery, connectivity, plugged devices, USB drives, and foreground games for Capri's autonomous reactions.
 - `hands.js` prepares window controls and messages; sensitive actions follow a confirmation flow.
 - `brain.js`, `mood.js`, `heart.js`, `bond.js`, `life.js`, and `mission.js` compose personality, mood, and autonomous behaviors.
 - `ears.js`, `speech.js`, `voice.js`, and `rhythm.js` connect the microphone, recognition, synthesis, and audio systems.
@@ -345,9 +349,11 @@ The following are the extension points most contributors should use:
 | `main.js` | Electron lifecycle, overlay, tray, IPC, display selection and watchers. |
 | `bridge.js` | Loopback hook server for Claude Code, Codex and Antigravity events. |
 | `config.js` / `setup.js` | User configuration, defaults and encrypted key storage. |
+| `system.js` | Platform-specific system settings, hardware information, audio, capture, window arrangement, theme, and power adapters. |
 | `llm.js` / `anthropic.js` / `ollama.js` | Provider selection and AI requests. |
 | `tts.js` / `stt.js` / `piper.js` / `chatterbox.js` | Voice engines and transcription services. |
 | `windows.js` / `mover.js` / `control.js` | Window observation, movement and approved OS controls. |
+| `system.js` | Named native PC operations: settings, system information, volume, capture, window arrangement, theme, and scheduled power actions. |
 | `screen.js` / `mac-permissions.js` | Screen capture and permission reporting. |
 | `files.js` / `documents.js` / `cleanup.js` | Safe file operations, document creation and owned-resource cleanup. |
 | `terminal.js` / `launch.js` / `apps.js` | Terminal commands, application resolution and application control. |
@@ -521,6 +527,7 @@ All 244 tracked files are listed individually. Binary files are described as res
 | **`src/main/video-search.js`** | YouTube search sorted by date. |
 | **`src/main/voice-sample.js`** | Voice sample validation and management. |
 | **`src/main/windows.js`** | Observes system windows. |
+| **`src/main/system.js`** | Executes the allow-listed native PC operations exposed through `pc:do`. |
 | **`src/main/windows.ps1`** | Collects Windows window information. |
 | **`src/preload.js`** | JavaScript code for the component identified by the path. |
 | **`src/prepare-preload.js`** | JavaScript code for the component identified by the path. |
@@ -560,6 +567,7 @@ All 244 tracked files are listed individually. Binary files are described as res
 | **`src/renderer/js/panel.js`** | Conversation bubble and actions. |
 | **`src/renderer/js/pointer-life.js`** | JavaScript code for the component identified by the path. |
 | **`src/renderer/js/possession.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/pc.js`** | Monitors CPU, battery, network state, devices, USB drives, and foreground games for autonomous reactions. |
 | **`src/renderer/js/prepare.js`** | Preparation window and progress tracking. |
 | **`src/renderer/js/rhythm.js`** | Rhythm analysis and animation. |
 | **`src/renderer/js/ring-tabs.js`** | Menu sections and settings. |
