@@ -1,0 +1,45 @@
+name: Optional desktop integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      enable_desktop_tests:
+        description: Run read-only tests against the current desktop session
+        type: boolean
+        required: true
+        default: false
+      allow_apple_events:
+        description: Allow the macOS test to query Spotify using Apple Events
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-integration:
+    if: inputs.enable_desktop_tests
+    name: Desktop tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: Windows
+            runner: windows-latest
+          - os: macOS
+            runner: macos-latest
+          - os: Linux
+            runner: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    env:
+      CAPRI_DESKTOP_INTEGRATION: '1'
+      CAPRI_ALLOW_APPLE_EVENTS: ${{ inputs.allow_apple_events && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:desktop-integration

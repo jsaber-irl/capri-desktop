@@ -21,6 +21,7 @@ import { Ears } from './ears.js';
 import { Pc } from './pc.js';
 import { Reminders, clock } from './reminders.mjs';
 import { Bond } from './bond.js';
+import { Jealousy } from './jealousy.js';
 import { Ring } from './ring.js';
 import { applyTheme, applyWindowTheme, resolveTheme, askedTheme } from './themes.js';
 import { classify } from './mood.js';
@@ -156,6 +157,14 @@ async function boot() {
   };
   heart.configure(config);
   heart.start();
+  const jealousy = new Jealousy({
+    host,
+    panel,
+    heart,
+    capri,
+    lang: () => brain.lang,
+  });
+  jealousy.configure(config);
   // Her bond with you (bond.js): she learns who she's talking to, adapts to you, and grows closer.
   const bond = new Bond({ host, brain, heart });
   bond.configure(config);
@@ -338,6 +347,7 @@ async function boot() {
     if (!panel.visible && Math.random() < (when === 'end' ? 0.6 : 0.4)) panel.say({ kind: 'info', line: pick(lines), hold: 3800 });
   };
   capri.onClick = (click) => {
+    if (jealousy.relieve()) return;
     if (heart.poke()) return; // poked too many times: she's had it
     const double = heart.tapped(); // the second click of two: she has a word about it, instead of putting her line away
     if (panel.visible && !(double && panel.current?.kind === 'idle')) panel.hide();
@@ -429,7 +439,7 @@ async function boot() {
   chat.speech = speech;
   chat.bond = bond;
   // Her own little life (life.js): things to do, music, noticing you
-  const life = new Life({ capri, panel, voice, host, brain, heart, fx });
+  const life = new Life({ capri, panel, voice, host, brain, heart, bond, fx });
   life.chat = chat;
   life.guide = guide;
   life.configure(config);
@@ -661,6 +671,7 @@ async function boot() {
   let lastFg = null;
   host.onWindows((data) => {
     capri.setWindows(data);
+    jealousy.onWindows(data);
     brain.onWindows(data);
     pc.onWindows(data);
     if (data && data.fg !== lastFg) {
@@ -674,6 +685,7 @@ async function boot() {
   host.windowsNow().then((data) => {
     if (!data) return;
     capri.setWindows(data);
+    jealousy.onWindows(data);
     pc.onWindows(data);
   });
 
@@ -702,6 +714,7 @@ async function boot() {
     askAiSoon(2500); // (a new AI is connected, or taken away; many changes at once ask once)
     voice.configure(cfg);
     heart.configure(cfg);
+    jealousy.configure(cfg);
     bond.configure(cfg);
     life.configure(cfg);
     meterOn = cfg.micMeter !== false;

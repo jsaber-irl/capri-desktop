@@ -113,8 +113,15 @@ export class Heart {
     return this.enabled ? this.mood.describe() : '';
   }
 
-  event(name) {
-    if (this.enabled) this.mood.event(name);
+  event(name, detail) {
+    if (this.enabled) {
+      if (name === 'jealousy') this.mood.event(name, Date.now(), detail);
+      else this.mood.event(name);
+    }
+  }
+
+  clearJealousy() {
+    return this.mood.clearJealousy();
   }
 
   // A line for clicking her with nothing going on, by mood (null: her usual idle lines).

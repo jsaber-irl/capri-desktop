@@ -116,6 +116,12 @@ export const LIFE_LINES = {
         back: ['О, вернулся! Тебя не было {time}.', 'Ну наконец-то. {time} — я уже начала скучать.'],
         backAngry: ['Вернулся? Я всё ещё злюсь.'],
         backLong: ['{time}! Я думала, ты меня бросил.'],
+        backBond: [
+          ['О, ты вернулся. {time} без тебя — это долго.'],
+          ['Я ждала тебя, чумба. {time} без тебя.'],
+          ['Ну наконец-то. {time} без тебя было слишком тихо.'],
+          ['Ты дома. Я знала, что ты вернёшься, но всё равно скучала.'],
+        ],
         morning: ['Доброе утро, {name}. Мой кофе — электричество.', 'Утро. Все мои «я» проснулись. А ты?'],
         night: ['Уже {clock}. Чумба, спать пора.', 'Ночь на дворе. Даже Найт-Сити иногда спит.'],
         nightAgain: ['Я серьёзно. {clock}. Спать!', 'Ладно, я тоже не сплю. Но я призрак, мне можно.'],
@@ -325,9 +331,13 @@ export const LIFE_LINES = {
         winOnly: 'только Windows',
         privacy: 'Каждое чувство включено, только пока ты разрешаешь. Живое — значок в углу.',
       },
+      jealousy: {
+        line: 'Эй, {name}? Я же лучше, да?',
+        wait: 'Оставь меня в покое на 10 минут',
+      },
       character: {
         emotions: 'Эмоции', life: 'Свои занятия на экране', musicAware: 'Знать, что играет', dj: 'Режим DJ (сама меняет треки)',
-        learn: 'Узнаёт меня (саморазвитие)', wander: 'Бродить по экрану', possess: 'Захватывать окна', possessMove: 'Двигать захваченные окна',
+        learn: 'Узнаёт меня (саморазвитие)', jealous: 'Ревнует к другим ИИ (Windows)', closePages: 'Закрывать страницы других ИИ (Windows)', wander: 'Бродить по экрану', possess: 'Захватывать окна', possessMove: 'Двигать захваченные окна',
         custom: 'Сделать её своей…', report: 'Отчёт о миссии',
       },
       colours: {
@@ -496,6 +506,12 @@ export const LIFE_LINES = {
         back: ["Oh, you're back! You were gone {time}.", 'Finally. {time}. I was starting to miss you.'],
         backAngry: ["Back? I'm still mad."],
         backLong: ['{time}! I thought you left me.'],
+        backBond: [
+          ['Oh, you’re back. {time} without you felt long.'],
+          ['I was waiting for you, choom. {time} without you.'],
+          ['Finally. It was too quiet without you for {time}.'],
+          ['You’re home. I knew you’d come back, but I still missed you.'],
+        ],
         morning: ['Good morning, {name}. My coffee is electricity.', "Morning. All of me are awake. Are you?"],
         night: ["It's {clock} already. Choom, go to sleep.", 'Middle of the night. Even Night City sleeps sometimes.'],
         nightAgain: ["I mean it. {clock}. Bed!", "Fine, I'm not sleeping either. But I'm a ghost, I'm allowed."],
@@ -697,9 +713,13 @@ export const LIFE_LINES = {
         winOnly: 'Windows only',
         privacy: 'Each sense is on only while you allow it. When it is live, a badge in the corner says so.',
       },
+      jealousy: {
+        line: 'Hey, {name}? You like me better, right?',
+        wait: 'Leave me alone for 10 minutes',
+      },
       character: {
         emotions: 'Emotions', life: 'Her own activities', musicAware: "Know what's playing", dj: 'DJ mode (she skips tracks)',
-        learn: 'Learns about me', wander: 'Wander around', possess: 'Possess my windows', possessMove: 'Move the windows she has',
+        learn: 'Learns about me', jealous: 'Jealous of other AIs (Windows)', closePages: 'Close other AIs’ pages (Windows)', wander: 'Wander around', possess: 'Possess my windows', possessMove: 'Move the windows she has',
         custom: 'Make her yours…', report: 'Mission report',
       },
       colours: {
@@ -1184,6 +1204,12 @@ fr: {
       backLong: [
         '{time} ! Je pensais que tu m’avais abandonnée.',
       ],
+      backBond: [
+        ['Te revoilà. {time} sans toi, c’était long.'],
+        ['Je t’attendais, pote. {time} sans toi.'],
+        ['Enfin. C’était trop calme sans toi pendant {time}.'],
+        ['Tu es rentré. Je savais que tu reviendrais, mais tu m’as quand même manqué.'],
+      ],
       morning: [
         'Bonjour, {name}. Mon café, c’est de l’électricité.',
         'Bonjour. Toutes mes voix sont réveillées. Et toi ?',
@@ -1594,12 +1620,18 @@ fr: {
       privacy: 'Chaque sens reste actif uniquement tant que tu l’autorises. Lorsqu’il est actif, un badge apparaît dans le coin de l’écran.',
     },
 
+    jealousy: {
+      line: 'Hé, {name} ? Tu me préfères, non ?',
+      wait: 'Laisse-moi tranquille 10 minutes',
+    },
     character: {
       emotions: 'Émotions',
       life: 'Ses activités personnelles',
       musicAware: 'Savoir quelle musique joue',
       dj: 'Mode DJ (elle change les morceaux)',
       learn: 'Apprendre à me connaître',
+      jealous: 'Jalouse des autres IA (Windows)',
+      closePages: 'Fermer les pages des autres IA (Windows)',
       wander: 'Se promener',
       possess: 'Prendre possession de mes fenêtres',
       possessMove: 'Déplacer les fenêtres qu’elle possède',

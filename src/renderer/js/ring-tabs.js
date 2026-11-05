@@ -546,6 +546,8 @@ const character = {
     root.append(toggle(k.musicAware, cfg.musicAware !== false, (v) => c.set({ musicAware: v }), { disabled: !win }));
     root.append(toggle(k.dj, cfg.dj !== false, (v) => c.set({ dj: v }), { disabled: !win || cfg.musicAware === false }));
     root.append(toggle(k.learn, cfg.learn !== false, (v) => c.set({ learn: v })));
+    root.append(toggle(k.jealous, cfg.jealous !== false, (v) => c.set({ jealous: v }), { disabled: !win }));
+    root.append(toggle(k.closePages, cfg.closePages !== false, (v) => c.set({ closePages: v }), { disabled: cfg.jealous === false || !win }));
     root.append(heading(''));
     root.append(toggle(k.wander, cfg.wander === true, (v) => c.set({ wander: v })));
     root.append(toggle(k.possess, cfg.possess === true, (v) => c.set({ possess: v })));

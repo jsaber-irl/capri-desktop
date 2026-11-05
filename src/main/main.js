@@ -1707,6 +1707,21 @@ function registerIpc() {
     return { ok: true };
   });
   ipcMain.handle('windows:get', () => lastWindows);
+  ipcMain.handle('windows:closePage', async (event, request = {}) => {
+    if (event.sender !== overlay?.webContents || process.platform !== 'win32') return { ok: false, reason: 'unsupported' };
+    const { id, key } = request && typeof request === 'object' ? request : {};
+    const allowed = new Set(['chatgpt', 'claude', 'codex', 'gemini', 'copilot', 'perplexity', 'deepseek', 'grok', 'lechat', 'characterai', 'metaai']);
+    const cfg = config.load();
+    if (cfg.jealous === false || cfg.closePages === false) return { ok: false, reason: 'disabled' };
+    if (!Number.isSafeInteger(id) || typeof key !== 'string' || !allowed.has(key)) return { ok: false, reason: 'invalid-target' };
+    if (!windowWatch || !lastWindows || lastWindows.fg !== id ||
+        !Array.isArray(lastWindows.ai) || !lastWindows.ai.includes(key) ||
+        (!(Array.isArray(lastWindows.pages) && lastWindows.pages.includes(key)) && lastWindows.dl !== true)) {
+      return { ok: false, reason: 'not-target' };
+    }
+    const reason = await windowWatch.close(id, key);
+    return { ok: !reason, reason: reason || null };
+  });
   // the window she has taken over (possession.js): hold it, move it, let go; it goes back where it was
   ipcMain.handle('window:grab', (_e, id) => (Number.isSafeInteger(id) && mover ? mover.grab(id) : { ok: false, why: 'unknown' }));
   ipcMain.on('window:move', (_e, m) => { if (mover && Number.isSafeInteger(m?.id)) mover.move(m.id, Number(m.x), Number(m.y)); });

@@ -213,7 +213,7 @@ Hooks can be removed from the same menu. Your coding assistant continues to work
 
 Right-click Capri to open the menu. The main sections are:
 
-- **Character**: emotions, autonomous activities, learning, and DJ mode;
+- **Character**: emotions, autonomous activities, learning, DJ mode, her growing bond (shown in the menu), and jealousy of other AIs;
 - **Senses**: screen vision, microphone, and dancing;
 - **Hands**: window control and message typing;
 - **Voice**: engine, speed, volume, and custom voice;
@@ -221,6 +221,8 @@ Right-click Capri to open the menu. The main sections are:
 - **More**: language, size, display, position, and hooks.
 
 The `Ctrl+Alt+C` shortcut hides Capri inside her chip. The same shortcut brings her back.
+
+On Windows, the Character tab lets you turn jealousy off or keep it while disabling page closing. Capri warns about rival AI pages before closing them; download pages are closed immediately when both jealousy and page closing are enabled. Clicking Capri or “Leave me alone for 10 minutes” pauses jealousy for ten minutes. Her mood stays until you apologize. Rival-page monitoring and closing are not available on macOS or Linux.
 
 ### Task tracking
 
@@ -465,6 +467,23 @@ Full test suite:
 npm test
 ```
 
+Optional desktop integration tests query real hardware and available media
+sessions without issuing playback commands. They are skipped unless explicitly
+enabled; Apple Events additionally require a separate opt-in and macOS
+Automation permission for Spotify:
+
+```bash
+CAPRI_DESKTOP_INTEGRATION=1 npm run test:desktop-integration
+CAPRI_DESKTOP_INTEGRATION=1 CAPRI_ALLOW_APPLE_EVENTS=1 npm run test:desktop-integration
+```
+
+In PowerShell, set the same variables with `$env:CAPRI_DESKTOP_INTEGRATION = '1'`
+and, only when intended, `$env:CAPRI_ALLOW_APPLE_EVENTS = '1'`. The optional
+**Optional desktop integration** GitHub Actions workflow runs on Windows, macOS,
+and Linux only when manually enabled. Its Apple Events input is off by default;
+the macOS runner must already have the required permission. Tests for MPRIS and
+GSMTC run only where their platform APIs and desktop sessions are available.
+
 Useful scripts:
 
 ```bash
@@ -563,6 +582,7 @@ The following are present in the current source tree. Capabilities that depend o
 | Screen capture | Native capture where supported | Screen Recording permission required | Depends on Electron/desktop session |
 | Media detection/control | Windows system media sessions | Spotify/Deezer through Apple Events when exposed | MPRIS through `playerctl` |
 | Window possession/tracking | Windows adapter | macOS System Events/Accessibility | Not available |
+| Rival-AI detection and page closing | Available; both controls are in Character settings | Not available | Not available |
 
 Build commands are `npm run dist`, `npm run dist:mac`, `npm run dist:linux`, `npm run dist:32`, and `npm run dist:all`. No lint or TypeScript command is defined; the maintained application code is JavaScript, with PowerShell and Python helpers.
 

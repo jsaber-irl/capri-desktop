@@ -26,13 +26,14 @@ const NIGHT = [1, 5];                   // from 1 am to 5 am, she tells you to g
 const STORE = 'capri.life';
 
 export class Life {
-  constructor({ capri, panel, voice, host, brain, heart, fx }) {
+  constructor({ capri, panel, voice, host, brain, heart, bond, fx }) {
     this.capri = capri;
     this.panel = panel;
     this.voice = voice;
     this.host = host;
     this.brain = brain;
     this.heart = heart;
+    this.bond = bond;
     this.fx = fx;
     this.chat = null;  // chat.js (is a chat open?)
     this.guide = null; // guide.js (is she showing you something?)
@@ -441,7 +442,8 @@ export class Life {
     const t = this.t.presence;
     this.heart.event('userBack');
     const angry = this.heart.mood.v.anger >= 0.3;
-    const lines = angry ? t.backAngry : ms >= 60 * 60000 ? t.backLong : t.back;
+    const level = this.bond?.data.level || 0;
+    const lines = angry ? t.backAngry : level > 0 ? t.backBond?.[level - 1] || t.back : ms >= 60 * 60000 ? t.backLong : t.back;
     setTimeout(() => {
       if (!this.free()) return;
       this.capri.wake();

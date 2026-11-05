@@ -132,6 +132,7 @@ const EVENTS = {
   hackWon: { joy: 0.25 },
   hackLost: { anger: 0.22 },
   userBack: { joy: 0.15 },
+  jealousy: { anger: 0.55, joy: -0.2 },
   music: { joy: 0.1 },
   tickled: { joy: 0.3, anger: -0.05 },
   petted: { joy: 0.1, shy: 0.15, affection: 0.01 },
@@ -252,6 +253,10 @@ export class Mood {
       else if (tag === 'rude') this.apply({ anger: EFFECTS.rude.anger * (1 - this.tolerance) }); // less and less, as she gets used to it
       else this.apply(EFFECTS[tag]);
     }
+    if (tags.includes('apology') && this.cause?.tag === 'jealousy') {
+      this.v.anger = Math.min(this.v.anger, 0.15);
+      this.cause = null;
+    }
     // a string of insults hurts more than one
     if (tags.includes('insult')) this.apply({ anger: 0.15 * Math.min(2, insults(text) - 1) });
     const strong = ['insult', 'threat', 'justBot', 'wrongName', 'spam', 'corpo', 'yell'].find((t) => tags.includes(t));
@@ -263,12 +268,21 @@ export class Mood {
   }
 
   // Something that happened to her (EVENTS). Returns the mood after it.
-  event(name, now = Date.now()) {
+  event(name, now = Date.now(), detail = '') {
     this.tick(now);
     if (name === 'userBack') this.contact(now);
     this.apply(EVENTS[name]);
+    if (name === 'jealousy') this.cause = { tag: 'jealousy', quote: String(detail).slice(0, 40), at: now };
     this.changed(now);
     return this.current;
+  }
+
+  clearJealousy(now = Date.now()) {
+    if (this.cause?.tag !== 'jealousy') return false;
+    this.cause = null;
+    this.v.anger = Math.min(this.v.anger, 0.15);
+    this.changed(now);
+    return true;
   }
 
   // The mood her AI answered with: it nudges her feelings (an answer she laughed at leaves her
@@ -339,6 +353,7 @@ export class Mood {
     const dt = now - this.lastTick;
     this.lastTick = Math.max(this.lastTick, now);
     if (dt > 0) this.decay(dt);
+    if (this.cause?.tag === 'jealousy') this.v.anger = Math.max(this.v.anger, 0.3);
     this.v.bored = clamp((now - this.lastContact) / BORED_FULL, 0, 1);
     if (this.v.anger < 0.05 && this.v.sad < 0.05) this.cause = null;
     this.changed(now);
@@ -409,6 +424,7 @@ export class Mood {
       corpo: ' because the user brought up the corps, and you hate corpos',
       yell: ` because the user yelled at you in capitals ${when}`,
       poke: ` because the user kept poking you ${when}`,
+      jealousy: ` because the user was spending time with ${quote || 'another AI'} and you are still sulking until they apologise`,
     }[tag] || '';
   }
 
