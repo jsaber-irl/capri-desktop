@@ -27,6 +27,7 @@ test('reads what a message is to her, in Russian and English', async () => {
   assert.ok(tags('ты такая милая').includes('compliment'));
   assert.ok(tags('люблю тебя').includes('love'));
   assert.ok(tags('прости меня').includes('apology'));
+  assert.ok(tags('je te demande pardon').includes('apology'));
   assert.ok(tags('ахахах').includes('laughing'));
   assert.ok(tags('расскажи шутку').includes('jokeAsk'));
   assert.ok(tags('мне грустно').includes('userSad'));
@@ -54,6 +55,17 @@ test('an insult makes her angry, an apology calms her down, slowly', async () =>
   assert.equal(r2.reaction, 'pout'); // one sorry isn't enough
   const r3 = m.feel('прости меня, пожалуйста', 9000);
   assert.equal(r3.reaction, 'forgive');
+  assert.equal(m.mood, 'calm');
+});
+
+test('one apology clears jealous anger completely', async () => {
+  const { Mood } = await load('mood.js');
+  const m = new Mood({ storage: null, now: 1000 });
+  m.event('jealousy', 1000, 'Gemini');
+  assert.equal(m.mood, 'angry');
+  m.feel('I am sorry', 1001);
+  assert.equal(m.cause, null);
+  assert.equal(m.v.anger, 0);
   assert.equal(m.mood, 'calm');
 });
 

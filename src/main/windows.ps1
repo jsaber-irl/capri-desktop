@@ -1,9 +1,8 @@
 # Watches the top-level windows so Capri can sit on them.
 # Prints one JSON line whenever something changes: the foreground window and the visible
-# windows in z-order (front first), as physical-pixel frame bounds. No contents, and no titles:
-# the title of the window in front is only checked against a short list of AI names (ChatGPT,
-# Gemini...) for her jealousy, and all that goes out is which of them matched ("ai"), whether
-# it's their own page in a browser ("pages") and whether it's a page to download one ("dl").
+# windows in z-order (front first), as physical-pixel frame bounds. It never reads page contents.
+# For a detected rival AI page only, it reports the title and sanitized address so Capri can show
+# the user what she is about to close. Other window titles and addresses are not sent.
 # Also reports AI/page/download state, active game, USB and device changes, and whether the taskbar is over Capri.
 # Reads "close <hwnd> <key> <n>" lines on its input: she closes that page (see Close).
 #
@@ -12,13 +11,15 @@
 param([long]$Self = 0, [int]$ParentPid = 0)
 $ErrorActionPreference = 'Stop'
 
-Add-Type -ReferencedAssemblies System.Management -TypeDefinition @"
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+Add-Type -ReferencedAssemblies System.Management, UIAutomationClient, UIAutomationTypes -TypeDefinition @"
 using System;
 using System.Collections.Generic;
 using System.Management;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Windows.Automation;
 
 public static class CapriWindows {
   delegate bool EnumProc(IntPtr hwnd, IntPtr lParam);
@@ -43,12 +44,14 @@ public static class CapriWindows {
   [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out int value, int size);
   [DllImport("user32.dll")] static extern short GetAsyncKeyState(int key);
   [DllImport("user32.dll")] static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
+  [DllImport("user32.dll", SetLastError = true)] static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
 
   const int GWL_EXSTYLE = -20;
   const int WS_EX_TOOLWINDOW = 0x80;
   const int WS_EX_NOACTIVATE = 0x08000000;
   const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
   const int DWMWA_CLOAKED = 14;
+  const uint WM_CLOSE = 0x0010;
 
   // Other AIs: a key, what gives them away in the title of the window in front, the name of
   // their own app's program if they have one, and the name their own site gives its pages.
@@ -70,6 +73,19 @@ public static class CapriWindows {
   static readonly HashSet<string> BROWSERS = new HashSet<string> {
     "chrome", "msedge", "firefox", "brave", "opera", "vivaldi", "arc", "chromium", "librewolf", "waterfox", "floorp", "zen", "thorium",
   };
+  static readonly Dictionary<string, string[]> AI_HOSTS = new Dictionary<string, string[]> {
+    { "chatgpt", new[] { "chatgpt.com", "chat.openai.com" } },
+    { "claude", new[] { "claude.ai" } },
+    { "codex", new[] { "chatgpt.com", "platform.openai.com" } },
+    { "gemini", new[] { "gemini.google.com" } },
+    { "copilot", new[] { "copilot.microsoft.com", "bing.com" } },
+    { "perplexity", new[] { "perplexity.ai" } },
+    { "deepseek", new[] { "deepseek.com" } },
+    { "grok", new[] { "grok.com", "x.com" } },
+    { "lechat", new[] { "mistral.ai" } },
+    { "characterai", new[] { "character.ai" } },
+    { "metaai", new[] { "meta.ai" } },
+  };
 
   // A browser's title is its tab's, then its own: "ChatGPT - Google Chrome", "Chat - Claude -
   // Personal - Microsoft Edge", "Gemini <em dash> Mozilla Firefox"; Edge adds "and 3 more pages" in
@@ -85,14 +101,13 @@ public static class CapriWindows {
   // skach-, zagruz-, ustanov-) and in German and Italian (herunterladen, scarica).
   static readonly Regex DL = new Regex(@"download|t.l.charg|desc.rg|baix(?:ar|e|a|ando)|transf(?:erir|ira|ere)|herunterlad|scaric|install|setup|\u0441\u043a\u0430\u0447|\u0437\u0430\u0433\u0440\u0443\u0437|\u0443\u0441\u0442\u0430\u043d\u043e\u0432", RegexOptions.IgnoreCase);
 
-  // That AI's own page, or a page to download it: what she closes.
-  public static bool Closable(string[] ai, string title) {
-    return Site(ai, title) || (Regex.IsMatch(title, ai[1], RegexOptions.IgnoreCase) && DL.IsMatch(title));
-  }
-
   static IntPtr procOf = IntPtr.Zero;
   static string proc = "";
   static string game = "";
+  static IntPtr aiWindow = IntPtr.Zero;
+  static string aiTitle = "";
+  static string aiSnapshot = "";
+  static DateTime aiReadAt = DateTime.MinValue;
 
   // A game: its program sits in a launcher's library (Steam, Epic, Riot, Xbox, GOG). The game is the
   // name of its folder there (the launchers themselves aren't games).
@@ -125,7 +140,64 @@ public static class CapriWindows {
   }
 
   static string Json(string s) {
-    return "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+    var escaped = new StringBuilder("\"");
+    foreach (char c in s) {
+      switch (c) {
+        case '"': escaped.Append("\\\""); break;
+        case '\\': escaped.Append("\\\\"); break;
+        case '\b': escaped.Append("\\b"); break;
+        case '\f': escaped.Append("\\f"); break;
+        case '\n': escaped.Append("\\n"); break;
+        case '\r': escaped.Append("\\r"); break;
+        case '\t': escaped.Append("\\t"); break;
+        default:
+          if (c < 0x20) escaped.Append("\\u").Append(((int)c).ToString("x4"));
+          else escaped.Append(c);
+          break;
+      }
+    }
+    return escaped.Append('"').ToString();
+  }
+
+  static bool IsAiHost(string key, string host) {
+    string[] hosts;
+    if (!AI_HOSTS.TryGetValue(key, out hosts)) return false;
+    foreach (string allowed in hosts) {
+      if (host.Equals(allowed, StringComparison.OrdinalIgnoreCase) ||
+          host.EndsWith("." + allowed, StringComparison.OrdinalIgnoreCase)) return true;
+    }
+    return false;
+  }
+
+  static string BrowserUrl(IntPtr hwnd, string key) {
+    try {
+      AutomationElement root = AutomationElement.FromHandle(hwnd);
+      if (root == null) return "";
+      var fields = root.FindAll(TreeScope.Descendants, new OrCondition(
+        new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit),
+        new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ComboBox)));
+      foreach (AutomationElement field in fields) {
+        string id = field.Current.AutomationId ?? "";
+        string name = field.Current.Name ?? "";
+        if (!Regex.IsMatch(id, @"address|urlbar|omnibox|location", RegexOptions.IgnoreCase) &&
+            !Regex.IsMatch(name, @"address|urlbar|omnibox|location", RegexOptions.IgnoreCase)) continue;
+        object pattern;
+        if (!field.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) continue;
+        string value = ((ValuePattern)pattern).Current.Value;
+        Uri uri;
+        if (!Uri.TryCreate(value, UriKind.Absolute, out uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+            !IsAiHost(key, uri.Host)) continue;
+        return uri.GetLeftPart(UriPartial.Path);
+      }
+    } catch (ElementNotAvailableException error) {
+      Console.Error.WriteLine("[capri] browser address is temporarily unavailable: " + error.Message);
+    } catch (COMException error) {
+      Console.Error.WriteLine("[capri] could not read the rival browser address: " + error.Message);
+    } catch (InvalidOperationException error) {
+      Console.Error.WriteLine("[capri] could not read the rival browser address: " + error.Message);
+    }
+    return "";
   }
 
   // USB sticks (and SD cards) plugged in, by drive letter, looked at every couple of seconds.
@@ -146,39 +218,69 @@ public static class CapriWindows {
     return usb;
   }
 
-  // Which of them the window in front is, as a JSON list of keys; in a browser, then "pages": the
-  // ones whose own page it is, and "dl": whether it's a page to download one of them.
+  // Which AI is in front. Only matched rival pages contribute title/address metadata.
   static string Ai(IntPtr fg) {
     var title = new StringBuilder(512);
     GetWindowText(fg, title, 512);
     Program(fg);
     string t = title.ToString();
+    if (fg == aiWindow && t == aiTitle && (DateTime.UtcNow - aiReadAt).TotalMilliseconds < 1000)
+      return aiSnapshot;
+    aiWindow = fg;
+    aiTitle = t;
+    aiReadAt = DateTime.UtcNow;
     bool browser = BROWSERS.Contains(proc);
     var keys = new StringBuilder();
     var pages = new StringBuilder();
+    var apps = new StringBuilder();
+    bool dl = false;
+    string rivalTitle = "";
+    string rivalUrl = "";
     foreach (var ai in AIS) {
-      if (!Regex.IsMatch(t, ai[1], RegexOptions.IgnoreCase) && (ai[2] == "" || proc != ai[2])) continue;
+      bool application = !browser && ai[2] != "" && proc == ai[2];
+      bool page = browser && Site(ai, t);
+      bool download = browser && Regex.IsMatch(t, ai[1], RegexOptions.IgnoreCase) && DL.IsMatch(t);
+      if (!application && !page && !download) continue;
       if (keys.Length > 0) keys.Append(',');
       keys.Append('"').Append(ai[0]).Append('"');
-      if (!browser || !Site(ai, t)) continue;
-      if (pages.Length > 0) pages.Append(',');
-      pages.Append('"').Append(ai[0]).Append('"');
+      if (page) {
+        if (pages.Length > 0) pages.Append(',');
+        pages.Append('"').Append(ai[0]).Append('"');
+      }
+      if (application) {
+        if (apps.Length > 0) apps.Append(',');
+        apps.Append('"').Append(ai[0]).Append('"');
+      }
+      if (download) dl = true;
+      if ((page || download) && rivalTitle == "") {
+        rivalTitle = t;
+        rivalUrl = BrowserUrl(fg, ai[0]);
+      }
     }
-    bool dl = browser && keys.Length > 0 && DL.IsMatch(t);
-    return "[" + keys.ToString() + "],\"pages\":[" + pages.ToString() + "],\"dl\":" + (dl ? "true" : "false");
+    aiSnapshot = "\"ai\":[" + keys.ToString() + "],\"pages\":[" + pages.ToString() +
+      "],\"apps\":[" + apps.ToString() + "],\"dl\":" + (dl ? "true" : "false") +
+      ",\"rivalTitle\":" + (rivalTitle == "" ? "null" : Json(rivalTitle)) +
+      ",\"rivalUrl\":" + (rivalUrl == "" ? "null" : Json(rivalUrl));
+    return aiSnapshot;
   }
 
-  // She closes that AI's page in window `id` with the browser's own shortcut for its tab (Ctrl+W),
-  // if it still is that page, in that window, in front, in a browser, and no Shift, Alt or Windows
-  // key is held (Ctrl+Shift+W would close the whole window). "" once done, else why not.
+  // Browsers close only a detected AI site or download tab; native AI apps get WM_CLOSE after
+  // confirmation so the app can save or ask before exiting. Targets are revalidated at action time.
   public static string Close(long id, string key) {
     IntPtr fg = GetForegroundWindow();
     if (fg.ToInt64() != id) return "front";
-    if (!BROWSERS.Contains(ProcName(fg))) return "browser";
+    string process = ProcName(fg);
     var title = new StringBuilder(512);
     GetWindowText(fg, title, 512);
     string[] ai = Array.Find(AIS, a => a[0] == key);
-    if (ai == null || !Closable(ai, title.ToString())) return "page";
+    if (ai == null) return "page";
+    bool download = BROWSERS.Contains(process) &&
+      DL.IsMatch(title.ToString()) && Regex.IsMatch(title.ToString(), ai[1], RegexOptions.IgnoreCase);
+    if (!BROWSERS.Contains(process)) {
+      if (ai[2] == "" || process != ai[2]) return "application";
+      return PostMessage(fg, WM_CLOSE, IntPtr.Zero, IntPtr.Zero) ? "" : "close";
+    }
+    if (!download && !Site(ai, title.ToString())) return "page";
     foreach (int held in new[] { 0x10, 0x12, 0x5B, 0x5C }) {
       if ((GetAsyncKeyState(held) & 0x8000) != 0) return "keys";
     }
@@ -280,7 +382,7 @@ public static class CapriWindows {
     // the taskbar clicked: it comes up over her (Windows has no levels among windows on top)
     bool taskbar = fgClass.ToString() == "Shell_TrayWnd" || fgClass.ToString() == "Shell_SecondaryTrayWnd";
     sb.Append("{\"fg\":").Append(fg.ToInt64()).Append(",\"taskbar\":").Append(taskbar ? "true" : "false")
-      .Append(",\"ai\":").Append(Ai(fg))
+      .Append(',').Append(Ai(fg))
       .Append(",\"game\":").Append(game == "" ? "null" : Json(game))
       .Append(",\"usb\":").Append(Usb());
     lock (gate) sb.Append(",\"plug\":").Append(plug);

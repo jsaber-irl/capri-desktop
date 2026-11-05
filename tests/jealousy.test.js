@@ -17,6 +17,7 @@ function fixture({ now = () => Date.now(), lang = 'en' } = {}) {
   const shown = [];
   const closed = [];
   const reactions = [];
+  const timers = [];
   const panel = {
     current: null,
     say(message) {
@@ -34,46 +35,117 @@ function fixture({ now = () => Date.now(), lang = 'en' } = {}) {
     clearJealousy() { this.cleared = true; },
   };
   const capri = { react: (mood) => reactions.push(mood) };
-  const host = { closePage: async (id, key) => { closed.push({ id, key }); return { ok: true }; } };
-  return { saved, storage, shown, closed, reactions, panel, heart, capri, host, now, lang };
+  const host = { closePage: async (id, key, confirmed) => { closed.push({ id, key, confirmed }); return { ok: true }; } };
+  const setTimer = (callback, delay) => {
+    const timer = { callback, delay, cleared: false };
+    timers.push(timer);
+    return timer;
+  };
+  const clearTimer = (timer) => { if (timer) timer.cleared = true; };
+  return { saved, storage, shown, closed, reactions, panel, heart, capri, host, now, lang, timers, setTimer, clearTimer };
 }
 
-test('a rival browser page warns first, then can be spared for ten minutes', async () => {
-  const { Jealousy, SNOOZE_MS } = await load('jealousy.js');
+test('a rival page is shown briefly before closing and the ten-minute pause is persisted', async () => {
+  const { Jealousy, PAGE_PREVIEW_MS, SNOOZE_MS } = await load('jealousy.js');
   let time = 1000;
   const f = fixture({ now: () => time, lang: 'fr' });
   const jealousy = new Jealousy({ ...f, lang: () => f.lang });
   jealousy.configure({ jealous: true, closePages: true });
-  const page = { fg: 42, ai: ['chatgpt'], pages: ['chatgpt'], dl: false };
+  const page = { fg: 42, ai: ['chatgpt'], pages: ['chatgpt'], apps: [], dl: false };
 
-  jealousy.onWindows(page);
+  jealousy.onWindows({
+    ...page,
+    rivalTitle: 'ChatGPT — New chat',
+    rivalUrl: 'https://chatgpt.com/',
+  });
   assert.equal(f.shown.length, 1);
   assert.match(f.shown[0].line, /ChatGPT/);
-  assert.equal(f.closed.length, 0, 'ordinary rival pages have a warning window');
+  assert.equal(f.shown[0].quote, 'ChatGPT — New chat\nhttps://chatgpt.com/');
+  assert.equal(f.closed.length, 0, 'show the page details before closing its tab');
+  assert.equal(f.timers[0].delay, PAGE_PREVIEW_MS);
+  f.timers[0].callback();
+  assert.deepEqual(f.closed, [{ id: 42, key: 'chatgpt', confirmed: true }]);
+  assert.equal(f.shown[0].actions.some(({ id }) => id === 'jealousy-confirm-close'), false);
   assert.equal(f.heart.events[0].name, 'jealousy');
   assert.equal(f.heart.events[0].detail, 'ChatGPT');
 
   f.shown[0].onAction('jealousy-snooze');
-  assert.equal(f.closed.length, 0);
+  assert.equal(f.closed.length, 1, 'snoozing after close cannot close it again');
   assert.equal(jealousy.snoozedUntil, time + SNOOZE_MS);
   assert.equal(f.saved.get('capri.jealousy'), String(time + SNOOZE_MS));
+  assert.equal(f.timers[1].delay, SNOOZE_MS);
   assert.equal(jealousy.relieve(), false, 'the pause cannot be extended by repeated clicks');
   jealousy.stop();
 });
 
-test('download pages are closed immediately only when both settings allow it', async () => {
+test('choosing the ten-minute break during the preview cancels automatic closing', async () => {
+  const { Jealousy, PAGE_PREVIEW_MS } = await load('jealousy.js');
+  const f = fixture({ now: () => 1000 });
+  const jealousy = new Jealousy({ ...f, lang: () => 'en' });
+  jealousy.configure({ jealous: true, closePages: true });
+  jealousy.onWindows({ fg: 42, ai: ['chatgpt'], pages: ['chatgpt'], apps: [], dl: false });
+  assert.equal(f.timers[0].delay, PAGE_PREVIEW_MS);
+  f.shown[0].onAction('jealousy-snooze');
+  assert.equal(f.timers[0].cleared, true);
+  f.timers[0].callback();
+  assert.equal(f.closed.length, 0);
+  jealousy.stop();
+});
+
+test('rival page details are restricted to page targets and omit query and fragment data', async () => {
   const { Jealousy } = await load('jealousy.js');
   const f = fixture();
   const jealousy = new Jealousy({ ...f, lang: () => 'en' });
+  jealousy.configure({ jealous: true, closePages: false });
+  jealousy.onWindows({
+    fg: 43, ai: ['claude'], pages: ['claude'], apps: [], dl: false,
+    rivalTitle: 'Claude',
+    rivalUrl: 'https://claude.ai/chat/123?secret=prompt#answer',
+  });
+  assert.equal(f.shown[0].quote, 'Claude\nhttps://claude.ai/chat/123');
+  jealousy.onWindows({
+    fg: 44, ai: ['claude'], pages: [], apps: ['claude'], dl: false,
+    rivalTitle: 'Private unrelated title',
+    rivalUrl: 'https://example.com/private',
+  });
+  assert.equal(f.shown[1].quote, '');
+  jealousy.stop();
+});
+
+test('the ten-minute pause expires on schedule and monitoring resumes', async () => {
+  const { Jealousy, SNOOZE_MS } = await load('jealousy.js');
+  let time = 5000;
+  const f = fixture({ now: () => time });
+  const jealousy = new Jealousy({ ...f, lang: () => 'en' });
+  jealousy.configure({ jealous: true, closePages: false });
+  jealousy.onWindows({ fg: 5, ai: ['grok'], pages: ['grok'], apps: [], dl: false });
+  f.shown[0].onAction('jealousy-snooze');
+  assert.equal(f.shown.length, 1);
+  assert.equal(f.timers[0].delay, SNOOZE_MS);
+  time += SNOOZE_MS;
+  f.timers[0].callback();
+  assert.equal(f.shown.length, 2);
+  jealousy.stop();
+});
+
+test('download pages are shown briefly, then close automatically without confirmation', async () => {
+  const { Jealousy, PAGE_PREVIEW_MS } = await load('jealousy.js');
+  const f = fixture();
+  const jealousy = new Jealousy({ ...f, lang: () => 'en' });
   jealousy.configure({ jealous: true, closePages: true });
-  jealousy.onWindows({ fg: 7, ai: ['gemini'], pages: [], dl: true });
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(f.closed, [{ id: 7, key: 'gemini' }]);
+  jealousy.onWindows({ fg: 7, ai: ['gemini'], pages: [], apps: [], dl: true });
+  assert.match(f.shown[0].line, /download Gemini/i);
+  assert.equal(f.shown[0].actions.some(({ id }) => id === 'jealousy-confirm-close'), false);
+  assert.equal(f.closed.length, 0);
+  assert.equal(f.timers[0].delay, PAGE_PREVIEW_MS);
+  f.timers[0].callback();
+  assert.deepEqual(f.closed, [{ id: 7, key: 'gemini', confirmed: true }]);
+  jealousy.onWindows({ fg: 7, ai: ['gemini'], pages: [], apps: [], dl: true });
+  assert.equal(f.closed.length, 1, 'the same detected tab is closed only once');
 
   jealousy.configure({ jealous: false, closePages: true });
-  jealousy.onWindows({ fg: 8, ai: ['copilot'], pages: [], dl: true });
+  jealousy.onWindows({ fg: 8, ai: ['copilot'], pages: [], apps: [], dl: true });
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(f.closed.length, 1);
   assert.equal(f.heart.cleared, true);
   jealousy.stop();
 });
@@ -82,10 +154,11 @@ test('turning jealousy off stops alerts and turning it back on resumes monitorin
   const { Jealousy } = await load('jealousy.js');
   const f = fixture();
   const jealousy = new Jealousy({ ...f, lang: () => 'en' });
-  const page = { fg: 12, ai: ['copilot'], pages: ['copilot'], dl: false };
+  const page = { fg: 12, ai: ['copilot'], pages: ['copilot'], apps: [], dl: false };
   jealousy.configure({ jealous: true, closePages: false });
   jealousy.onWindows(page);
   assert.equal(f.shown.length, 1);
+  assert.equal(f.closed.length, 0, 'disabling page closing leaves the rival tab open');
   jealousy.configure({ jealous: false, closePages: false });
   jealousy.configure({ jealous: true, closePages: false });
   assert.equal(f.shown.length, 2);
@@ -98,8 +171,22 @@ test('a rival page is not closed when her warning cannot be shown', async () => 
   f.panel.say = () => false;
   const jealousy = new Jealousy({ ...f, lang: () => 'en' });
   jealousy.configure({ jealous: true, closePages: true });
-  jealousy.onWindows({ fg: 24, ai: ['deepseek'], pages: ['deepseek'], dl: false });
+  jealousy.onWindows({ fg: 24, ai: ['deepseek'], pages: ['deepseek'], apps: [], dl: false });
   assert.equal(f.closed.length, 0);
+  jealousy.stop();
+});
+
+test('native AI app windows use the same warning but close only after confirmation', async () => {
+  const { Jealousy } = await load('jealousy.js');
+  const f = fixture();
+  const jealousy = new Jealousy({ ...f, lang: () => 'en' });
+  jealousy.configure({ jealous: true, closePages: true });
+  jealousy.onWindows({ fg: 37, ai: ['claude'], pages: [], apps: ['claude'], dl: false });
+  assert.match(f.shown[0].line, /This app/);
+  assert.ok(f.shown[0].actions.some(({ id }) => id === 'jealousy-confirm-close'));
+  f.shown[0].onAction('jealousy-confirm-close');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(f.closed, [{ id: 37, key: 'claude', confirmed: true }]);
   jealousy.stop();
 });
 
@@ -115,5 +202,15 @@ test('jealousy remains in her mood until an apology', async () => {
 
   mood.feel('sorry', 30 * 60 * 1000 + 1);
   assert.equal(mood.cause, null);
-  assert.ok(mood.v.anger < 0.3);
+  assert.equal(mood.v.anger, 0);
+  assert.equal(mood.mood, 'calm');
+});
+
+test('petting clears jealous anger immediately', async () => {
+  const { Mood } = await load('mood.js');
+  const mood = new Mood({ storage: null, now: 1000 });
+  mood.event('jealousy', 1000, 'Gemini');
+  assert.equal(mood.clearJealousy(1001), true);
+  assert.equal(mood.cause, null);
+  assert.equal(mood.v.anger, 0);
 });

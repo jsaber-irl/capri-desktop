@@ -484,6 +484,31 @@
   clip-path: polygon(7px 0, 100% 0, 100% 100%, 0 100%, 0 7px);
 }
 
+.ring__reminder-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 6px;
+  background: var(--ink-2);
+}
+
+.ring__reminder-item .ring__label-text { overflow-wrap: anywhere; }
+.ring__reminder-item .ring__btns { flex-wrap: wrap; }
+
+.ring__reminder-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.ring__reminder-editor > :first-child,
+.ring__reminder-editor > :nth-child(2),
+.ring__reminder-editor > :nth-child(3),
+.ring__reminder-editor > :last-child { grid-column: 1 / -1; }
+
 /* the bond: her level, large */
 .ring__level {
   display: flex;

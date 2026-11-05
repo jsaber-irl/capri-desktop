@@ -10,6 +10,7 @@ import { plural, dateOf } from './bond.js';
 import { micThreshold, meterLevel } from './ears.js';
 import { el, heading, note, row, button, buttons, toggle, pick, seg, slider, chips, quote } from './ring-ui.js';
 import { PROVIDERS, GROUPS, needsKey, isLocal } from './brain-providers.js';
+import { zonedTimeToEpoch } from './reminders.mjs';
 
 export const ORDER = ['bond', 'brain', 'mic', 'senses', 'character', 'colours', 'voice', 'more', 'chat'];
 
@@ -770,6 +771,100 @@ const more = {
         host.hubShow?.('manage');
       }),
     ));
+    if (c.reminders) {
+      root.append(heading(m.reminders));
+      const list = el('div', 'ring__reminders');
+      for (const reminder of c.reminders.upcoming) {
+        const rowEl = el('div', 'ring__reminder-item');
+        const time = new Intl.DateTimeFormat(c.lang, {
+          dateStyle: 'short',
+          timeStyle: 'short',
+          timeZone: reminder.timeZone || undefined,
+        }).format(new Date(reminder.at));
+        const repeat = reminder.recurrence
+          ? ` · ${reminder.recurrence.interval > 1 ? `${reminder.recurrence.interval} ` : ''}${m[`repeat${reminder.recurrence.unit}`]}`
+          : '';
+        rowEl.append(el('span', 'ring__label-text',
+          `${reminder.enabled === false ? '○ ' : ''}${reminder.text} · ${time}${repeat} · ${reminder.timeZone || m.localTimeZone}`));
+        rowEl.append(buttons(
+          button(m.editReminder, () => {
+            c.state.reminderDraft = { ...reminder, recurrence: reminder.recurrence ? { ...reminder.recurrence } : null };
+            c.refresh();
+          }),
+          button(reminder.enabled === false ? m.enableReminder : m.disableReminder, () => {
+            c.reminders.setEnabled(reminder.id, reminder.enabled === false);
+            c.refresh();
+          }),
+          button(m.deleteReminder, () => {
+            c.reminders.remove(reminder.id);
+            c.refresh();
+          }, { danger: true }),
+        ));
+        list.append(rowEl);
+      }
+      if (!c.reminders.list.length) list.append(note(m.noReminders, true));
+      root.append(list);
+
+      const draft = c.state.reminderDraft || {
+        text: '',
+        at: Date.now() + 60 * 60 * 1000,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        recurrence: null,
+      };
+      const form = el('form', 'ring__reminder-editor');
+      const textInput = el('input', 'ring__input');
+      textInput.type = 'text';
+      textInput.maxLength = 140;
+      textInput.placeholder = m.reminderText;
+      textInput.value = draft.text || '';
+      const timeInput = el('input', 'ring__input');
+      timeInput.type = 'datetime-local';
+      timeInput.value = new Date(draft.at).toLocaleString('sv-SE', { timeZone: draft.timeZone || undefined }).replace(' ', 'T').slice(0, 16);
+      const zoneInput = el('input', 'ring__input');
+      zoneInput.type = 'text';
+      zoneInput.placeholder = 'Europe/Paris';
+      zoneInput.value = draft.timeZone || '';
+      const recurrence = el('select', 'ring__input');
+      for (const value of ['none', 'day', 'week', 'month']) {
+        const option = el('option', '', value === 'none' ? m.noRepeat : m[`repeat${value}`]);
+        option.value = value;
+        recurrence.append(option);
+      }
+      recurrence.value = draft.recurrence?.unit || 'none';
+      const interval = el('input', 'ring__input');
+      interval.type = 'number';
+      interval.min = '1';
+      interval.max = '365';
+      interval.value = String(draft.recurrence?.interval || 1);
+      interval.disabled = recurrence.value === 'none';
+      recurrence.addEventListener('change', () => { interval.disabled = recurrence.value === 'none'; });
+      const error = el('p', 'ring__note is-dim');
+      const save = button(draft.id ? m.saveReminder : m.addReminder, () => form.requestSubmit(), { primary: true });
+      const cancel = draft.id ? button(m.cancelEdit, () => {
+        delete c.state.reminderDraft;
+        c.refresh();
+      }) : null;
+      form.append(textInput, timeInput, zoneInput, recurrence, interval, buttons(save, cancel));
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        try {
+          const timeZone = zoneInput.value.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+          const patch = {
+            text: textInput.value,
+            at: zonedTimeToEpoch(timeInput.value, timeZone),
+            timeZone,
+            recurrence: recurrence.value === 'none' ? null : { unit: recurrence.value, interval: Number(interval.value) },
+          };
+          if (draft.id) c.reminders.edit(draft.id, patch);
+          else c.reminders.add(patch.at, patch.text, { timeZone, recurrence: patch.recurrence });
+          delete c.state.reminderDraft;
+          c.refresh();
+        } catch (cause) {
+          error.textContent = cause.message;
+        }
+      });
+      root.append(form, error);
+    }
     root.append(buttons(
       button(m.hide, () => {
         c.hide();

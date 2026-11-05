@@ -188,6 +188,26 @@ test('with emotions off she says nothing about the pointer', async () => {
   assert.equal(said.length, 0);
 });
 
+test('stroking her mane clears jealous anger', async () => {
+  const { heart, capri } = await world();
+  heart.mood.event('jealousy', Date.now(), 'Gemini');
+  capri.fx = { add() {} };
+  heart.patted();
+  assert.equal(heart.mood.cause, null);
+  assert.equal(heart.mood.v.anger, 0);
+  assert.notEqual(heart.mood.mood, 'angry');
+});
+
+test('an apology clears jealous anger and dismisses Capri’s warning', async () => {
+  const { heart, panel } = await world();
+  heart.mood.event('jealousy', Date.now(), 'Gemini');
+  panel.current = { jealousy: true };
+  heart.feel('Je te demande pardon');
+  assert.equal(heart.mood.cause, null);
+  assert.equal(heart.mood.v.anger, 0);
+  assert.equal(panel.hidden, 1);
+});
+
 // ---------- being carried ----------
 
 test('dragged: dizzy after a few; otherwise a word about the carry or the landing, sometimes', async () => {

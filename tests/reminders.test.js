@@ -123,3 +123,73 @@ test('clock affiche les secondes quand on le demande', async () => {
   assert.equal(clock(at, 'fr-FR', true), '14:05:09');
   assert.equal(clock(at, 'fr-FR'), '14:05');
 });
+
+test('parse un rappel quotidien dans un fuseau explicitement demandé', async () => {
+  const { parseReminder, zonedTimeToEpoch } = await load('reminders.mjs');
+  const now = Date.parse('2026-03-15T00:00:00Z');
+  const reminder = parseReminder('remind me every day at 9am timezone Europe/Paris to take medicine', now);
+  assert.equal(reminder.text, 'take medicine');
+  assert.deepEqual(reminder.recurrence, { unit: 'day', interval: 1 });
+  assert.equal(reminder.timeZone, 'Europe/Paris');
+  assert.equal(reminder.at, zonedTimeToEpoch('2026-03-15T09:00', 'Europe/Paris'));
+});
+
+test('récurrence journalière garde l’heure locale à travers le changement DST', async () => {
+  const { nextOccurrence, zonedTimeToEpoch } = await load('reminders.mjs');
+  const first = zonedTimeToEpoch('2026-03-28T09:00', 'Europe/Paris');
+  const next = nextOccurrence(first, { unit: 'day', interval: 1 }, 'Europe/Paris');
+  assert.equal(next - first, 23 * 60 * 60 * 1000);
+  assert.equal(new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short',
+  }).format(new Date(next)), '2026-03-29 09:00');
+});
+
+test('mensuel le 31 du mois revient au dernier jour du mois suivant', async () => {
+  const { nextOccurrence, zonedTimeToEpoch } = await load('reminders.mjs');
+  const first = zonedTimeToEpoch('2026-01-31T08:30', 'UTC');
+  const next = nextOccurrence(first, { unit: 'month', interval: 1 }, 'UTC');
+  assert.equal(new Date(next).toISOString(), '2026-02-28T08:30:00.000Z');
+});
+
+test('rappels récurrents persistent, se désactivent et restent dans leur fuseau après redémarrage', async () => {
+  const { Reminders } = await load('reminders.mjs');
+  const host = makeHost();
+  let now = Date.parse('2026-10-24T07:00:00Z');
+  const firstService = new Reminders({ host, list: [], now: () => now });
+  const firstAt = Date.parse('2026-10-24T08:00:00Z');
+  const r = firstService.add(firstAt, 'prendre le médicament', {
+    timeZone: 'Europe/Paris',
+    recurrence: { unit: 'day', interval: 1 },
+  });
+  firstService.setEnabled(r.id, false);
+  firstService.check();
+  assert.equal(host.getConfig().reminders[0].at, firstAt, 'a disabled reminder never fires');
+  firstService.setEnabled(r.id, true);
+
+  now = firstAt + 1000;
+  const afterRestart = new Reminders({ host, list: structuredClone(host.getConfig().reminders), now: () => now });
+  let fired;
+  afterRestart.onDue = (reminder) => { fired = reminder; };
+  afterRestart.check();
+  assert.equal(fired.at, firstAt);
+  assert.equal(afterRestart.list[0].timeZone, 'Europe/Paris');
+  assert.equal(afterRestart.list[0].at, Date.parse('2026-10-25T09:00:00Z'));
+  assert.equal(afterRestart.list[0].made, null);
+});
+
+test('editing a reminder changes the schedule and rejects unknown time zones', async () => {
+  const { Reminders } = await load('reminders.mjs');
+  const host = makeHost();
+  const reminders = new Reminders({ host, list: [] });
+  const r = reminders.add(FIXED_NOW + 60000, 'prendre les clés');
+  const edited = reminders.edit(r.id, {
+    text: 'prendre le passeport',
+    at: FIXED_NOW + 120000,
+    timeZone: 'Europe/Paris',
+    recurrence: { unit: 'week', interval: 2 },
+  });
+  assert.equal(edited.text, 'prendre le passeport');
+  assert.equal(edited.at, FIXED_NOW + 120000);
+  assert.deepEqual(edited.recurrence, { unit: 'week', interval: 2 });
+  assert.throws(() => reminders.edit(r.id, { timeZone: 'Not/A_Timezone' }), /Unknown time zone/);
+});

@@ -121,10 +121,10 @@ async function boot() {
       kind: 'remind',
       face: 'wide',
       line: brain.lang === 'fr'
-        ? `Rappel : ${reminder.text} (${clock(reminder.at, lang, true)}).`
+        ? `Rappel : ${reminder.text} (${clock(reminder.at, lang, true, reminder.timeZone)}).`
         : brain.lang === 'ru'
-          ? `Напоминание: ${reminder.text} (${clock(reminder.at, lang, true)}).`
-          : `Reminder: ${reminder.text} (${clock(reminder.at, lang, true)}).`,
+          ? `Напоминание: ${reminder.text} (${clock(reminder.at, lang, true, reminder.timeZone)}).`
+          : `Reminder: ${reminder.text} (${clock(reminder.at, lang, true, reminder.timeZone)}).`,
       hold: null,
     });
     const notice = {
@@ -175,6 +175,7 @@ async function boot() {
       panel.say({ kind: 'error', face: 'annoyed', line: pick(brain.t.pet.enough), hold: 3000 });
       return;
     }
+    heart.clearJealousy();
     heart.event('petted');
     bond.feel('petted');
     const lines = bond.data.level >= 2 ? brain.t.pet.high : brain.t.pet.low;
@@ -474,6 +475,7 @@ async function boot() {
     if (callActive) {
       host.callTranscript('user', text, true);
       if (chat.open) chat.say(text);
+      else heart.feel(text);
       return;
     }
     // show what you said and send it to her chat (open it first if need be)
@@ -482,7 +484,7 @@ async function boot() {
   };
   // Her circular menu (ring.js): right-click her. Its settings are the tray menu's, plus the mic and the bond.
   ring = new Ring({
-    host, capri, panel, brain, bond, ears, voice,
+    host, capri, panel, brain, bond, ears, voice, reminders,
     actions: { run: (name, extra) => runCommand({ name, ...extra }) },
   });
   ring.configure(config);

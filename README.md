@@ -1,4 +1,4 @@
-## **Project Capricorn (2.2.3)**
+## **Project Capricorn (2.2.5)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -222,7 +222,7 @@ Right-click Capri to open the menu. The main sections are:
 
 The `Ctrl+Alt+C` shortcut hides Capri inside her chip. The same shortcut brings her back.
 
-On Windows, the Character tab lets you turn jealousy off or keep it while disabling page closing. Capri warns about rival AI pages before closing them; download pages are closed immediately when both jealousy and page closing are enabled. Clicking Capri or “Leave me alone for 10 minutes” pauses jealousy for ten minutes. Her mood stays until you apologize. Rival-page monitoring and closing are not available on macOS or Linux.
+On Windows, the Character tab lets you turn jealousy off or keep it while disabling closings. Capri detects supported AI apps and their own browser pages. For a detected rival tab, she shows its title and sanitized address (without query parameters or page contents) for 1.2 seconds; when page closing is enabled, she then closes rival AI and download tabs and gets angry. The “Leave me alone for 10 minutes” action during the preview cancels that close. Closing a native AI app still requires confirmation. An apology in chat or voice, or a head/mane pet, clears that jealous anger. Clicking Capri or “Leave me alone for 10 minutes” pauses alerts for ten minutes. Rival detection and closing are not available on macOS or Linux. In the **More** tab, you can add, edit, disable, or delete reminders; recurring schedules retain their IANA time zone across restarts and daylight-saving changes.
 
 ### Task tracking
 
@@ -582,7 +582,7 @@ The following are present in the current source tree. Capabilities that depend o
 | Screen capture | Native capture where supported | Screen Recording permission required | Depends on Electron/desktop session |
 | Media detection/control | Windows system media sessions | Spotify/Deezer through Apple Events when exposed | MPRIS through `playerctl` |
 | Window possession/tracking | Windows adapter | macOS System Events/Accessibility | Not available |
-| Rival-AI detection and page closing | Available; both controls are in Character settings | Not available | Not available |
+| Rival-AI detection and closing | Supported native apps (confirmation) and browser tabs (title/address preview, then automatic close including download tabs) | Not available | Not available |
 
 Build commands are `npm run dist`, `npm run dist:mac`, `npm run dist:linux`, `npm run dist:32`, and `npm run dist:all`. No lint or TypeScript command is defined; the maintained application code is JavaScript, with PowerShell and Python helpers.
 

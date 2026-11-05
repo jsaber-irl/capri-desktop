@@ -945,9 +945,15 @@ export class Chat {
       if (!asked.at) return { line: french ? 'À quelle heure dois-je te le rappeler ?' : russian ? 'На какое время поставить напоминание?' : 'What time should I remind you?', face: 'aside' };
       if (!asked.text) return { line: french ? 'Que dois-je te rappeler ?' : russian ? 'О чём тебе напомнить?' : 'What should I remind you about?', face: 'aside' };
       if (!this.reminders) return { line: french ? 'Je ne peux pas garder ce rappel pour le moment.' : russian ? 'Я пока не могу сохранить это напоминание.' : 'I cannot save that reminder right now.', face: 'aside' };
-      this.reminders.add(asked.at, asked.text);
+      this.reminders.add(asked.at, asked.text, { recurrence: asked.recurrence, timeZone: asked.timeZone });
+      const time = clock(asked.at, french ? 'fr-FR' : russian ? 'ru-RU' : 'en-US', false, asked.timeZone);
+      const repeat = asked.recurrence
+        ? french ? `, chaque ${asked.recurrence.unit === 'day' ? 'jour' : asked.recurrence.unit === 'week' ? 'semaine' : 'mois'}`
+          : russian ? `, повторять: ${asked.recurrence.unit === 'day' ? 'каждый день' : asked.recurrence.unit === 'week' ? 'каждую неделю' : 'каждый месяц'}`
+            : `, every ${asked.recurrence.unit}`
+        : '';
       return {
-        line: french ? `Je te rappellerai « ${asked.text} » à ${clock(asked.at, 'fr-FR')}.` : russian ? `Я напомню тебе: «${asked.text}» — ${clock(asked.at, 'ru-RU')}.` : `I’ll remind you to ${asked.text} at ${clock(asked.at, 'en-US')}.`,
+        line: french ? `Je te rappellerai « ${asked.text} » à ${time}${repeat} (${asked.timeZone}).` : russian ? `Я напомню тебе: «${asked.text}» — ${time}${repeat} (${asked.timeZone}).` : `I’ll remind you to ${asked.text} at ${time}${repeat} (${asked.timeZone}).`,
         face: 'smug',
       };
     }

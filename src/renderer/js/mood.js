@@ -86,7 +86,7 @@ const PATTERNS = {
   love: re(`${L}(?:люблю\\s+тебя|я\\s+тебя\\s+люблю|влюбил|влюбл[её]н|обожаю\\s+тебя|i\\s+love\\s+you|love\\s+you|luv\\s+u)`),
   flirt: re(`${L}(?:обним|поцелу|целую|чмок|обнимаш|давай\\s+встречаться|будь\\s+моей|выходи\\s+за\\s+меня|hug|kiss|marry\\s+me|be\\s+my\\s+girlfriend)`),
   thanks: re(`${L}(?:спасибо|спс${R}|благодар|пасиб|thank|thx${R}|ty${R})`),
-  apology: re(`${L}(?:прости|извини|сорри|сори${R}|прошу\\s+прощения|виноват|не\\s+обижайся|не\\s+злись|sorry|my\\s+bad|apologi[sz]e|forgive\\s+me)`),
+  apology: re(`${L}(?:прости|извини|сорри|сори${R}|прошу\\s+прощения|виноват|не\\s+обижайся|не\\s+злись|sorry|my\\s+bad|apologi[sz]e|forgive\\s+me|pardon|d[ée]sol[ée](?:e|es|s)?|excuse[-\\s]+moi|je\\s+m['’]excuse)`),
   userSad: re(`${L}(?:мне\\s+(?:так\\s+|очень\\s+|сегодня\\s+|что-то\\s+)?(?:грустно|плохо|одиноко|тоскливо|хреново|паршиво|тяжело|херово|страшно)|я\\s+(?:так\\s+)?устал|депресс|вс[её]\\s+плохо|не\\s+могу\\s+больше|i'?m\\s+(?:so\\s+)?(?:sad|lonely|depressed|tired|down|scared)|i\\s+feel\\s+(?:bad|sad|lonely|down|awful)|je\\s+suis\\s+triste|estoy\\s+triste|estou\\s+triste)`),
   userBored: re(`${L}(?:мне\\s+скучно|скукота|скучно${R}|i'?m\\s+bored|so\\s+boring)`),
   sky: re(`${L}(?:спутник|зв[её]зд|луна|луну|космос|небо|неба|орбит|satellite|stars?${R}|moon|space${R}|sky|orbit)`),
@@ -254,7 +254,7 @@ export class Mood {
       else this.apply(EFFECTS[tag]);
     }
     if (tags.includes('apology') && this.cause?.tag === 'jealousy') {
-      this.v.anger = Math.min(this.v.anger, 0.15);
+      this.v.anger = 0;
       this.cause = null;
     }
     // a string of insults hurts more than one
@@ -280,7 +280,7 @@ export class Mood {
   clearJealousy(now = Date.now()) {
     if (this.cause?.tag !== 'jealousy') return false;
     this.cause = null;
-    this.v.anger = Math.min(this.v.anger, 0.15);
+    this.v.anger = 0;
     this.changed(now);
     return true;
   }

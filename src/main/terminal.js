@@ -383,12 +383,16 @@ function createTerminal({
       if (!text) return error(tr('Usage : /remind <texte>.', 'Usage: /remind <text>.'));
       try {
         const mod = await loadReminders();
-        const r = mod.parseReminder(text, Date.now());
+        const r = mod.parseReminder(`remind me ${text}`, Date.now());
         if (!r) return error(tr('Je n’ai pas compris le rappel. Dis par exemple : rappelle-moi dans 20 min de sortir la pizza.', "I didn't understand the reminder. Say for example: remind me in 20 min to take out the pizza."));
-        reminders.add(r.at, r.text);
+        if (!r.at || !r.text) return error(tr('Précise une heure et le texte du rappel.', 'Include a time and the reminder text.'));
+        reminders.add(r.at, r.text, { recurrence: r.recurrence, timeZone: r.timeZone });
+        const recurrence = r.recurrence
+          ? tr(`, répétition ${r.recurrence.unit}`, `, repeats ${r.recurrence.unit}`)
+          : '';
         return response([
-          tr(`Rappel créé : « ${r.text} »`, `Reminder created: “${r.text}”`),
-          r.at ? tr(`à ${new Date(r.at).toLocaleTimeString()}`, `at ${new Date(r.at).toLocaleTimeString()}`) : tr('sans heure précisée', 'no time specified'),
+          tr(`Rappel créé : « ${r.text} »${recurrence}`, `Reminder created: “${r.text}”${recurrence}`),
+          r.at ? tr(`à ${mod.clock(r.at, 'fr-FR', false, r.timeZone)} (${r.timeZone})`, `at ${mod.clock(r.at, 'en-US', false, r.timeZone)} (${r.timeZone})`) : tr('sans heure précisée', 'no time specified'),
         ].filter(Boolean));
       } catch (err) {
         return error(`${tr('Impossible de créer le rappel :', 'Cannot create reminder:')} ${err.message}`);

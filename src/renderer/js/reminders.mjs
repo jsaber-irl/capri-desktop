@@ -48,6 +48,83 @@ const CANCEL = /(?:annul[ae]?|annuler|annulation|cancel(?:lation)?|supprimer|del
 const LEAD = new RegExp("^(?:[\\s,:;.!?-]|d['’]|qu['’]|(?:capri|de que|de|que|pour|à|to|that|about|of|for|para|pra|me|о|об|что|чтобы|мне)(?![\\p{L}]))+", 'iu');
 
 const MAX_MS = 7 * 24 * 3600 * 1000;
+const DEFAULT_TIME_ZONE = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+const RECURRENCE = /(?:\bevery(?:\s+(\d+))?\s+(day|days|week|weeks|month|months)\b|\b(daily|weekly|monthly)\b|\b(?:tous les jours|chaque jour|chaque semaine|chaque mois)\b)/iu;
+const TIME_ZONE = /(?:time\s*zone|timezone|fuseau(?:\s+horaire)?|zona\s+horaria|часовой\s+пояс)\s*[:=]?\s*([A-Za-z_+-]+(?:\/[A-Za-z0-9_+-]+)+|UTC)\b/iu;
+
+function recurrenceFrom(text) {
+  const match = RECURRENCE.exec(text);
+  if (!match) return null;
+  const word = (match[2] || match[3] || match[0]).toLowerCase();
+  const unit = /day|daily|jour/.test(word) ? 'day' : /week|weekly|semaine/.test(word) ? 'week' : 'month';
+  return { recurrence: { unit, interval: Number(match[1] || 1) }, match };
+}
+
+function validTimeZone(timeZone) {
+  const zone = String(timeZone || DEFAULT_TIME_ZONE());
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: zone }).format();
+    return zone;
+  } catch {
+    throw new RangeError(`Unknown time zone: ${zone}`);
+  }
+}
+
+function zonedParts(at, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(at));
+  return Object.fromEntries(parts.filter(({ type }) => type !== 'literal').map(({ type, value }) => [type, Number(value)]));
+}
+
+export function zonedTimeToEpoch(localDateTime, timeZone) {
+  const zone = validTimeZone(timeZone);
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(String(localDateTime));
+  if (!match) throw new RangeError('Expected a local date and time in YYYY-MM-DDTHH:mm format.');
+  const [, y, mo, d, h, mi, s = '0'] = match;
+  const desired = { year: Number(y), month: Number(mo), day: Number(d), hour: Number(h), minute: Number(mi), second: Number(s) };
+  const naive = Date.UTC(desired.year, desired.month - 1, desired.day, desired.hour, desired.minute, desired.second);
+  let at = naive;
+  for (let i = 0; i < 4; i++) {
+    const got = zonedParts(at, zone);
+    at += naive - Date.UTC(got.year, got.month - 1, got.day, got.hour, got.minute, got.second);
+  }
+  const got = zonedParts(at, zone);
+  if (Object.keys(desired).some((key) => got[key] !== desired[key])) {
+    throw new RangeError('That local time does not exist in the selected time zone.');
+  }
+  return at;
+}
+
+export function nextOccurrence(at, recurrence, timeZone) {
+  const zone = validTimeZone(timeZone || recurrence?.timeZone);
+  if (!recurrence || !['day', 'week', 'month'].includes(recurrence.unit)) throw new RangeError('Unsupported reminder recurrence.');
+  const interval = Number(recurrence.interval || 1);
+  if (!Number.isInteger(interval) || interval < 1 || interval > 365) throw new RangeError('Recurrence interval must be from 1 to 365.');
+  const p = zonedParts(at, zone);
+  const monthIndex = p.year * 12 + p.month - 1 + (recurrence.unit === 'month' ? interval : 0);
+  let year = p.year, month = p.month, day = p.day;
+  if (recurrence.unit === 'month') {
+    year = Math.floor(monthIndex / 12);
+    month = (monthIndex % 12) + 1;
+    day = Math.min(day, new Date(Date.UTC(year, month, 0)).getUTCDate());
+  } else {
+    const days = recurrence.unit === 'week' ? interval * 7 : interval;
+    const next = new Date(Date.UTC(p.year, p.month - 1, p.day + days));
+    year = next.getUTCFullYear();
+    month = next.getUTCMonth() + 1;
+    day = next.getUTCDate();
+  }
+  const local = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}:${String(p.second).padStart(2, '0')}`;
+  return zonedTimeToEpoch(local, zone);
+}
 
 function number(word) {
   if (!word) return NaN;
@@ -63,7 +140,7 @@ function unitMs(unit) {
 }
 
 // When, read off text: { at (ms), spans: the parts of the text that said it }, or null.
-export function parseWhen(text, now = Date.now()) {
+export function parseWhen(text, now = Date.now(), timeZone = DEFAULT_TIME_ZONE()) {
   let m = IN_HM.exec(text);
   if (m) return { at: now + (Number(m[1]) * 60 + Number(m[2])) * 60000, spans: [m] };
   m = IN.exec(text);
@@ -99,9 +176,9 @@ export function parseWhen(text, now = Date.now()) {
           if (PM.test(text)) h += 12;
           else if (!AM.test(text) && !TOMORROW.test(text) && h > 0) {
             // "at 6", said in the afternoon: the next 6 o'clock to come
-            const at6 = new Date(now);
-            at6.setHours(h, min, 0, 0);
-            if (at6.getTime() <= now && at6.getTime() + 12 * 3600000 > now) h += 12;
+            const current = zonedParts(now, validTimeZone(timeZone));
+            const todayAt = zonedTimeToEpoch(`${current.year}-${String(current.month).padStart(2, '0')}-${String(current.day).padStart(2, '0')}T${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`, timeZone);
+            if (todayAt <= now && todayAt + 12 * 3600000 > now) h += 12;
           }
         }
         spans.push(m);
@@ -109,16 +186,21 @@ export function parseWhen(text, now = Date.now()) {
     }
   }
   if (h === null) return null;
-  const d = new Date(now);
-  d.setHours(h, min, 0, 0);
+  const zone = validTimeZone(timeZone);
+  const current = zonedParts(now, zone);
+  let date = new Date(Date.UTC(current.year, current.month - 1, current.day));
   const tomorrow = TOMORROW.exec(text);
   if (tomorrow) {
-    d.setDate(d.getDate() + 1);
+    date.setUTCDate(date.getUTCDate() + 1);
     spans.push(tomorrow);
-  } else if (d.getTime() <= now) {
-    d.setDate(d.getDate() + 1); // already past today: tomorrow
   }
-  return { at: d.getTime(), spans };
+  const dateTime = () => zonedTimeToEpoch(`${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}T${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`, zone);
+  let at = dateTime();
+  if (!tomorrow && at <= now) {
+    date.setUTCDate(date.getUTCDate() + 1);
+    at = dateTime(); // already past today: next local day in the selected timezone
+  }
+  return { at, spans };
 }
 
 // A cancellation asked for in text: { text: the reminder text to look for (may be ''), or null if
@@ -135,30 +217,35 @@ export function parseCancel(text) {
 export function parseReminder(text, now = Date.now()) {
   const trigger = TRIGGER.exec(text);
   if (!trigger) return null;
-  const when = parseWhen(text, now);
+  const zone = TIME_ZONE.exec(text);
+  const timeZone = zone?.[1] || DEFAULT_TIME_ZONE();
+  const when = parseWhen(text, now, timeZone);
+  const repeated = recurrenceFrom(text);
   let what = text;
-  for (const m of [trigger, ...(when?.spans || [])]) what = what.replace(m[0], ' ');
+  for (const m of [trigger, ...(when?.spans || []), ...(repeated ? [repeated.match] : []), ...(zone ? [zone] : [])]) what = what.replace(m[0], ' ');
   what = what.replace(PM, ' ').replace(AM, ' ').replace(TOMORROW, ' ').replace(POLITE, ' ');
   what = what.replace(/\s+/g, ' ').replace(LEAD, '').replace(/[\s,;:.!?]+$/, '').trim().slice(0, 140);
-  const at = when && when.at - now >= 5000 && when.at - now <= MAX_MS ? when.at : null;
-  return { at, text: what };
+  const maxDelay = repeated ? 365 * 24 * 3600 * 1000 : MAX_MS;
+  const at = when && when.at - now >= 5000 && when.at - now <= maxDelay ? when.at : null;
+  return { at, text: what, recurrence: repeated?.recurrence || null, timeZone };
 }
 
 // When a reminder is for, as she says it: the time, with the day if it isn't today.
 // Pass `seconds` to include seconds (the due panel shows the exact time: 13:22:30).
-export function clock(at, lang = 'en', seconds = false) {
+export function clock(at, lang = 'en', seconds = false, timeZone) {
   const d = new Date(at);
-  const sameDay = d.toDateString() === new Date().toDateString();
-  const opts = { hour: '2-digit', minute: '2-digit', ...(seconds ? { second: '2-digit' } : {}) };
+  const sameDay = d.toLocaleDateString('en-CA', { timeZone }) === new Date().toLocaleDateString('en-CA', { timeZone });
+  const opts = { hour: '2-digit', minute: '2-digit', ...(timeZone ? { timeZone } : {}), ...(seconds ? { second: '2-digit' } : {}) };
   return new Intl.DateTimeFormat(lang, sameDay ? opts : { weekday: 'short', ...opts }).format(d);
 }
 
 // The ones she keeps: [{ id, at, text, made }], saved in her settings (main.js shows them in her
 // menu, where you can cancel one). onDue(reminder) when one comes due, one at a time.
 export class Reminders {
-  constructor({ host, list = [] }) {
+  constructor({ host, list = [], now = Date.now }) {
     this.host = host;
     this.list = Array.isArray(list) ? list : [];
+    this.now = now;
     this.onDue = null;
     this.firing = new Set(); // ids being shown right now
     this.timer = null;
@@ -188,8 +275,23 @@ export class Reminders {
     return [...this.list].sort((a, b) => a.at - b.at);
   }
 
-  add(at, text) {
-    const r = { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, at, text, made: null };
+  add(at, text, options = {}) {
+    if (!Number.isFinite(at) || !String(text || '').trim()) throw new TypeError('A reminder needs a valid time and non-empty text.');
+    const timeZone = validTimeZone(options.timeZone);
+    const recurrence = options.recurrence ? {
+      unit: options.recurrence.unit,
+      interval: Number(options.recurrence.interval || 1),
+    } : null;
+    if (recurrence) nextOccurrence(at, recurrence, timeZone);
+    const r = {
+      id: `${this.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      at,
+      text: String(text).trim().slice(0, 140),
+      made: null,
+      enabled: options.enabled !== false,
+      timeZone,
+      recurrence,
+    };
     this.list = [...this.list, r];
     this.save();
     return r;
@@ -215,6 +317,42 @@ export class Reminders {
     this.save();
   }
 
+  edit(id, patch = {}) {
+    const current = this.list.find((reminder) => reminder.id === id);
+    if (!current) return null;
+    const next = { ...current };
+    if ('text' in patch) {
+      if (!String(patch.text || '').trim()) throw new TypeError('Reminder text cannot be empty.');
+      next.text = String(patch.text).trim().slice(0, 140);
+    }
+    if ('at' in patch) {
+      if (!Number.isFinite(patch.at)) throw new TypeError('Reminder time must be a valid timestamp.');
+      next.at = patch.at;
+      next.made = null;
+    }
+    if ('timeZone' in patch) next.timeZone = validTimeZone(patch.timeZone);
+    if ('recurrence' in patch) {
+      next.recurrence = patch.recurrence ? {
+        unit: patch.recurrence.unit,
+        interval: Number(patch.recurrence.interval || 1),
+      } : null;
+      next.made = null;
+    }
+    if (next.recurrence) nextOccurrence(next.at, next.recurrence, next.timeZone);
+    this.list = this.list.map((reminder) => (reminder.id === id ? next : reminder));
+    this.save();
+    return next;
+  }
+
+  setEnabled(id, enabled) {
+    const current = this.list.find((reminder) => reminder.id === id);
+    if (!current) return null;
+    const next = { ...current, enabled: Boolean(enabled) };
+    this.list = this.list.map((reminder) => (reminder.id === id ? next : reminder));
+    this.save();
+    return next;
+  }
+
   snooze(id, ms) {
     this.firing.delete(id);
     this.list = this.list.map((r) => (r.id === id ? { ...r, at: Date.now() + ms } : r));
@@ -227,21 +365,30 @@ export class Reminders {
 
   check() {
     if (!this.onDue) return;
-    const now = Date.now();
-    const due = this.upcoming.find((r) => !r.made && !this.firing.has(r.id) && r.at <= now);
+    const now = this.now();
+    const due = this.upcoming.find((r) => r.enabled !== false && !r.made && !this.firing.has(r.id) && r.at <= now);
     if (!due) return;
     console.log('[reminders] reminder due', { id: due.id, text: due.text, at: due.at, now });
     this.firing.add(due.id);
     try {
-      due.made = Date.now();
+      const occurredAt = due.at;
+      due.made = this.now();
+      if (due.recurrence) {
+        let nextAt = nextOccurrence(due.at, due.recurrence, due.timeZone);
+        while (nextAt <= now) nextAt = nextOccurrence(nextAt, due.recurrence, due.timeZone);
+        due.at = nextAt;
+        due.made = null;
+      }
       this.save();
       console.log('[reminders] calling onDue', { id: due.id });
-      this.onDue(due);
+      this.onDue(due.recurrence ? { ...due, at: occurredAt } : due);
     } finally {
       this.firing.delete(due.id);
-      // le rappel a sonné : on le retire de la liste (il n'encombre plus le menu ni la config)
-      this.remove(due.id);
-      console.log('[reminders] reminder removed after onDue', { id: due.id });
+      if (!due.recurrence) {
+        // le rappel a sonné : on le retire de la liste (il n'encombre plus le menu ni la config)
+        this.remove(due.id);
+        console.log('[reminders] reminder removed after onDue', { id: due.id });
+      }
     }
   }
 }

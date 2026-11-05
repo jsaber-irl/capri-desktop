@@ -1709,14 +1709,18 @@ function registerIpc() {
   ipcMain.handle('windows:get', () => lastWindows);
   ipcMain.handle('windows:closePage', async (event, request = {}) => {
     if (event.sender !== overlay?.webContents || process.platform !== 'win32') return { ok: false, reason: 'unsupported' };
-    const { id, key } = request && typeof request === 'object' ? request : {};
+    const { id, key, confirmed } = request && typeof request === 'object' ? request : {};
     const allowed = new Set(['chatgpt', 'claude', 'codex', 'gemini', 'copilot', 'perplexity', 'deepseek', 'grok', 'lechat', 'characterai', 'metaai']);
     const cfg = config.load();
     if (cfg.jealous === false || cfg.closePages === false) return { ok: false, reason: 'disabled' };
+    if (confirmed !== true) return { ok: false, reason: 'confirmation-required' };
     if (!Number.isSafeInteger(id) || typeof key !== 'string' || !allowed.has(key)) return { ok: false, reason: 'invalid-target' };
+    const isPage = Array.isArray(lastWindows?.pages) && lastWindows.pages.includes(key);
+    const isApplication = Array.isArray(lastWindows?.apps) && lastWindows.apps.includes(key);
+    const isDownload = lastWindows?.dl === true;
     if (!windowWatch || !lastWindows || lastWindows.fg !== id ||
         !Array.isArray(lastWindows.ai) || !lastWindows.ai.includes(key) ||
-        (!(Array.isArray(lastWindows.pages) && lastWindows.pages.includes(key)) && lastWindows.dl !== true)) {
+        (!isPage && !isApplication && !isDownload)) {
       return { ok: false, reason: 'not-target' };
     }
     const reason = await windowWatch.close(id, key);

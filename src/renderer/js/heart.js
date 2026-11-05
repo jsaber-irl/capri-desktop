@@ -87,7 +87,9 @@ export class Heart {
   // Returns { tags, reaction, mood, level }.
   feel(text) {
     if (!this.enabled) return { tags: [], reaction: null, mood: 'calm', level: 0 };
+    const forgivingJealousy = this.mood.cause?.tag === 'jealousy';
     const felt = this.mood.feel(text);
+    if (forgivingJealousy && felt.tags.includes('apology') && this.panel.current?.jealousy) this.panel.hide();
     if (felt.reaction) this.capri.react(felt.reaction, this.towardPointer());
     if (felt.reaction === 'rage') this.zapLater();
     return felt;
@@ -121,7 +123,9 @@ export class Heart {
   }
 
   clearJealousy() {
-    return this.mood.clearJealousy();
+    const cleared = this.mood.clearJealousy();
+    if (cleared && this.panel.current?.jealousy) this.panel.hide();
+    return cleared;
   }
 
   // A line for clicking her with nothing going on, by mood (null: her usual idle lines).
@@ -289,6 +293,7 @@ export class Heart {
 
   patted() {
     this.calmUntil = performance.now() + COOLDOWN * 2;
+    this.clearJealousy();
     const angry = this.mood.mood === 'angry';
     this.mood.event('petted');
     if (angry) {

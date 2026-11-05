@@ -1,7 +1,7 @@
 import { lifeLines } from './lines-life.js';
 
 const SNOOZE_MS = 10 * 60 * 1000;
-const CLOSE_DELAY_MS = 5000;
+const PAGE_PREVIEW_MS = 1200;
 const STORE = 'capri.jealousy';
 
 const RIVALS = {
@@ -21,14 +21,34 @@ const RIVALS = {
 function storedSnooze(storage, now) {
   try {
     const until = Number(storage?.getItem(STORE) || 0);
-    return Number.isFinite(until) && until > now ? until : 0;
+    return Number.isFinite(until) && until > now && until <= now + SNOOZE_MS ? until : 0;
   } catch {
     return 0;
   }
 }
 
+function pageDetails(data, isPage) {
+  if (!isPage) return { pageTitle: '', pageUrl: '' };
+  const pageTitle = typeof data.rivalTitle === 'string'
+    ? data.rivalTitle.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 180).trim()
+    : '';
+  let pageUrl = '';
+  if (typeof data.rivalUrl === 'string') {
+    try {
+      const url = new URL(data.rivalUrl);
+      if (['http:', 'https:'].includes(url.protocol)) pageUrl = `${url.origin}${url.pathname}`.slice(0, 240);
+    } catch {
+      pageUrl = '';
+    }
+  }
+  return { pageTitle, pageUrl };
+}
+
 export class Jealousy {
-  constructor({ host, panel, heart, capri, lang = () => 'en', storage = globalThis.localStorage, now = Date.now }) {
+  constructor({
+    host, panel, heart, capri, lang = () => 'en', storage = globalThis.localStorage, now = Date.now,
+    setTimer = setTimeout, clearTimer = clearTimeout,
+  }) {
     this.host = host;
     this.panel = panel;
     this.heart = heart;
@@ -36,14 +56,16 @@ export class Jealousy {
     this.lang = lang;
     this.storage = storage;
     this.now = now;
+    this.setTimer = setTimer;
+    this.clearTimer = clearTimer;
     this.enabled = true;
     this.closePages = true;
     this.snoozedUntil = storedSnooze(storage, now());
     this.latest = null;
     this.signature = '';
     this.target = null;
-    this.closeTimer = null;
     this.snoozeTimer = null;
+    this.closeTimer = null;
     if (this.snoozedUntil) this.startSnoozeTimer(this.snoozedUntil - now());
   }
 
@@ -52,15 +74,21 @@ export class Jealousy {
     this.enabled = cfg.jealous !== false;
     this.closePages = cfg.closePages !== false;
     if (!this.enabled) {
-      this.clearCloseTimer();
+      this.clearTimer(this.closeTimer);
+      this.closeTimer = null;
       this.target = null;
       this.signature = '';
       if (this.panel.current?.jealousy) this.panel.hide();
       this.heart.clearJealousy?.();
       return;
     }
-    if (!this.closePages) this.clearCloseTimer();
-    else if (!wasClosing) this.signature = '';
+    if (wasClosing !== this.closePages) {
+      this.signature = '';
+      if (!this.closePages) {
+        this.clearTimer(this.closeTimer);
+        this.closeTimer = null;
+      }
+    }
     this.process(this.latest);
   }
 
@@ -71,67 +99,80 @@ export class Jealousy {
 
   process(data) {
     if (!data || !this.enabled) {
+      this.clearTimer(this.closeTimer);
+      this.closeTimer = null;
       this.target = null;
       if (!this.enabled) this.signature = '';
-      this.clearCloseTimer();
       return;
     }
     const ai = Array.isArray(data.ai) ? data.ai : [];
     const pages = Array.isArray(data.pages) ? data.pages : [];
+    const apps = Array.isArray(data.apps) ? data.apps : [];
     const key = pages[0] || ai[0] || '';
-    const currentTarget = { id: data.fg, key, page: pages.includes(key), download: data.dl === true };
-    const signature = key ? `${data.fg}:${key}:${currentTarget.page}:${currentTarget.download}` : '';
+    const page = pages.includes(key);
+    const download = data.dl === true;
+    const currentTarget = {
+      id: data.fg, key, page, application: apps.includes(key), download,
+      ...pageDetails(data, page || download),
+    };
+    const signature = key
+      ? `${data.fg}:${key}:${currentTarget.page}:${currentTarget.download}:${currentTarget.pageUrl || currentTarget.pageTitle}`
+      : '';
     if (!key) {
+      this.clearTimer(this.closeTimer);
+      this.closeTimer = null;
       this.signature = '';
       this.target = null;
-      this.clearCloseTimer();
       return;
     }
     if (signature === this.signature) {
       if (this.target) Object.assign(this.target, currentTarget);
       return;
     }
+    this.clearTimer(this.closeTimer);
+    this.closeTimer = null;
     this.signature = signature;
-    this.clearCloseTimer();
     this.target = currentTarget;
     if (this.now() < this.snoozedUntil) return;
 
     this.heart.event('jealousy', RIVALS[key] || key);
     this.capri.react('huff');
-    const warned = this.showWarning(key);
-
-    if (!this.closePages || (!this.target.page && !this.target.download)) return;
-    if (this.target.download) {
-      this.closeTarget(this.target);
-      return;
+    const shown = this.showWarning(key, currentTarget);
+    if (shown && this.closePages && (currentTarget.page || currentTarget.download)) {
+      this.closeTimer = this.setTimer(() => {
+        this.closeTimer = null;
+        this.closeTarget(currentTarget);
+      }, PAGE_PREVIEW_MS);
     }
-    if (!warned) return;
-    const target = this.target;
-    this.closeTimer = setTimeout(() => {
-      this.closeTimer = null;
-      if (this.enabled && this.closePages && this.target === target) this.closeTarget(target);
-    }, CLOSE_DELAY_MS);
   }
 
-  showWarning(key) {
+  showWarning(key, target) {
     const t = lifeLines(this.lang()).ring.jealousy;
+    const closesTab = this.closePages && (target.page || target.download);
+    const actions = [{ id: 'jealousy-snooze', label: t.wait, primary: !target.page && !target.application && !target.download }];
+    if (this.closePages && target.application) {
+      actions.unshift({ id: 'jealousy-confirm-close', label: t.confirmCloseApp, primary: true });
+    }
     return this.panel.say({
       kind: 'info',
       jealousy: true,
       face: 'annoyed',
-      line: t.line.replace('{name}', RIVALS[key] || key),
+      line: (closesTab ? (target.download ? t.download : t.pageLine) : target.application ? t.applicationLine : t.line)
+        .replace('{name}', RIVALS[key] || key),
+      quote: [target.pageTitle, target.pageUrl].filter(Boolean).join('\n'),
       hold: null,
-      actions: [{ id: 'jealousy-snooze', label: t.wait, primary: true }],
+      actions,
       onAction: (id) => {
-        if (id !== 'jealousy-snooze') return;
-        this.relieve();
+        if (id === 'jealousy-snooze') this.relieve();
+        if (id === 'jealousy-confirm-close') this.closeTarget(target);
       },
     });
   }
 
   relieve() {
     if (!this.target || !this.enabled || this.now() < this.snoozedUntil) return false;
-    this.clearCloseTimer();
+    this.clearTimer(this.closeTimer);
+    this.closeTimer = null;
     this.snoozedUntil = this.now() + SNOOZE_MS;
     try {
       this.storage?.setItem(STORE, String(this.snoozedUntil));
@@ -145,7 +186,7 @@ export class Jealousy {
 
   startSnoozeTimer(ms) {
     clearTimeout(this.snoozeTimer);
-    this.snoozeTimer = setTimeout(() => {
+    this.snoozeTimer = this.setTimer(() => {
       this.snoozeTimer = null;
       this.snoozedUntil = 0;
       try {
@@ -159,9 +200,10 @@ export class Jealousy {
   }
 
   async closeTarget(target) {
-    if (!this.enabled || !this.closePages || this.target !== target) return;
+    if (!this.enabled || !this.closePages || this.now() < this.snoozedUntil ||
+        this.target !== target || (!target.page && !target.application && !target.download)) return;
     try {
-      const result = await this.host.closePage(target.id, target.key);
+      const result = await this.host.closePage(target.id, target.key, true);
       if (!result?.ok && result?.reason !== 'front') {
         console.error(`[capri] could not close rival page (${result?.reason || 'unknown'}).`);
       }
@@ -170,16 +212,12 @@ export class Jealousy {
     }
   }
 
-  clearCloseTimer() {
-    clearTimeout(this.closeTimer);
-    this.closeTimer = null;
-  }
-
   stop() {
-    this.clearCloseTimer();
-    clearTimeout(this.snoozeTimer);
+    this.clearTimer(this.closeTimer);
+    this.closeTimer = null;
+    this.clearTimer(this.snoozeTimer);
     this.snoozeTimer = null;
   }
 }
 
-export { CLOSE_DELAY_MS, SNOOZE_MS };
+export { PAGE_PREVIEW_MS, SNOOZE_MS };

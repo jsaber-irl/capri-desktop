@@ -48,7 +48,7 @@ contextBridge.exposeInMainWorld('host', {
   openClaudeHelp: () => ipcRenderer.send('claude:help'),
   openMacPermissions: () => ipcRenderer.invoke('system:macPermissions'),
   windowsNow: () => ipcRenderer.invoke('windows:get'),
-  closePage: (id, key) => ipcRenderer.invoke('windows:closePage', { id, key }),
+  closePage: (id, key, confirmed = false) => ipcRenderer.invoke('windows:closePage', { id, key, confirmed }),
   handstandState: (active) => ipcRenderer.send('handstand:state', Boolean(active)),
   windowGrab: (id) => ipcRenderer.invoke('window:grab', id),
   windowMove: (id, x, y) => ipcRenderer.send('window:move', { id, x, y }),

@@ -3,11 +3,11 @@
 // Feeds the overlay with the position of the other windows (Windows only), so Capri can
 // sit on them. A small PowerShell helper does the Win32 calls; we turn its physical pixels
 // into the overlay's coordinates. It also says when the window in front is another AI (ChatGPT,
-// Gemini…: `ai`, the names it matched; `pages`, the ones whose own page it is in a browser; `dl`,
-// a page to download one of them), for her jealousy, and never passes on a title; which game
+// Gemini…: `ai`, the names it matched; `pages` and `apps`, the browser pages and native apps;
+// `dl`, a page to download one of them), for her jealousy, and never passes on a title; which game
 // is in front, if one (`game`, its folder in Steam's library or another launcher's); and the USB
 // sticks plugged in (`usb`, drive letters), and the last device plugged in or out (`plug`).
-// close() has it close one of those pages, jealous.
+// close() closes a detected AI tab or asks for confirmation before closing a native app.
 
 const path = require('node:path');
 const readline = require('node:readline');
@@ -45,7 +45,9 @@ function startWindowWatch({ overlay, onUpdate }) {
       .filter((w) => w.x < bounds.width && w.x + w.w > 0 && w.y < bounds.height && w.y + w.h > 0);
     onUpdate({
       fg: last.fg, taskbar: Boolean(last.taskbar), ai: Array.isArray(last.ai) ? last.ai : [],
-      pages: Array.isArray(last.pages) ? last.pages : [], dl: Boolean(last.dl),
+      pages: Array.isArray(last.pages) ? last.pages : [], apps: Array.isArray(last.apps) ? last.apps : [], dl: Boolean(last.dl),
+      rivalTitle: typeof last.rivalTitle === 'string' ? last.rivalTitle : '',
+      rivalUrl: typeof last.rivalUrl === 'string' ? last.rivalUrl : '',
       game: last.game || null, usb: Array.isArray(last.usb) ? last.usb : [], plug: last.plug || null, wins,
     });
   };
@@ -90,8 +92,7 @@ function startWindowWatch({ overlay, onUpdate }) {
     },
     // her window moved (another screen, the taskbar in it or not): the same windows, from there
     refresh: send,
-    // Close the page of AI `key` (a tab, Ctrl+W) in window `id`, if it's still that page and in
-    // front: '' once done, else why not ('front', 'browser', 'page', 'keys', 'gone', 'late').
+    // Close the detected AI tab or native app window `id`, after the helper revalidates it.
     close(id, key) {
       if (!child) return Promise.resolve('gone');
       const n = ++asks;
