@@ -22,9 +22,19 @@ try {
     $out = @()
     foreach ($s in $sessions) {
       $p = Await ($s.TryGetMediaPropertiesAsync()) $Props
+      $timeline = $s.GetTimelineProperties()
       $state = [string]$s.GetPlaybackInfo().PlaybackStatus
       if (($state -eq 'Playing' -or $state -eq 'Paused') -and $p.Title) {
-        $out += [pscustomobject]@{ id = [string]$s.SourceAppUserModelId; app = [string]$s.SourceAppUserModelId; title = [string]$p.Title; artist = [string]$p.Artist; album = [string]$p.AlbumTitle; status = $state }
+        $out += [pscustomobject]@{
+          id = [string]$s.SourceAppUserModelId
+          app = [string]$s.SourceAppUserModelId
+          title = [string]$p.Title
+          artist = [string]$p.Artist
+          album = [string]$p.AlbumTitle
+          status = $state
+          position = [math]::Max(0, $timeline.Position.TotalSeconds)
+          duration = [math]::Max(0, $timeline.EndTime.TotalSeconds - $timeline.StartTime.TotalSeconds)
+        }
       }
     }
     [pscustomobject]@{ ok = $true; sessions = @($out) } | ConvertTo-Json -Depth 5 -Compress

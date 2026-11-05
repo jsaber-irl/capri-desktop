@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-// The text of a GitHub release (in Russian), from the installers just built: which file is for which
-// Windows, their SHA-256 sums, what's new (.github/RELEASE_NEWS.md, edited for each release).
+// The text of a GitHub release (in Russian), from the packages just built: which file is for which
+// platform, their SHA-256 sums, and what's new (.github/RELEASE_NEWS.md, edited for each release).
 //   node scripts/release-notes.js <folder with the Capri-Setup-*.exe files>  >  release-notes.md
 // REPO (owner/name, as GitHub Actions sets GITHUB_REPOSITORY) is for the link to the README.
 
@@ -24,16 +24,19 @@ function sha256(file) {
 }
 
 function notes(dir, { version, repo, news }) {
-  const files = fs.readdirSync(dir)
+  const artifacts = fs.readdirSync(dir)
+    .filter((f) => /^Capri-Setup-.+-(x64|ia32)\.exe$/.test(f) || /^Capri-.+\.(dmg|zip|AppImage|deb)$/.test(f))
+    .sort();
+  const files = artifacts
     .filter((f) => /^Capri-Setup-.+-(x64|ia32)\.exe$/.test(f))
     .sort((a, b) => (/x64/.test(a) ? -1 : 1) - (/x64/.test(b) ? -1 : 1)); // 64-bit first
-  if (!files.length) throw new Error(`no Capri-Setup-*.exe in ${dir}`);
+  if (!artifacts.length) throw new Error(`no Capri release artifacts in ${dir}`);
   const arch = (f) => /-(x64|ia32)\.exe$/.exec(f)[1];
   const readme = repo ? `https://github.com/${repo}/blob/main/README.md` : 'README.md';
   const out = [
     `## Capri ${version}`,
     '',
-    'Живая Капри на рабочем столе Windows: следит за Claude Code, Codex и Antigravity, болтает через любую нейросеть, злится, смеётся, видит экран, слышит и запоминает тебя.',
+    'Живая Капри на рабочем столе: следит за Claude Code, Codex и Antigravity, болтает через любую нейросеть, злится, смеётся, видит экран, слышит и запоминает тебя.',
     '',
     '### Какой файл скачать',
     '',
@@ -41,7 +44,7 @@ function notes(dir, { version, repo, news }) {
     '|---|---|',
     ...files.map((f) => `| **\`${f}\`** | ${WHICH[arch(f)]} |`),
     '',
-    'Установка в один щелчок, на твою учётную запись (права администратора не нужны), на рабочем столе появится ярлык, и Капри сразу запустится.',
+    'Пакеты для Windows, macOS и Linux собраны отдельно; способ установки и доступные системные функции зависят от платформы.',
     '',
     '> Установщики не подписаны (сертификат подписи платный), поэтому Windows SmartScreen может написать «Windows защитил ваш компьютер». Нажми **Подробнее › Выполнить в любом случае**.',
     '',
@@ -58,7 +61,7 @@ function notes(dir, { version, repo, news }) {
     '### Контрольные суммы SHA-256',
     '',
     '```',
-    ...files.map((f) => `${sha256(path.join(dir, f))}  ${f}`),
+    ...artifacts.map((f) => `${sha256(path.join(dir, f))}  ${f}`),
     '```',
     '',
   );

@@ -455,6 +455,8 @@ const mic = {
     // how she's talked to
     root.append(heading(m.mode));
     root.append(pick([{ id: 'ptt', label: m.ptt }, { id: 'converse', label: m.converse }], cfg.converse ? 'converse' : 'ptt', (id) => c.set({ converse: id === 'converse' })));
+    root.append(toggle(m.wakeWord, cfg.wakeWord === true, (v) => c.set({ wakeWord: v }), { disabled: cfg.ears !== true }));
+    if (cfg.wakeWord === true) root.append(note(m.wakeWordHint, true));
     root.append(note(fmt(m.pttKey, { key: prettyKey(cfg.pushToTalk) }), true));
     root.append(toggle(m.meter, cfg.micMeter !== false, (v) => c.set({ micMeter: v })));
     root.append(row(fmt(m.stt, { engine: m.engines[cfg.sttEngine] || cfg.sttEngine || '…' }), go(c, m.setup, 'setupEars')));

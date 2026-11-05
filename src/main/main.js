@@ -245,11 +245,29 @@ const chats = new Map(); // id -> AbortController of an answer being streamed
 let moodState = null;   // how she feels (the overlay says), for her menu's top line
 let mediaWatch = null;  // what's playing (media.js), while she's allowed to know
 const musicControl = createMusicController();
+async function confirmMediaAction(action, session = {}) {
+  const label = session.title || session.url || 'cet onglet média';
+  const detail = action === 'close'
+    ? `Fermer l’onglet média « ${label} » ?`
+    : `Ouvrir la navigation de « ${label} » dans votre navigateur ?`;
+  const result = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Annuler', action === 'close' ? 'Fermer' : 'Naviguer'],
+    defaultId: 0,
+    cancelId: 0,
+    title: 'Capri // Onglet média',
+    message: detail,
+    detail: 'Cette action peut interrompre votre lecture ou modifier l’onglet actif.',
+  });
+  return result.response === 1;
+}
+
 async function playMusicTrack({ title, service = 'auto' } = {}) {
   const query = String(title || '').trim();
   if (!query) return { ok: false, error: 'Morceau introuvable.' };
   const requested = String(service || 'auto').toLowerCase();
   if (requested === 'youtube') {
+    if (!(await confirmMediaAction('navigate', { title: query, url: 'https://www.youtube.com' }))) return { ok: false, status: 'cancelled' };
     await shell.openExternal(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
     return { ok: true, service: 'youtube' };
   }
@@ -257,12 +275,42 @@ async function playMusicTrack({ title, service = 'auto' } = {}) {
   for (const candidate of services) {
     const status = await musicControl.command({ action: 'status', service: candidate });
     if (status.ok) {
+      if (!(await confirmMediaAction('navigate', { title: query, url: candidate }))) return { ok: false, status: 'cancelled' };
       await launch.music(query, candidate);
       return { ok: true, service: candidate };
     }
   }
+  if (!(await confirmMediaAction('navigate', { title: query, url: 'https://www.youtube.com' }))) return { ok: false, status: 'cancelled' };
   await shell.openExternal(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
   return { ok: true, service: 'youtube', fallback: true };
+}
+async function mediaTabAction({ action, session } = {}) {
+  const target = session && typeof session === 'object' ? session : {};
+  const verb = String(action || '').toLowerCase();
+  if (!['navigate', 'close'].includes(verb)) return { ok: false, error: 'Action d’onglet inconnue.' };
+  if (!target.browser) return { ok: false, error: 'Cette session n’est pas un onglet navigateur.' };
+  if (verb === 'close' && target.canClose !== true) return { ok: false, status: 'unsupported', error: 'Le système n’autorise pas la fermeture sûre de cet onglet.' };
+  if (verb === 'navigate' && target.canNavigate !== true) return { ok: false, status: 'unsupported', error: 'Le système ne fournit pas d’adresse de navigation pour cet onglet.' };
+  if (verb === 'navigate') {
+    try {
+      const url = new URL(String(target.url || ''));
+      if (!['http:', 'https:'].includes(url.protocol)) return { ok: false, error: 'Adresse de navigation refusée.' };
+    } catch (error) {
+      return { ok: false, error: error.message || 'Adresse de navigation invalide.' };
+    }
+  }
+  if (!(await confirmMediaAction(verb, target))) return { ok: false, status: 'cancelled' };
+  if (verb === 'navigate') {
+    try {
+      const url = new URL(String(target.url || ''));
+      if (!['http:', 'https:'].includes(url.protocol)) return { ok: false, error: 'Adresse de navigation refusée.' };
+      await shell.openExternal(url.toString());
+      return { ok: true, action: verb };
+    } catch (error) {
+      return { ok: false, error: error.message || 'Adresse de navigation invalide.' };
+    }
+  }
+  return { ok: false, status: 'unsupported', error: 'Le système expose cet onglet mais ne permet pas de le fermer depuis Capri.' };
 }
 const musicPlayer = createMusicPlayer({
   BrowserWindow,
@@ -273,6 +321,7 @@ const musicPlayer = createMusicPlayer({
   playTrack: playMusicTrack,
   media: (request) => musicControl.command(request),
   listMedia: () => musicControl.list(),
+  tabAction: mediaTabAction,
 });
 const translationWindow = createTranslationWindow({
   BrowserWindow,

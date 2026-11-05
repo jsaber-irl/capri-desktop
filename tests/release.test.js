@@ -19,6 +19,8 @@ test('the release lists both installers, 64-bit first, with their checksums', ()
   try {
     fs.writeFileSync(path.join(dir, 'Capri-Setup-1.2.3-ia32.exe'), 'thirty-two');
     fs.writeFileSync(path.join(dir, 'Capri-Setup-1.2.3-x64.exe'), 'sixty-four');
+    fs.writeFileSync(path.join(dir, 'Capri-1.2.3-arm64.dmg'), 'mac');
+    fs.writeFileSync(path.join(dir, 'Capri-1.2.3-x86_64.AppImage'), 'linux');
     fs.writeFileSync(path.join(dir, 'latest.yml'), 'not an installer');
     const text = notes(dir, { version: '1.2.3', repo: 'me/capri', news: '- первое\n- второе\n' });
     assert.match(text, /^## Capri 1\.2\.3/);
@@ -29,6 +31,8 @@ test('the release lists both installers, 64-bit first, with their checksums', ()
     assert.match(text, /### Что нового\n\n- первое\n- второе\n/);
     assert.ok(text.includes(`${sha('sixty-four')}  Capri-Setup-1.2.3-x64.exe`));
     assert.ok(text.includes(`${sha('thirty-two')}  Capri-Setup-1.2.3-ia32.exe`));
+    assert.ok(text.includes(`${sha('mac')}  Capri-1.2.3-arm64.dmg`));
+    assert.ok(text.includes(`${sha('linux')}  Capri-1.2.3-x86_64.AppImage`));
     assert.ok(!text.includes('latest.yml'), 'only the installers');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -38,7 +42,7 @@ test('the release lists both installers, 64-bit first, with their checksums', ()
 test('no news, no heading; and no installers is an error, not an empty release', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'capri-release-'));
   try {
-    assert.throws(() => notes(dir, { version: '1', repo: '', news: '' }), /no Capri-Setup/);
+    assert.throws(() => notes(dir, { version: '1', repo: '', news: '' }), /no Capri release artifacts/);
     fs.writeFileSync(path.join(dir, 'Capri-Setup-1-x64.exe'), 'x');
     const text = notes(dir, { version: '1', repo: '', news: '  \n' });
     assert.ok(!text.includes('Что нового'));
@@ -65,4 +69,12 @@ test('the uninstaller asks whether what she downloaded goes too, and never on an
   assert.ok(main.indexOf("argv.includes('--remove-everything')") < main.indexOf('applyRender();\n  if (!app.requestSingleInstanceLock'), 'before she takes the one-instance lock');
   assert.match(main, /Uninstall \$\{app\.name\}\.exe/, 'the uninstaller the installer makes');
   assert.match(main, /'\/S', '--delete-app-data'/);
+});
+
+test('the distribution config exposes Linux packages and GitHub update metadata', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  assert.deepEqual(pkg.build.linux.target, ['AppImage', 'deb']);
+  assert.equal(pkg.build.publish.provider, 'github');
+  assert.equal(pkg.build.publish.owner, 'jsaber-irl');
+  assert.equal(pkg.build.publish.repo, 'capri-desktop');
 });

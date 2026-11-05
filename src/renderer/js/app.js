@@ -486,27 +486,34 @@ async function boot() {
   const eyeEl = sensesEl.querySelector('.senses__eye');
   const micEl = sensesEl.querySelector('.senses__mic');
   const barsEl = micEl.querySelector('.senses__bars');
+  const micStop = micEl.querySelector('.senses__stop');
   let meterOn = config.micMeter !== false;
-  const showSenses = ({ listening = false } = {}) => {
+  const showSenses = ({ state = ears.state } = {}) => {
     const ll = lifeLines(brain.lang);
     eyeEl.hidden = !eyes.enabled;
     eyeEl.querySelector('.senses__label').textContent = ll.eyes.badge;
     micEl.hidden = !ears.enabled;
-    micEl.classList.toggle('is-live', listening);
-    barsEl.hidden = !meterOn || !(listening || ears.stream);
-    micEl.querySelector('.senses__label').textContent = listening ? ll.ears.listening : 'MIC';
+    const active = ['listening', 'thinking', 'speaking', 'metering'].includes(state);
+    micEl.classList.toggle('is-live', active);
+    micEl.classList.toggle('is-speaking', state === 'speaking');
+    barsEl.hidden = !meterOn || !(active || ears.stream);
+    micEl.querySelector('.senses__label').textContent = ll.ears[state] || (ears.stream ? 'MIC' : 'MIC');
     sensesEl.hidden = eyeEl.hidden && micEl.hidden;
   };
   ears.onState = (state) => {
     // 'metering': the mic is open only to show its level (her ring menu's Mic tab): live all the same
-    const live = state === 'listening' || state === 'metering';
+    const live = ['listening', 'thinking', 'speaking', 'metering'].includes(state);
     host.senseState({ eyes: eyes.enabled, ears: ears.enabled, listening: live });
-    showSenses({ listening: live });
+    showSenses({ state });
     if (state === 'listening') capri.perform?.('curious', capri.towardCenter());
     if (callActive && state === 'thinking') { callHasError = false; host.callUiState('processing'); }
     else if (callActive && state === 'listening') { callHasError = false; host.callUiState('listening'); }
     else if (callActive && state === 'idle' && !callHasError && !chat.turn && !speech.speaking) host.callUiState('listening');
   };
+  micStop.addEventListener('click', (event) => {
+    event.stopPropagation();
+    host.setConfig({ ears: false, converse: false, wakeWord: false });
+  });
   ears.onCallError = (message) => {
     if (!callActive) return;
     callHasError = true;
@@ -524,10 +531,12 @@ async function boot() {
   // while she's talking, her ears don't listen to her own voice
   speech.onStart = () => {
     ears.heardSelf(true);
+    if (ears.stream) ears.setState('speaking');
     if (callActive) host.callUiState('speaking');
   };
   speech.onDone = () => {
     ears.heardSelf(false);
+    if (ears.stream) ears.setState(ears.converse ? 'idle' : (ears.metering ? 'metering' : 'off'));
     if (callActive) host.callUiState('listening');
   };
 

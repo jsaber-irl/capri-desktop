@@ -1,6 +1,6 @@
 'use strict';
 
-function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang = () => 'fr', playTrack, media, listMedia }) {
+function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang = () => 'fr', playTrack, media, listMedia, tabAction = async () => ({ ok: false, error: 'Action indisponible.' }) }) {
   let win = null;
   const owns = (event) => Boolean(
     win && !win.isDestroyed()
@@ -30,6 +30,7 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
   ipcMain.handle('music-player:play', (event, request) => owns(event) ? playTrack(request) : { ok: false, error: 'Accès refusé.' });
   ipcMain.handle('music-player:media', (event, action) => owns(event) ? media({ action }) : { ok: false, error: 'Accès refusé.' });
   ipcMain.handle('music-player:sessions', (event) => owns(event) ? listMedia() : { ok: false, error: 'Accès refusé.' });
+  ipcMain.handle('music-player:tab', (event, request) => owns(event) ? tabAction(request) : { ok: false, error: 'Accès refusé.' });
   ipcMain.handle('music-player:close', (event) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return { ok: false, error: 'Accès refusé.' };
     win.close();

@@ -98,6 +98,7 @@ contextBridge.exposeInMainWorld('host', {
   musicPlayerPlay: (request) => ipcRenderer.invoke('music-player:play', request || {}),
   musicPlayerMedia: (action) => ipcRenderer.invoke('music-player:media', String(action || 'toggle')),
   musicPlayerSessions: () => ipcRenderer.invoke('music-player:sessions'),
+  musicPlayerTab: (request) => ipcRenderer.invoke('music-player:tab', request || {}),
   musicPlayerOpen: () => ipcRenderer.invoke('music-player:open'),
   musicPlayerClose: () => ipcRenderer.send('music-player:close-window'),
   translationSettings: () => ipcRenderer.invoke('translation:settings'),

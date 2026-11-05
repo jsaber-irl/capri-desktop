@@ -1,40 +1,41 @@
 'use strict';
 
-const RPC = require('discord-rpc');
-
 const CLIENT_ID = '1566378293899296909';
 const GITHUB_URL = 'https://github.com/jsaber-irl/capri-desktop';
 const BUTTONS = [{ label: 'GitHub Repository', url: GITHUB_URL }];
 
-let rpc = null;
-let connecting = false;
-let startTimestamp = null;
-let enabled = true;
-
-function logRpcError(prefix, error) {
+function logRpcError(prefix, error, logger = console) {
     if (error?.message === 'connection closed') return;
     // Discord n'est pas lancé ou pas accessible : pas une erreur de Capri, pas la peine de la signaler
     if (!error?.message) return;
     const msg = error.message;
     if (msg.includes("Cannot read properties of null") || msg.includes('Could not connect')) return;
-    console.error(`[Discord] ${prefix}:`, error);
+    logger.error(`[Discord] ${prefix}:`, error);
 }
 
-async function closeClient(client) {
+function createDiscordPresence({ RPC, logger = console, clientId = CLIENT_ID } = {}) {
+    if (!RPC?.Client) throw new TypeError('A Discord RPC client factory is required.');
+
+    let rpc = null;
+    let connecting = false;
+    let startTimestamp = null;
+    let enabled = true;
+
+    async function closeClient(client) {
     try {
         await client.clearActivity();
     } catch (error) {
-        logRpcError('Clear activity error', error);
+        logRpcError('Clear activity error', error, logger);
     }
 
     try {
         await client.destroy();
     } catch (error) {
-        logRpcError('Disconnect error', error);
+        logRpcError('Disconnect error', error, logger);
     }
-}
+    }
 
-async function startDiscordPresence({
+    async function startDiscordPresence({
     details = 'Improving Capri',
     state = 'Your personal AI assistant',
 } = {}) {
@@ -53,7 +54,7 @@ async function startDiscordPresence({
         if (rpc === client) rpc = null;
     });
     client.on('error', (error) => {
-        if (enabled) logRpcError('RPC error', error);
+        if (enabled) logRpcError('RPC error', error, logger);
     });
     client.on('ready', async () => {
         ready = true;
@@ -62,7 +63,7 @@ async function startDiscordPresence({
             return;
         }
 
-        console.log('[Discord] Capri Rich Presence connected');
+        logger.log('[Discord] Capri Rich Presence connected');
         try {
             await client.setActivity({
                 details,
@@ -73,16 +74,16 @@ async function startDiscordPresence({
                 buttons: BUTTONS,
                 instance: false,
             });
-            console.log('[Discord] Rich Presence activated');
+            logger.log('[Discord] Rich Presence activated');
         } catch (error) {
-            logRpcError('Activity error', error);
+            logRpcError('Activity error', error, logger);
         }
     });
 
     try {
-        await client.login({ clientId: CLIENT_ID });
+        await client.login({ clientId });
     } catch (error) {
-        if (enabled) logRpcError('RPC connection failed', error);
+        if (enabled) logRpcError('RPC connection failed', error, logger);
         if (rpc === client) rpc = null;
         // le client n'est jamais devenu ready : pas d'activité à effacer, juste détruire
         if (ready) {
@@ -93,9 +94,9 @@ async function startDiscordPresence({
     } finally {
         connecting = false;
     }
-}
+    }
 
-async function stopDiscordPresence() {
+    async function stopDiscordPresence() {
     enabled = false;
     const client = rpc;
     rpc = null;
@@ -104,10 +105,19 @@ async function stopDiscordPresence() {
     if (!client) return;
 
     await closeClient(client);
-    console.log('[Discord] Capri Rich Presence stopped');
+    logger.log('[Discord] Capri Rich Presence stopped');
+    }
+
+    return {
+        startDiscordPresence,
+        stopDiscordPresence,
+        isConnected: () => Boolean(rpc),
+    };
 }
 
+const presence = createDiscordPresence({ RPC: require('discord-rpc') });
+
 module.exports = {
-    startDiscordPresence,
-    stopDiscordPresence,
+    ...presence,
+    createDiscordPresence,
 };

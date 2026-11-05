@@ -1192,5 +1192,17 @@ html[data-motion='reduced'] .panel[data-kind='alert'] .panel__state {
 .senses__eye { color: var(--green); }
 .senses__mic { color: var(--red); }
 .senses__mic.is-live { animation: blink 900ms steps(2, jump-none) infinite; }
+.senses__mic.is-speaking { color: var(--blue); }
+.senses__stop {
+  pointer-events: auto;
+  margin: -1px -3px -1px 2px;
+  padding: 0 3px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.senses__stop:hover { color: var(--paper); }
 
 [data-motion='reduced'] .senses__mic.is-live { animation: none; }

@@ -26,3 +26,11 @@ h1 { overflow: hidden; margin: 0; font-size: 16px; text-overflow: ellipsis; whit
 #service { width: 72px; padding: 5px; color: var(--cyan); background: #161a22; border: 1px solid #53e9ff66; font-size: 9px; }
 .player__playlist { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 9px; letter-spacing: .1em; }
 #track { flex: 1; min-width: 0; padding: 5px; color: #f5f7fb; background: #161a22; border: 1px solid #ff2e7866; font-size: 10px; }
+.player__tabs { margin-top: 12px; border-top: 1px solid #ffffff18; padding-top: 8px; }
+.player__tabs h2 { margin: 0 0 6px; color: var(--cyan); font-size: 9px; letter-spacing: .14em; }
+.player__tab-list { display: grid; gap: 5px; max-height: 78px; overflow: auto; }
+.player__tab { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 9px; }
+.player__tab strong { flex: 1; overflow: hidden; color: #f5f7fb; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.player__tab button { padding: 3px 5px; color: var(--cyan); background: #161a22; border: 1px solid #53e9ff44; font-size: 8px; }
+.player__tab button:disabled { cursor: not-allowed; opacity: .35; }
+.player__empty { margin: 0; color: var(--muted); font-size: 9px; }

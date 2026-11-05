@@ -1,4 +1,4 @@
-## **Project Capricorn (2.2.2)**
+## **Project Capricorn (2.2.3)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -62,6 +62,25 @@ Download the `.exe` installer, run it, and follow the steps. Capri can start aut
 
 Windows may display a SmartScreen warning because the installer is unsigned. This does not mean Capri performs hidden operations: the application's code is available in this repository.
 
+### Option 1b: macOS and Linux packages
+
+- **macOS:** releases contain a `.dmg` and `.zip`. A production release should be notarized and signed; an unsigned development build can trigger Gatekeeper warnings.
+- **Linux:** releases contain an `AppImage` and a Debian `.deb`. The Linux build is tested on Ubuntu in CI. The AppImage is portable; the `.deb` is intended for Debian/Ubuntu-family systems.
+- **Updates:** electron-builder publishes platform metadata (`latest.yml`, `latest-mac.yml`, and `latest-linux.yml`) when a release is published. Capri does not currently run an in-app updater, so updates are installed by downloading the new package. Windows NSIS updates preserve Capri data; the custom uninstaller prompt is not shown during an update.
+
+Linux has no Windows window-tracking or macOS Apple Events integration. Chat, rendering, voice input/output, screen capture where supported by Electron, application launching, and MPRIS media control through `playerctl` are available subject to the desktop environment and installed tools.
+
+### Distribution verification
+
+Release automation runs the full Node test suite and builds Windows, macOS, and Linux artifacts on their native CI platforms. Before publishing a production build:
+
+1. **Windows:** set `CSC_LINK`/`CSC_KEY_PASSWORD` (or the electron-builder signing equivalent), then verify the installer with `Get-AuthenticodeSignature Capri-Setup-*.exe`. A release is not considered signed when `Status` is not `Valid`.
+2. **macOS:** set the Developer ID signing and notarization credentials supported by electron-builder, then verify with `codesign --verify --deep --strict --verbose=2 Capri.app` and `spctl --assess --type execute Capri.app`.
+3. **Permissions:** on macOS, verify Microphone, Screen Recording, Accessibility, and per-target Automation from Capri’s permissions panel. Apple Events are never assumed to be granted; each target is probed and reported separately.
+4. **Updates:** check that the release contains the platform artifact and its matching `latest*.yml` metadata, and compare the published SHA-256 values with the release notes. Do not describe a release as signed or auto-updating unless these checks pass.
+
+The current public workflow intentionally builds unsigned artifacts unless signing secrets are supplied. This keeps forks reproducible and makes the signing status explicit rather than presenting an unsigned package as trusted.
+
 ### Option 2: From source
 
 Requirements:
@@ -83,10 +102,12 @@ For development mode:
 npm run dev
 ```
 
-To build the Windows installer:
+To build packages locally on the matching operating system:
 
 ```bash
 npm run dist
+npm run dist:mac
+npm run dist:linux
 ```
 
 ### Installation issues
@@ -534,7 +555,16 @@ The following are present in the current source tree. Capabilities that depend o
 
 ### Platform and build notes
 
-The code contains platform-specific adapters for Windows, macOS and Linux, but the package configuration defines Windows and macOS distribution targets only. A Linux release target is not configured. Build commands present in package.json include npm run dist (Windows), npm run dist:mac (macOS), npm run dist:32 and npm run dist:all. No lint or TypeScript command is defined; the maintained application code is JavaScript, with PowerShell and Python helpers.
+| Capability | Windows | macOS | Linux |
+|---|---|---|---|
+| Distribution | NSIS `.exe` (x64 and optional 32-bit) | DMG/ZIP | AppImage/DEB |
+| Voice input/output | Available with configured services | Available with configured services and microphone permission | Available with configured services and desktop microphone permission |
+| Apple Events / Accessibility | Not applicable | Per-target Apple Events and Accessibility permissions | Not applicable |
+| Screen capture | Native capture where supported | Screen Recording permission required | Depends on Electron/desktop session |
+| Media detection/control | Windows system media sessions | Spotify/Deezer through Apple Events when exposed | MPRIS through `playerctl` |
+| Window possession/tracking | Windows adapter | macOS System Events/Accessibility | Not available |
+
+Build commands are `npm run dist`, `npm run dist:mac`, `npm run dist:linux`, `npm run dist:32`, and `npm run dist:all`. No lint or TypeScript command is defined; the maintained application code is JavaScript, with PowerShell and Python helpers.
 
 ### Services, keys and permissions
 
@@ -554,6 +584,7 @@ npm run check:llm
 npm run voices:demo
 npm run dist
 npm run dist:mac
+npm run dist:linux
 ~~~
 
 The repository does not define a separate lint or TypeScript-check command. The full test suite uses Node’s built-in test runner.

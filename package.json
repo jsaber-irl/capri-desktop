@@ -1,6 +1,6 @@
 {
   "name": "capri-desktop",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "Capri, the Project Capricorn construct, living on your desktop and narrating what Claude Code is doing.",
   "author": "jsaber and contributors",
   "repository": "github:jsaber-irl/capri-desktop",
@@ -21,8 +21,9 @@
     "test:hooks": "node --test tests/hooks.test.js",
     "dist": "electron-builder --win --x64",
     "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux",
     "dist:32": "electron-builder --win --ia32 -c.electronVersion=43.8.3",
-    "dist:all": "npm run dist && npm run dist:32",
+    "dist:all": "npm run dist && npm run dist:32 && npm run dist:linux",
     "test:character": "node --test tests/character.test.js",
     "test:senses": "node --test tests/senses.test.js",
     "test:bond": "node --test tests/bond.test.js",
@@ -59,6 +60,7 @@
     "test:mac-permissions": "node --test tests/mac-permissions.test.js",
     "test:launch-resolver": "node --test tests/launch-resolver.test.js",
     "test:music-control": "node --test tests/music-control.test.js tests/terminal.test.js tests/chat.test.js",
+    "test:crapi": "node --test tests/crapi.test.js",
     "test:screen-capture": "node --test tests/screen-capture.test.js",
     "test:terminal-new": "node --test tests/terminal-new.test.js",
     "test": "node --test tests/*.test.js"
@@ -133,6 +135,20 @@
         "NSAppleEventsUsageDescription": "Capri sends Apple Events only when you request supported application and window controls.",
         "NSAudioCaptureUsageDescription": "Capri captures system audio only when you enable its audio listening feature."
       }
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "artifactName": "Capri-${version}-${arch}.${ext}"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "jsaber-irl",
+      "repo": "capri-desktop",
+      "releaseType": "release"
     },
     "nsis": {
       "oneClick": true,

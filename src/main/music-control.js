@@ -29,7 +29,14 @@ function normalizeSession(raw, adapter) {
     id: String(raw.id || ''), adapter, service,
     app, mode: raw.mode || (/browser|chrome|chromium|firefox|msedge|edge|brave|vivaldi|opera/i.test(app) ? 'web' : 'native'),
     title: String(raw.title || ''), artist: String(raw.artist || ''), album: String(raw.album || ''),
-    playlist: String(raw.playlist || ''),
+    playlist: String(raw.playlist || raw.collection || ''),
+    url: String(raw.url || ''),
+    artwork: String(raw.artwork || raw.artUrl || ''),
+    duration: Number.isFinite(Number(raw.duration)) ? Math.max(0, Number(raw.duration)) : null,
+    position: Number.isFinite(Number(raw.position)) ? Math.max(0, Number(raw.position)) : null,
+    browser: raw.mode === 'web' || /browser|chrome|chromium|firefox|edge|brave|vivaldi|opera/i.test(app),
+    canNavigate: Boolean(raw.url),
+    canClose: raw.canClose === true,
     playing: raw.playing === true || /^playing$/i.test(String(raw.status || '')), status: raw.playing === true || /^playing$/i.test(String(raw.status || '')) ? 'playing' : 'paused',
     volume: Number.isFinite(raw.volume) ? raw.volume : null,
     canVolume: raw.canVolume === true,
@@ -124,9 +131,20 @@ function createPlatformAdapters(platform, { execFile = cp.execFile } = {}) {
           if (error.code === 1) return [];
           throw new Error(`Impossible de vérifier si Spotify est ouvert : ${error.message}`);
         }
-        const script = 'tell application "Spotify" to (player state as text) & "¦" & (name of current track) & "¦" & (artist of current track) & "¦" & (album of current track) & "¦" & (sound volume as text)';
-        const [state, title, artist, album, volume] = (await execFileAsync(execFile, 'osascript', ['-e', script])).split('¦');
-        return /^(playing|paused)$/i.test(state) ? [{ id: 'spotify-native', service: 'spotify', app: 'Spotify', mode: 'native', status: state, title, artist, album, volume: Number(volume), canVolume: true }] : [];
+        const script = 'tell application "Spotify" to (player state as text) & "¦" & (name of current track) & "¦" & (artist of current track) & "¦" & (album of current track) & "¦" & (sound volume as text) & "¦" & (duration of current track) & "¦" & (player position as text)';
+        let metadata;
+        try {
+          metadata = await execFileAsync(execFile, 'osascript', ['-e', script]);
+          if (!metadata) throw new Error('Spotify metadata unavailable');
+        } catch {
+          const fallback = 'tell application "Spotify" to (player state as text) & "¦" & (name of current track) & "¦" & (artist of current track) & "¦" & (album of current track) & "¦" & (sound volume as text)';
+          metadata = await execFileAsync(execFile, 'osascript', ['-e', fallback]);
+        }
+        const [state, title, artist, album, volume, duration, position] = metadata.split('¦');
+        return /^(playing|paused)$/i.test(state) ? [{
+          id: 'spotify-native', service: 'spotify', app: 'Spotify', mode: 'native', status: state,
+          title, artist, album, volume: Number(volume), duration: Number(duration), position: Number(position), canVolume: true,
+        }] : [];
       },
       async control(_session, action, value) {
         const verbs = { play: 'play', pause: 'pause', next: 'next track', previous: 'previous track', volume: `set sound volume to ${Math.round(value)}` };
@@ -151,7 +169,7 @@ function createPlatformAdapters(platform, { execFile = cp.execFile } = {}) {
           if (error.code === 1) return [];
           throw new Error(`Impossible de vérifier si Deezer est ouvert : ${error.message}`);
         }
-        const script = 'tell application "Deezer" to (player state as text) & "¦" & (name of current track) & "¦" & (artist of current track) & "¦" & (album of current track) & "¦" & (playlist of current track)';
+        const script = 'tell application "Deezer" to (player state as text) & "¦" & (name of current track) & "¦" & (artist of current track) & "¦" & (album of current track) & "¦" & (playlist of current track) & "¦" & (duration of current track) & "¦" & (player position as text)';
         let metadata;
         try {
           metadata = await execFileAsync(execFile, 'osascript', ['-e', script]);
@@ -159,8 +177,8 @@ function createPlatformAdapters(platform, { execFile = cp.execFile } = {}) {
           const fallback = 'tell application "Deezer" to (player state as text) & "¦" & (name of current track) & "¦" & (artist of current track) & "¦" & (album of current track)';
           metadata = await execFileAsync(execFile, 'osascript', ['-e', fallback]);
         }
-        const [state, title, artist, album, playlist = ''] = metadata.split('¦');
-        return /^(playing|paused)$/i.test(state) ? [{ id: 'deezer-native', service: 'deezer', app: 'Deezer', mode: 'native', status: state, title, artist, album, playlist }] : [];
+        const [state, title, artist, album, playlist = '', duration, position] = metadata.split('¦');
+        return /^(playing|paused)$/i.test(state) ? [{ id: 'deezer-native', service: 'deezer', app: 'Deezer', mode: 'native', status: state, title, artist, album, playlist, duration: Number(duration), position: Number(position) }] : [];
       },
       async control(_session, action) {
         const verbs = { play: 'play', pause: 'pause', next: 'next track', previous: 'previous track' };
@@ -183,11 +201,21 @@ function createPlatformAdapters(platform, { execFile = cp.execFile } = {}) {
         try { names = (await call(['--list-all'])).split(/\r?\n/).filter(Boolean); }
         catch (error) { if (error.code === 'ENOENT') throw new Error('playerctl est requis pour lire les sessions multimédias MPRIS sous Linux.'); throw error; }
         const rows = await Promise.all(names.map(async (id) => {
-          const raw = await call([`--player=${id}`, 'metadata', '--format', '{{status}}|{{xesam:title}}|{{xesam:artist}}|{{xesam:album}}|{{xesam:url}}|{{volume}}']).catch(() => '');
-          const [status, title, artist, album, url, volume] = raw.split('|');
+          const raw = await call([`--player=${id}`, 'metadata', '--format', '{{status}}|{{xesam:title}}|{{xesam:artist}}|{{xesam:album}}|{{xesam:url}}|{{mpris:length}}|{{mpris:artUrl}}|{{mpris:trackid}}|{{volume}}|{{position}}']).catch(() => '');
+          const [status, title, artist, album, url, duration, artwork, _trackId, volume, position] = raw.split('|');
           const service = serviceName(`${id} ${url}`);
+          const durationValue = Number(duration);
+          const positionValue = Number(position);
           const volumeValue = volume?.trim() ? Number(volume) : null;
-          return { id, app: id.split('.')[0], service, mode: /browser|chrome|chromium|firefox|edge/i.test(id) ? 'web' : 'native', status, title, artist, album, url, volume: Number.isFinite(volumeValue) ? Math.round(volumeValue * 100) : null, canVolume: Number.isFinite(volumeValue) };
+          return {
+            id, app: id.split('.')[0], service,
+            mode: /browser|chrome|chromium|firefox|edge/i.test(id) ? 'web' : 'native',
+            status, title, artist, album, url, playlist: '',
+            duration: Number.isFinite(durationValue) ? Math.round(durationValue / 1000000) : null,
+            position: Number.isFinite(positionValue) ? Math.round(positionValue / 1000000) : null,
+            artwork, volume: Number.isFinite(volumeValue) ? Math.round(volumeValue * 100) : null,
+            canVolume: Number.isFinite(volumeValue),
+          };
         }));
         return rows.filter((row) => row.title && /^(playing|paused)$/i.test(row.status || ''));
       },

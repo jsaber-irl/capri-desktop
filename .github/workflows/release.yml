@@ -1,4 +1,5 @@
-# Выпуск релиза: проверяет код, собирает установщики Windows (64-битный и 32-битный) и публикует релиз на GitHub.
+# Выпуск релиза: проверяет код, собирает пакеты Windows (64-битный и 32-битный),
+# macOS и Linux, затем публикует релиз на GitHub.
 # Запуск вручную: вкладка Actions › Release › Run workflow. Тег по умолчанию — v и версия из package.json
 # (0.6.0 → v0.6.0). Описание релиза собирает scripts/release-notes.js, «Что нового» берётся из .github/RELEASE_NEWS.md.
 name: Release
@@ -35,8 +36,8 @@ jobs:
       - run: npm ci
       - run: npm test
 
-  build:
-    name: Установщик ${{ matrix.arch }}
+  build-windows:
+    name: Установщик Windows ${{ matrix.arch }}
     needs: test
     runs-on: windows-latest
     strategy:
@@ -62,10 +63,68 @@ jobs:
           name: installer-${{ matrix.arch }}
           path: dist/Capri-Setup-*-${{ matrix.arch }}.exe
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: update-metadata-${{ matrix.arch }}
+          path: dist/latest.yml
+          if-no-files-found: error
+        if: matrix.arch == 'x64'
+
+  build-linux:
+    name: Paquet Linux
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run dist:linux -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-linux
+          path: |
+            dist/Capri-*.AppImage
+            dist/Capri-*.deb
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: update-metadata-linux
+          path: dist/latest-linux.yml
+          if-no-files-found: error
+
+  build-mac:
+    name: Paquets macOS
+    needs: test
+    runs-on: macos-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false' # fournir les secrets de signature pour une release de production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run dist:mac -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-mac
+          path: |
+            dist/Capri-*.dmg
+            dist/Capri-*.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: update-metadata-mac
+          path: dist/latest-mac.yml
+          if-no-files-found: error
 
   release:
     name: Релиз
-    needs: build
+    needs: [build-windows, build-linux, build-mac]
     runs-on: ubuntu-latest
     permissions:
       contents: write # создать тег и релиз
@@ -104,7 +163,7 @@ jobs:
           fi
           flags=()
           if [ "$PRERELEASE" = "true" ]; then flags+=(--prerelease); fi
-          gh release create "$TAG" installers/*.exe \
+          gh release create "$TAG" installers/* \
             --target "$GITHUB_SHA" \
             --title "Capri $VERSION" \
             --notes-file release-notes.md \

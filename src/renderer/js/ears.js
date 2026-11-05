@@ -40,6 +40,8 @@ export class Ears {
     this.enabled = false;
     this.converse = false;
     this.configConverse = false;
+    this.wakeWord = false;
+    this.wakeActive = false;
     this.callActive = false;
     this.lastMicError = null;
     this.lang = 'ru';
@@ -87,7 +89,10 @@ export class Ears {
       if (this.stream) this.reopen(); // another microphone: the same job on it
     }
     this.configConverse = cfg.converse === true;
-    const converse = this.callActive || (this.enabled && this.configConverse);
+    this.wakeWord = cfg.wakeWord === true;
+    if (!this.wakeWord) this.wakeActive = this.callActive || this.configConverse;
+    else if (!this.enabled && !this.callActive) this.wakeActive = false;
+    const converse = this.callActive || (this.enabled && (this.configConverse || this.wakeWord));
     if (converse !== this.converse) {
       this.converse = converse;
       if (converse) this.startConverse();
@@ -102,6 +107,7 @@ export class Ears {
     if (this.callActive) return Boolean(this.stream);
     this.callActive = true;
     this.converse = true;
+    this.wakeActive = true;
     this.single = false;
     const opened = await this.openMic({ quiet: true });
     if (!opened) {
@@ -117,6 +123,7 @@ export class Ears {
     this.callActive = false;
     this.converse = this.enabled && this.configConverse;
     this.single = false;
+    this.wakeActive = false;
     this.shutMic();
   }
 
@@ -157,11 +164,13 @@ export class Ears {
   async startConverse() {
     if (!(await this.openMic())) return;
     this.single = false;
+    this.wakeActive = this.callActive || !this.wakeWord;
     this.setState('idle');
   }
 
   stopConverse() {
     this.single = false;
+    this.wakeActive = false;
     if (this.enabled && this.watchers > 0 && this.stream) {
       // her ring menu is still showing the level (or playing your mic back): the mic stays open for it
       if (!this.recording) {
@@ -296,6 +305,7 @@ export class Ears {
     }
     this.recorder = null;
     this.recording = false;
+    this.wakeActive = false;
     for (const track of this.stream?.getTracks() || []) track.stop();
     this.stream = null;
     this.analyser = null;
@@ -382,7 +392,20 @@ export class Ears {
       return;
     }
     const text = clean(res.text);
-    if (text && text.length > 1) this.onTranscript?.(text);
+    if (text && text.length > 1) {
+      if (this.wakeWord && !this.wakeActive) {
+        const remainder = wakeWordRemainder(text);
+        if (remainder === null) {
+          this.afterTurn();
+          return;
+        }
+        this.wakeActive = true;
+        this.setState('idle');
+        if (remainder) this.onTranscript?.(remainder);
+      } else {
+        this.onTranscript?.(text);
+      }
+    }
     this.afterTurn(); // (nothing understood: just keep listening)
   }
 
@@ -411,4 +434,11 @@ const JUNK = /^(?:you|thank you\.?|thanks for watching\.?|продолжение
 export function clean(text) {
   const t = String(text || '').trim();
   return JUNK.test(t) ? '' : t;
+}
+
+// Returns the speech after "Capri", or null when the utterance did not wake her.
+export function wakeWordRemainder(text) {
+  const normalized = String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const match = normalized.match(/^capri(?:\s*[,!.?:;-]\s*|\s+|$)(.*)$/i);
+  return match ? match[1].trim() : null;
 }

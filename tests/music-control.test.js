@@ -115,7 +115,7 @@ test('Linux MPRIS adapter discovers a web session, classifies its service from i
   const execFile = (file, args, _options, callback) => {
     calls.push([file, args]);
     if (args[0] === '--list-all') return callback(null, 'chrome.instance-4\n', '');
-    if (args.includes('metadata')) return callback(null, 'Playing|Track A|Artist B|Album C|https://open.spotify.com/track/1|0.6', '');
+    if (args.includes('metadata')) return callback(null, 'Playing|Track A|Artist B|Album C|https://open.spotify.com/track/1|180000000|https://cdn.example/art.jpg|track-1|0.25|42000000', '');
     callback(null, '', '');
   };
   const controller = createMusicController({ platform: 'linux', adapters: createPlatformAdapters('linux', { execFile }) });
@@ -123,6 +123,9 @@ test('Linux MPRIS adapter discovers a web session, classifies its service from i
   assert.equal(result.ok, true);
   assert.equal(result.session.mode, 'web');
   assert.equal(result.session.service, 'spotify');
+  assert.equal(result.session.duration, 180);
+  assert.equal(result.session.position, 42);
+  assert.equal(result.session.artwork, 'https://cdn.example/art.jpg');
   assert.ok(calls.some(([file, args]) => file === 'playerctl' && args.includes('pause')));
 });
 
