@@ -56,16 +56,19 @@ export class Jealousy {
     this.lang = lang;
     this.storage = storage;
     this.now = now;
-    this.setTimer = setTimer;
-    this.clearTimer = clearTimer;
+    // Keep browser timer functions' required Window receiver when called later as instance methods.
+    this.setTimer = (...args) => Reflect.apply(setTimer, globalThis, args);
+    this.clearTimer = (...args) => Reflect.apply(clearTimer, globalThis, args);
     this.enabled = true;
     this.closePages = true;
     this.snoozedUntil = storedSnooze(storage, now());
     this.latest = null;
     this.signature = '';
     this.target = null;
+    this.triggeredAt = 0;
     this.snoozeTimer = null;
     this.closeTimer = null;
+    this.onStatus = null;
     if (this.snoozedUntil) this.startSnoozeTimer(this.snoozedUntil - now());
   }
 
@@ -78,8 +81,10 @@ export class Jealousy {
       this.closeTimer = null;
       this.target = null;
       this.signature = '';
+      this.triggeredAt = 0;
       if (this.panel.current?.jealousy) this.panel.hide();
       this.heart.clearJealousy?.();
+      this.onStatus?.();
       return;
     }
     if (wasClosing !== this.closePages) {
@@ -99,10 +104,12 @@ export class Jealousy {
 
   process(data) {
     if (!data || !this.enabled) {
+      const hadTarget = Boolean(this.target);
       this.clearTimer(this.closeTimer);
       this.closeTimer = null;
       this.target = null;
       if (!this.enabled) this.signature = '';
+      if (hadTarget) this.onStatus?.();
       return;
     }
     const ai = Array.isArray(data.ai) ? data.ai : [];
@@ -119,24 +126,35 @@ export class Jealousy {
       ? `${data.fg}:${key}:${currentTarget.page}:${currentTarget.download}:${currentTarget.pageUrl || currentTarget.pageTitle}`
       : '';
     if (!key) {
+      const hadTarget = Boolean(this.target);
       this.clearTimer(this.closeTimer);
       this.closeTimer = null;
       this.signature = '';
       this.target = null;
+      if (hadTarget) this.onStatus?.();
       return;
     }
     if (signature === this.signature) {
-      if (this.target) Object.assign(this.target, currentTarget);
+      if (this.target) {
+        const changed = this.target.pageTitle !== currentTarget.pageTitle || this.target.pageUrl !== currentTarget.pageUrl;
+        Object.assign(this.target, currentTarget);
+        if (changed) this.onStatus?.();
+      }
       return;
     }
     this.clearTimer(this.closeTimer);
     this.closeTimer = null;
     this.signature = signature;
     this.target = currentTarget;
-    if (this.now() < this.snoozedUntil) return;
+    if (this.now() < this.snoozedUntil) {
+      this.onStatus?.();
+      return;
+    }
 
     this.heart.event('jealousy', RIVALS[key] || key);
+    this.triggeredAt = this.now();
     this.capri.react('huff');
+    this.onStatus?.();
     const shown = this.showWarning(key, currentTarget);
     if (shown && this.closePages && (currentTarget.page || currentTarget.download)) {
       this.closeTimer = this.setTimer(() => {
@@ -181,7 +199,46 @@ export class Jealousy {
     }
     if (this.panel.current?.jealousy) this.panel.hide();
     this.startSnoozeTimer(SNOOZE_MS);
+    this.onStatus?.();
     return true;
+  }
+
+  clear() {
+    this.clearTimer(this.closeTimer);
+    this.closeTimer = null;
+    this.target = null;
+    this.signature = '';
+    this.triggeredAt = 0;
+    this.snoozedUntil = 0;
+    try {
+      this.storage?.removeItem(STORE);
+    } catch (error) {
+      console.error('[capri] could not clear jealousy pause:', error.message);
+    }
+    if (this.panel.current?.jealousy) this.panel.hide();
+    this.heart.clearJealousy?.();
+    this.onStatus?.();
+  }
+
+  getJournal(now = this.now()) {
+    const isPaused = Boolean(this.snoozedUntil && now < this.snoozedUntil);
+    const hasTarget = Boolean(this.target && this.target.key);
+    const rivalName = hasTarget ? (RIVALS[this.target.key] || this.target.key) : '';
+    const active = Boolean(hasTarget && this.enabled && !isPaused);
+    return {
+      enabled: this.enabled,
+      active,
+      paused: isPaused,
+      pauseRemainingMs: isPaused ? Math.max(0, this.snoozedUntil - now) : 0,
+      rival: rivalName,
+      key: this.target?.key || '',
+      origin: this.target ? (this.target.page ? 'page' : this.target.application ? 'app' : this.target.download ? 'download' : 'window') : 'watcher',
+      startedAt: this.triggeredAt || (isPaused ? this.snoozedUntil - SNOOZE_MS : 0),
+      reason: this.target ? (this.target.pageTitle || this.target.pageUrl || rivalName) : '',
+      pageTitle: this.target?.pageTitle || '',
+      pageUrl: this.target?.pageUrl || '',
+      canCancel: Boolean(active || isPaused || this.target),
+    };
   }
 
   startSnoozeTimer(ms) {
@@ -195,6 +252,7 @@ export class Jealousy {
         console.error('[capri] could not clear jealousy pause:', error.message);
       }
       this.signature = '';
+      this.onStatus?.();
       this.process(this.latest);
     }, Math.max(0, ms));
   }

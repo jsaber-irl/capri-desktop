@@ -151,13 +151,31 @@ async function boot() {
   applyWindowTheme(config.theme || 'classic');
   let themeSetting = config.colourTheme || 'classic';
   let themeShown = applyTheme(resolveTheme(themeSetting, heart.state.mood), { capri });
+  // Heart can publish its initial state before the jealousy watcher is created.
+  let jealousy = null;
+  const updateMoodState = () => {
+    const m = heart.getJournal();
+    const j = jealousy
+      ? jealousy.getJournal()
+      : { enabled: true, active: false, paused: false, pauseRemainingMs: 0, rival: null, canCancel: false };
+    host.moodState({
+      mood: heart.state.mood,
+      level: heart.state.level,
+      moodStartedAt: m.startedAt,
+      moodOrigin: m.origin,
+      moodReasonTag: m.reasonTag,
+      moodReasonDetail: m.reasonDetail,
+      canCancelMood: m.canCancel,
+      jealousy: j,
+    });
+  };
   heart.onMood = (state) => {
-    host.moodState({ mood: state.mood, level: state.level });
+    updateMoodState();
     if (themeSetting === 'mood') themeShown = applyTheme(resolveTheme('mood', state.mood), { capri });
   };
   heart.configure(config);
   heart.start();
-  const jealousy = new Jealousy({
+  jealousy = new Jealousy({
     host,
     panel,
     heart,
@@ -165,6 +183,8 @@ async function boot() {
     lang: () => brain.lang,
   });
   jealousy.configure(config);
+  jealousy.onStatus = () => updateMoodState();
+  updateMoodState();
   // Her bond with you (bond.js): she learns who she's talking to, adapts to you, and grows closer.
   const bond = new Bond({ host, brain, heart });
   bond.configure(config);
@@ -484,7 +504,7 @@ async function boot() {
   };
   // Her circular menu (ring.js): right-click her. Its settings are the tray menu's, plus the mic and the bond.
   ring = new Ring({
-    host, capri, panel, brain, bond, ears, voice, reminders,
+    host, capri, panel, brain, bond, ears, voice, reminders, heart, jealousy,
     actions: { run: (name, extra) => runCommand({ name, ...extra }) },
   });
   ring.configure(config);
@@ -958,6 +978,16 @@ async function boot() {
       case 'forget': // "Forget our conversations" in her menu, maybe with her chat open
         chat.history = [];
         break;
+      case 'calmMood':
+        heart.calm();
+        ring?.refresh();
+        updateMoodState();
+        break;
+      case 'clearJealousy':
+        jealousy.clear();
+        ring?.refresh();
+        updateMoodState();
+        break;
       case 'chat': // "Talk to her" in her menu
         chat.start();
         break;
@@ -1193,7 +1223,7 @@ async function boot() {
   // Regular expressions are compiled the first time they run: the patterns that read your messages
   // (her feelings, her hands, her colours, her notebook) cost ~150 ms on the first one, which would
   // be a pause under your first message. Run once now, in a quiet moment, instead.
-  setTimeout(() => (window.requestIdleCallback || setTimeout)(() => {
+  const warmParsers = () => {
     const sample = 'привет, как дела? ты классная, спасибо, открой телеграм и напиши маме';
     for (let i = 0; i < 2; i++) {
       classify(sample);
@@ -1202,7 +1232,11 @@ async function boot() {
       chat.asked(sample);
       bond.warm(sample);
     }
-  }), 6000);
+  };
+  setTimeout(() => {
+    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(warmParsers);
+    else setTimeout(warmParsers, 0);
+  }, 6000);
 
   // entrance: her face big in the corner says hi, then she dives down to her spot
   // (put away last time: she starts in her biochip)
@@ -1252,5 +1286,5 @@ async function boot() {
 }
 
 boot().catch((err) => {
-  console.error('[capri] boot failed', err);
+  console.error(`[capri] boot failed\n${err?.stack || String(err)}`);
 });

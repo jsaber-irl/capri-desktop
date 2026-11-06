@@ -134,7 +134,7 @@ function icon(id, size = 24) {
 // ---------- the ring ----------
 
 export class Ring {
-  constructor({ host, capri, panel, brain, bond, ears, voice, reminders = null, actions = {} }) {
+  constructor({ host, capri, panel, brain, bond, ears, voice, reminders = null, heart = null, jealousy = null, actions = {} }) {
     this.host = host;
     this.capri = capri;
     this.panel = panel;
@@ -143,6 +143,8 @@ export class Ring {
     this.ears = ears;
     this.voice = voice;
     this.reminders = reminders;
+    this.heart = heart;
+    this.jealousy = jealousy;
     this.actions = actions;   // { run(name, extra) }: what the sectors and buttons ask of her (app.js)
     this.root = document.getElementById('ring');
     this.cfg = {};
@@ -404,6 +406,8 @@ export class Ring {
       ears: this.ears,
       voice: this.voice,
       reminders: this.reminders,
+      heart: this.heart,
+      jealousy: this.jealousy,
       host: this.host,
       state: this.state,
       actions: this.actions,

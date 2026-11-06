@@ -217,6 +217,10 @@ export class Mood {
     this.listeners = new Set();
     this.lastTick = now;
     this.current = moodOf(this.v);
+    this.startedAt = now;
+    this.origin = 'calm';
+    this.reasonTag = 'calm';
+    this.reasonDetail = '';
     this.restore(now);
   }
 
@@ -260,8 +264,32 @@ export class Mood {
     // a string of insults hurts more than one
     if (tags.includes('insult')) this.apply({ anger: 0.15 * Math.min(2, insults(text) - 1) });
     const strong = ['insult', 'threat', 'justBot', 'wrongName', 'spam', 'corpo', 'yell'].find((t) => tags.includes(t));
-    if (strong) this.cause = { tag: strong, quote: String(text).slice(0, 80), at: now };
-    if (tags.includes('apology') && this.v.anger < 0.3) this.cause = null;
+    if (strong) {
+      this.cause = { tag: strong, quote: String(text).slice(0, 80), at: now };
+      this.origin = 'chat';
+      this.reasonTag = strong;
+      this.reasonDetail = String(text).slice(0, 80);
+    } else if (tags.includes('apology')) {
+      this.origin = 'chat';
+      this.reasonTag = 'apology';
+      this.reasonDetail = String(text).slice(0, 80);
+    } else if (tags.includes('compliment') || tags.includes('love') || tags.includes('flirt')) {
+      this.origin = 'chat';
+      this.reasonTag = tags.includes('love') ? 'love' : (tags.includes('compliment') ? 'compliment' : 'flirt');
+      this.reasonDetail = String(text).slice(0, 80);
+    } else if (tags.length) {
+      this.origin = 'chat';
+      this.reasonTag = tags[0];
+      this.reasonDetail = String(text).slice(0, 80);
+    }
+    if (tags.includes('apology') && this.v.anger < 0.3) {
+      this.cause = null;
+      if (this.origin === 'chat' && strong) {
+        this.origin = 'calm';
+        this.reasonTag = 'calm';
+        this.reasonDetail = '';
+      }
+    }
     const reaction = reactionTo(counted, before, this.v);
     this.changed(now);
     return { tags, reaction, ...this.current };
@@ -272,7 +300,28 @@ export class Mood {
     this.tick(now);
     if (name === 'userBack') this.contact(now);
     this.apply(EVENTS[name]);
-    if (name === 'jealousy') this.cause = { tag: 'jealousy', quote: String(detail).slice(0, 40), at: now };
+    if (name === 'jealousy') {
+      this.cause = { tag: 'jealousy', quote: String(detail).slice(0, 40), at: now };
+      this.origin = 'jealousy';
+      this.reasonTag = 'jealousy';
+      this.reasonDetail = String(detail).slice(0, 40);
+    } else if (name === 'tickled' || name === 'petted') {
+      this.origin = 'touch';
+      this.reasonTag = name;
+      this.reasonDetail = '';
+    } else if (name.startsWith('game') || name.startsWith('hack')) {
+      this.origin = 'life';
+      this.reasonTag = name;
+      this.reasonDetail = '';
+    } else if (name.startsWith('claude')) {
+      this.origin = 'assistant';
+      this.reasonTag = name;
+      this.reasonDetail = '';
+    } else if (name === 'lateNight' || name === 'userBack') {
+      this.origin = 'system';
+      this.reasonTag = name;
+      this.reasonDetail = '';
+    }
     this.changed(now);
     return this.current;
   }
@@ -281,8 +330,36 @@ export class Mood {
     if (this.cause?.tag !== 'jealousy') return false;
     this.cause = null;
     this.v.anger = 0;
+    if (this.origin === 'jealousy') {
+      this.origin = 'calm';
+      this.reasonTag = 'calm';
+      this.reasonDetail = '';
+    }
     this.changed(now);
     return true;
+  }
+
+  calm(now = Date.now()) {
+    this.v = { anger: 0, joy: 0.15, sad: 0, shy: 0, bored: 0 };
+    this.cause = null;
+    this.startedAt = now;
+    this.origin = 'calm';
+    this.reasonTag = 'calm';
+    this.reasonDetail = '';
+    this.changed(now);
+  }
+
+  getJournal(now = Date.now()) {
+    const isCalm = this.current.mood === 'calm' && !this.cause && this.v.anger < 0.05 && this.v.sad < 0.05;
+    return {
+      mood: this.current.mood,
+      level: this.current.level,
+      startedAt: this.cause?.at || this.startedAt || now,
+      origin: this.origin || (this.cause ? (this.cause.tag === 'jealousy' ? 'jealousy' : this.cause.tag === 'poke' ? 'poke' : 'chat') : (this.current.mood === 'bored' ? 'inactivity' : 'calm')),
+      reasonTag: this.cause?.tag || this.reasonTag || this.current.mood,
+      reasonDetail: this.cause?.quote || this.reasonDetail || '',
+      canCancel: !isCalm,
+    };
   }
 
   // The mood her AI answered with: it nudges her feelings (an answer she laughed at leaves her
@@ -295,6 +372,9 @@ export class Mood {
       sad: { sad: 0.1 }, shy: { shy: 0.12 }, dreamy: { sad: 0.04 },
     }[t];
     this.apply(nudge);
+    this.origin = 'ai';
+    this.reasonTag = t;
+    this.reasonDetail = '';
     this.changed(now);
     return t;
   }
@@ -308,10 +388,16 @@ export class Mood {
     let reaction = null;
     if (n === 4) {
       this.apply({ anger: 0.18 });
+      this.origin = 'poke';
+      this.reasonTag = 'poke';
+      this.reasonDetail = '';
       reaction = 'huff';
     } else if (n >= 6) {
       this.apply({ anger: 0.32, affection: -0.01 });
       this.cause = { tag: 'poke', quote: '', at: now };
+      this.origin = 'poke';
+      this.reasonTag = 'poke';
+      this.reasonDetail = '';
       this.pokes = [];
       reaction = 'rage';
     }
@@ -326,6 +412,9 @@ export class Mood {
     if (this.drags.length >= 3) {
       this.drags = [];
       this.apply({ anger: 0.15 });
+      this.origin = 'drag';
+      this.reasonTag = 'drag';
+      this.reasonDetail = '';
       this.changed(now);
       return 'dizzy';
     }
@@ -355,6 +444,13 @@ export class Mood {
     if (dt > 0) this.decay(dt);
     if (this.cause?.tag === 'jealousy') this.v.anger = Math.max(this.v.anger, 0.3);
     this.v.bored = clamp((now - this.lastContact) / BORED_FULL, 0, 1);
+    if (this.v.bored >= 0.6 && this.current.mood === 'bored') {
+      if (this.origin !== 'inactivity') {
+        this.origin = 'inactivity';
+        this.reasonTag = 'bored';
+        this.reasonDetail = '';
+      }
+    }
     if (this.v.anger < 0.05 && this.v.sad < 0.05) this.cause = null;
     this.changed(now);
   }
@@ -372,6 +468,14 @@ export class Mood {
     const next = moodOf(this.v);
     const moved = next.mood !== this.current.mood || Math.abs(next.level - this.current.level) >= 0.04;
     const previous = this.current;
+    if (next.mood !== this.current.mood) {
+      this.startedAt = now;
+      if (next.mood === 'calm' && !this.cause) {
+        this.origin = 'calm';
+        this.reasonTag = 'calm';
+        this.reasonDetail = '';
+      }
+    }
     this.current = next;
     if (now - (this.savedAt || 0) > 5000 || moved) this.save(now);
     if (moved) for (const fn of this.listeners) fn({ ...this.state(), previous: previous.mood });
@@ -433,7 +537,16 @@ export class Mood {
   save(now = Date.now()) {
     this.savedAt = now;
     try {
-      this.storage?.setItem(STORE, JSON.stringify({ v: this.v, affection: this.affection, cause: this.cause, at: now }));
+      this.storage?.setItem(STORE, JSON.stringify({
+        v: this.v,
+        affection: this.affection,
+        cause: this.cause,
+        at: now,
+        startedAt: this.startedAt,
+        origin: this.origin,
+        reasonTag: this.reasonTag,
+        reasonDetail: this.reasonDetail,
+      }));
     } catch {
       // no storage: she starts fresh next time
     }
@@ -451,6 +564,10 @@ export class Mood {
     this.v.bored = 0;
     if (typeof saved.affection === 'number') this.affection = clamp(saved.affection, -1, 1);
     this.cause = saved.cause || null;
+    if (typeof saved.startedAt === 'number') this.startedAt = saved.startedAt;
+    if (typeof saved.origin === 'string') this.origin = saved.origin;
+    if (typeof saved.reasonTag === 'string') this.reasonTag = saved.reasonTag;
+    if (typeof saved.reasonDetail === 'string') this.reasonDetail = saved.reasonDetail;
     if (saved.at) this.decay(Math.max(0, now - saved.at));
     this.current = moodOf(this.v);
     // was she still cross when you left? (for her greeting)

@@ -23,6 +23,38 @@ const go = (c, label, name, extra, opts) => button(label, () => {
   c.actions.run?.(name, extra);
 }, opts);
 
+function formatDuration(ms, durDict) {
+  if (typeof ms !== 'number' || ms <= 0) return durDict?.justNow || '< 1 min';
+  if (ms < 60000) {
+    const s = Math.max(1, Math.floor(ms / 1000));
+    return (durDict?.seconds || '{s}s').replace('{s}', s);
+  }
+  if (ms < 3600000) {
+    const m = Math.floor(ms / 60000);
+    return (durDict?.minutes || '{m} min').replace('{m}', m);
+  }
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return (durDict?.hoursMinutes || '{h}h {m}m').replace('{h}', h).replace('{m}', m);
+}
+
+function formatOrigin(originKey, j) {
+  return j?.origins?.[originKey] || j?.origins?.calm || originKey || '—';
+}
+
+function formatReason(tag, detail, j) {
+  const base = j?.reasons?.[tag];
+  if (detail && (tag === 'insult' || tag === 'threat' || tag === 'wrongName')) {
+    return `${base || tag} (« ${detail} »)`;
+  }
+  if (detail && tag === 'jealousy') {
+    return `${base || tag} (${detail})`;
+  }
+  if (base) return base;
+  if (detail) return detail;
+  return j?.reasons?.none || '—';
+}
+
 // ---------- Bond ----------
 
 const bond = {
@@ -540,15 +572,148 @@ const character = {
   render(c) {
     const { t, cfg, host } = c;
     const k = t.character;
+    const j = t.journal || t.ring?.journal || {};
     const win = isWindows(host);
     const root = el('div');
-    root.append(toggle(k.emotions, cfg.emotions !== false, (v) => c.set({ emotions: v })));
+
+    const mJournal = c.heart?.getJournal?.() || {
+      mood: 'calm',
+      level: 0,
+      startedAt: Date.now(),
+      origin: 'calm',
+      reasonTag: 'calm',
+      reasonDetail: '',
+      canCancel: false,
+    };
+
+    const jJournal = c.jealousy?.getJournal?.() || {
+      enabled: cfg.jealous !== false,
+      active: false,
+      paused: false,
+      pauseRemainingMs: 0,
+      rival: '',
+      origin: 'watcher',
+      startedAt: 0,
+      reason: '',
+      canCancel: false,
+    };
+
+    // Explicit emotional log heading
+    if (j.title) root.append(heading(j.title));
+    const journalWrap = el('div', 'ring__journal');
+
+    // --- Mood Box ---
+    const moodBox = el('div', 'ring__journal-box');
+    const moodTitle = el('div', 'ring__journal-title', j.moodSection || 'Humeur');
+    const moodGrid = el('div', 'ring__journal-grid');
+
+    const moodName = lifeLines(c.lang).mood.label[mJournal.mood] || mJournal.mood.toUpperCase();
+    const moodLevelStr = mJournal.level > 0 ? ` (${Math.round(mJournal.level * 100)}%)` : '';
+    const moodStateText = cfg.emotions === false ? (j.status?.disabled || 'Désactivée') : `${moodName}${moodLevelStr}`;
+    const moodOriginText = cfg.emotions === false ? '—' : formatOrigin(mJournal.origin, j);
+    const moodDurationVal = el('span', 'ring__journal-duration-mood');
+    const updateMoodDuration = () => {
+      const elapsed = Date.now() - (mJournal.startedAt || Date.now());
+      moodDurationVal.textContent = cfg.emotions === false ? '—' : formatDuration(elapsed, j.durations || {});
+    };
+    updateMoodDuration();
+    const moodReasonText = cfg.emotions === false ? '—' : formatReason(mJournal.reasonTag, mJournal.reasonDetail, j);
+
+    moodGrid.append(
+      el('span', 'ring__journal-label', j.stateLabel || 'État'),
+      el('span', 'ring__journal-value', moodStateText),
+      el('span', 'ring__journal-label', j.originLabel || 'Provenance'),
+      el('span', 'ring__journal-value', moodOriginText),
+      el('span', 'ring__journal-label', j.durationLabel || 'Durée'),
+      el('span', 'ring__journal-value', moodDurationVal),
+      el('span', 'ring__journal-label', j.reasonLabel || 'Raison'),
+      el('span', 'ring__journal-value', moodReasonText),
+    );
+
+    const moodActions = el('div', 'ring__journal-actions');
+    const cancelMoodBtn = button(j.cancelMood || 'Apaiser l’humeur', () => {
+      c.heart?.calm?.();
+      c.actions.run?.('calmMood');
+      c.refresh();
+    }, { disabled: !mJournal.canCancel || cfg.emotions === false });
+    moodActions.append(cancelMoodBtn);
+
+    moodBox.append(moodTitle, moodGrid, moodActions);
+    moodBox.append(toggle(j.emotionsToggle || k.emotions, cfg.emotions !== false, (v) => c.set({ emotions: v })));
+    journalWrap.append(moodBox);
+
+    // --- Jealousy Box ---
+    const jealBox = el('div', 'ring__journal-box');
+    const jealTitle = el('div', 'ring__journal-title', j.jealousySection || 'Réaction de jalousie');
+    const jealGrid = el('div', 'ring__journal-grid');
+
+    let jealStateText = j.status?.noJealousy || 'Aucune réaction active';
+    if (cfg.jealous === false) jealStateText = j.status?.disabled || 'Désactivée';
+    else if (jJournal.active) jealStateText = (j.status?.activeRival || 'Active ({name})').replace('{name}', jJournal.rival || 'IA');
+    else if (jJournal.paused) jealStateText = (j.status?.pausedRival || 'En pause ({time})').replace('{time}', formatDuration(jJournal.pauseRemainingMs, j.durations || {}));
+
+    const jealOriginKey = jJournal.active || jJournal.paused ? jJournal.origin : 'watcher';
+    const jealOriginText = cfg.jealous === false ? '—' : (j.origins?.[jealOriginKey] || j.origins?.page || jealOriginKey);
+
+    const jealDurationVal = el('span', 'ring__journal-duration-jealousy');
+    c.state.openedAt ??= Date.now();
+    const updateJealDuration = () => {
+      if (cfg.jealous === false) {
+        jealDurationVal.textContent = '—';
+      } else if (jJournal.active && jJournal.startedAt) {
+        jealDurationVal.textContent = formatDuration(Date.now() - jJournal.startedAt, j.durations || {});
+      } else if (jJournal.paused) {
+        const rem = Math.max(0, jJournal.pauseRemainingMs - (Date.now() - c.state.openedAt));
+        jealDurationVal.textContent = (j.durations?.pausedRemaining || 'Pause : {time}').replace('{time}', formatDuration(rem, j.durations || {}));
+      } else {
+        jealDurationVal.textContent = j.durations?.none || '—';
+      }
+    };
+    updateJealDuration();
+
+    let jealReasonText = j.reasons?.none || 'Aucune';
+    if (cfg.jealous === false) jealReasonText = '—';
+    else if (jJournal.reason) jealReasonText = jJournal.reason;
+
+    jealGrid.append(
+      el('span', 'ring__journal-label', j.stateLabel || 'État'),
+      el('span', 'ring__journal-value', jealStateText),
+      el('span', 'ring__journal-label', j.originLabel || 'Provenance'),
+      el('span', 'ring__journal-value', jealOriginText),
+      el('span', 'ring__journal-label', j.durationLabel || 'Durée'),
+      el('span', 'ring__journal-value', jealDurationVal),
+      el('span', 'ring__journal-label', j.reasonLabel || 'Raison'),
+      el('span', 'ring__journal-value', jealReasonText),
+    );
+
+    const jealActions = el('div', 'ring__journal-actions');
+    const cancelJealBtn = button(j.cancelJealousy || 'Annuler la jalousie', () => {
+      c.jealousy?.clear?.();
+      c.actions.run?.('clearJealousy');
+      c.refresh();
+    }, { disabled: !jJournal.canCancel || cfg.jealous === false });
+    jealActions.append(cancelJealBtn);
+
+    jealBox.append(jealTitle, jealGrid, jealActions);
+    jealBox.append(toggle(j.jealousyToggle || k.jealous, cfg.jealous !== false, (v) => c.set({ jealous: v }), { disabled: !win }));
+    jealBox.append(toggle(j.closePagesToggle || k.closePages, cfg.closePages !== false, (v) => c.set({ closePages: v }), { disabled: cfg.jealous === false || !win }));
+    journalWrap.append(jealBox);
+
+    root.append(journalWrap);
+
+    // Live timer while card is open
+    const liveTimer = setInterval(() => {
+      updateMoodDuration();
+      updateJealDuration();
+    }, 1000);
+    c.onLeave(() => clearInterval(liveTimer));
+
+    // Other character settings
+    root.append(heading(''));
     root.append(toggle(k.life, cfg.life !== false, (v) => c.set({ life: v })));
     root.append(toggle(k.musicAware, cfg.musicAware !== false, (v) => c.set({ musicAware: v }), { disabled: !win }));
     root.append(toggle(k.dj, cfg.dj !== false, (v) => c.set({ dj: v }), { disabled: !win || cfg.musicAware === false }));
     root.append(toggle(k.learn, cfg.learn !== false, (v) => c.set({ learn: v })));
-    root.append(toggle(k.jealous, cfg.jealous !== false, (v) => c.set({ jealous: v }), { disabled: !win }));
-    root.append(toggle(k.closePages, cfg.closePages !== false, (v) => c.set({ closePages: v }), { disabled: cfg.jealous === false || !win }));
     root.append(heading(''));
     root.append(toggle(k.wander, cfg.wander === true, (v) => c.set({ wander: v })));
     root.append(toggle(k.possess, cfg.possess === true, (v) => c.set({ possess: v })));

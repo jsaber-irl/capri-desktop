@@ -128,6 +128,16 @@ export class Heart {
     return cleared;
   }
 
+  calm() {
+    this.mood.calm();
+    if (this.panel.current?.jealousy) this.panel.hide();
+    this.show(this.mood.state());
+  }
+
+  getJournal(now = Date.now()) {
+    return this.mood.getJournal(now);
+  }
+
   // A line for clicking her with nothing going on, by mood (null: her usual idle lines).
   idleLine() {
     if (!this.enabled) return null;

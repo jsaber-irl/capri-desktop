@@ -214,3 +214,32 @@ test('petting clears jealous anger immediately', async () => {
   assert.equal(mood.cause, null);
   assert.equal(mood.v.anger, 0);
 });
+
+test('explicit emotional log tracks jealousy provenance, duration and reason with independent cancellation', async () => {
+  const { Jealousy } = await load('jealousy.js');
+  const host = { closePage: async () => ({ ok: true }) };
+  const panel = { say: () => true, hide: () => {} };
+  const heart = { event: () => {}, clearJealousy: () => {} };
+  const capri = { react: () => {} };
+  let clock = 5000;
+  const j = new Jealousy({ host, panel, heart, capri, now: () => clock });
+  let log = j.getJournal(clock);
+  assert.equal(log.active, false);
+  assert.equal(log.canCancel, false);
+
+  // Rival page arrives
+  j.onWindows({ fg: 12, ai: ['chatgpt'], pages: ['chatgpt'], rivalTitle: 'ChatGPT — Chat with AI', rivalUrl: 'https://chatgpt.com/c/123' });
+  log = j.getJournal(clock + 3000);
+  assert.equal(log.active, true);
+  assert.equal(log.rival, 'ChatGPT');
+  assert.equal(log.origin, 'page');
+  assert.equal(log.pageTitle, 'ChatGPT — Chat with AI');
+  assert.equal(log.startedAt, clock);
+  assert.equal(log.canCancel, true);
+
+  // Independent cancellation: clear() dismisses jealousy without touching other systems
+  j.clear();
+  log = j.getJournal(clock + 4000);
+  assert.equal(log.active, false);
+  assert.equal(log.canCancel, false);
+});

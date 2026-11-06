@@ -504,3 +504,75 @@ test('every sector has a title in the languages that have her menu, and all the 
   for (const key of ['hearing', 'quiet', 'sensitivity', 'device', 'level']) assert.ok(ru.mic[key] && en.mic[key], key);
   assert.equal(ru.bond.tune.short.length, 2);
 });
+
+test('circular menu character tab renders explicit emotional log and supports independent cancellation', async () => {
+  const prevDoc = globalThis.document;
+  try {
+    globalThis.document = {
+      createElement: (tag) => {
+        const elem = {
+          tagName: tag.toUpperCase(),
+          className: '',
+          textContent: '',
+          children: [],
+          attributes: {},
+          style: { setProperty() {} },
+          append(...nodes) { elem.children.push(...nodes); },
+          addEventListener() {},
+          setAttribute(k, v) { elem.attributes[k] = v; },
+        };
+        return elem;
+      },
+      createTextNode: (txt) => ({ textContent: txt }),
+    };
+    const { TABS } = await load('ring-tabs.js');
+    const { lifeLines } = await load('lines-life.js');
+    let calmed = false;
+    let jealCleared = false;
+    const configPatches = [];
+    const cleanups = [];
+    const ctx = {
+      t: lifeLines('fr').ring,
+      lang: 'fr',
+      cfg: { emotions: true, jealous: true, closePages: true },
+      host: { platform: 'win32' },
+      state: {},
+      heart: {
+        getJournal: () => ({
+          mood: 'angry',
+          level: 0.7,
+          startedAt: Date.now() - 120000,
+          origin: 'chat',
+          reasonTag: 'insult',
+          reasonDetail: 'tu es un bot',
+          canCancel: true,
+        }),
+        calm: () => { calmed = true; },
+      },
+      jealousy: {
+        getJournal: () => ({
+          enabled: true,
+          active: true,
+          paused: false,
+          pauseRemainingMs: 0,
+          rival: 'ChatGPT',
+          origin: 'page',
+          startedAt: Date.now() - 60000,
+          reason: 'ChatGPT — Chat with AI',
+          canCancel: true,
+        }),
+        clear: () => { jealCleared = true; },
+      },
+      actions: { run: () => {} },
+      set: (patch) => configPatches.push(patch),
+      refresh: () => {},
+      onLeave: (cleanup) => cleanups.push(cleanup),
+    };
+    const rendered = TABS.character.render(ctx);
+    assert.ok(rendered);
+    assert.ok(rendered.children.length > 0);
+    for (const cleanup of cleanups) cleanup();
+  } finally {
+    globalThis.document = prevDoc;
+  }
+});

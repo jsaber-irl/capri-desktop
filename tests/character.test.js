@@ -144,3 +144,29 @@ test('her voice reads plain words only', async () => {
   assert.equal(speakable('[[mood: angry]] Хмф. Смотри **сюда** https://x.com 😡'), 'Хмф. Смотри сюда');
   assert.ok(speakable('а'.repeat(2000)).length <= 601);
 });
+
+test('explicit emotional log tracks origin, duration, reason, with independent cancellation', async () => {
+  const { Mood } = await load('mood.js');
+  const now = 1000000;
+  const m = new Mood({ storage: null, now });
+  let j = m.getJournal(now);
+  assert.equal(j.mood, 'calm');
+  assert.equal(j.origin, 'calm');
+  assert.equal(j.canCancel, false);
+
+  // Insult in chat
+  m.feel('you are stupid and useless', now + 5000);
+  j = m.getJournal(now + 15000);
+  assert.ok(['annoyed', 'angry'].includes(j.mood));
+  assert.equal(j.origin, 'chat');
+  assert.equal(j.reasonTag, 'insult');
+  assert.equal(j.canCancel, true);
+  assert.equal(j.startedAt, now + 5000);
+
+  // Independent cancellation: soothing mood returns to calm immediately
+  m.calm(now + 20000);
+  j = m.getJournal(now + 20000);
+  assert.equal(j.mood, 'calm');
+  assert.equal(j.origin, 'calm');
+  assert.equal(j.canCancel, false);
+});

@@ -939,6 +939,94 @@ function hooksNow(fresh = false) {
   return hookCache.value;
 }
 
+function formatTrayDuration(ms, lang) {
+  if (typeof ms !== 'number' || ms <= 0) {
+    return lang === 'fr' ? '< 1 min' : (lang === 'ru' ? '< 1 мин' : '< 1 min');
+  }
+  if (ms < 60000) {
+    const s = Math.max(1, Math.floor(ms / 1000));
+    return lang === 'fr' ? `${s} s` : (lang === 'ru' ? `${s} с` : `${s}s`);
+  }
+  if (ms < 3600000) {
+    const m = Math.floor(ms / 60000);
+    return lang === 'fr' ? `${m} min` : (lang === 'ru' ? `${m} мин` : `${m} min`);
+  }
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return lang === 'fr' ? `${h} h ${m} min` : (lang === 'ru' ? `${h} ч ${m} мин` : `${h}h ${m}m`);
+}
+
+function formatTrayOrigin(originKey, lang) {
+  const map = {
+    chat: { fr: 'Chat (message)', ru: 'Чат (сообщение)', en: 'Chat (message)' },
+    touch: { fr: 'Contact physique', ru: 'Физический контакт', en: 'Physical touch' },
+    poke: { fr: 'Interactions (clics répétés)', ru: 'Клики подряд', en: 'Interactions (repeated clicks)' },
+    drag: { fr: 'Déplacement brusque (secouée)', ru: 'Резкое перемещение', en: 'Rough movement (shaken)' },
+    life: { fr: 'Activités autonomes', ru: 'Свои занятия', en: 'Autonomous activities' },
+    assistant: { fr: 'Assistant de programmation', ru: 'Ассистент', en: 'Coding assistant' },
+    inactivity: { fr: 'Inactivité', ru: 'Бездействие', en: 'Inactivity' },
+    jealousy: { fr: 'Rivalité (autre IA)', ru: 'Ревность к другому ИИ', en: 'Rivalry (other AI)' },
+    ai: { fr: 'Réponse du modèle IA', ru: 'Ответ модели ИИ', en: 'AI model answer' },
+    system: { fr: 'Événement système', ru: 'Системное событие', en: 'System event' },
+    calm: { fr: 'Ambiance générale', ru: 'Общее спокойствие', en: 'General peacefulness' },
+    page: { fr: 'Navigateur (onglet web)', ru: 'Браузер (вкладка)', en: 'Browser (web tab)' },
+    app: { fr: 'Application bureau', ru: 'Окно приложения', en: 'Desktop application' },
+    download: { fr: 'Page de téléchargement', ru: 'Страница скачивания', en: 'Download page' },
+    window: { fr: 'Fenêtre d’application', ru: 'Окно приложения', en: 'Application window' },
+    watcher: { fr: 'Surveillance des fenêtres', ru: 'Мониторинг окон', en: 'Window watcher' },
+  };
+  return map[originKey]?.[lang] || map[originKey]?.en || originKey || '—';
+}
+
+function formatTrayReason(tag, detail, lang) {
+  const map = {
+    insult: { fr: 'Insulte reçue', ru: 'Оскорбление', en: 'Insult received' },
+    threat: { fr: 'Menace de suppression', ru: 'Угроза удаления', en: 'Threat received' },
+    justBot: { fr: 'Traitée de simple programme', ru: 'Названа просто ботом', en: 'Called just a program' },
+    wrongName: { fr: 'Mauvais prénom utilisé', ru: 'Чужое имя', en: 'Called by wrong name' },
+    poke: { fr: 'Clics répétés insistants', ru: 'Слишком много кликов', en: 'Poked repeatedly' },
+    drag: { fr: 'Secouée à plusieurs reprises', ru: 'Слишком много тряски', en: 'Dragged around' },
+    jealousy: { fr: 'Utilisation d’une autre IA', ru: 'Внимание другому ИИ', en: 'Time spent with another AI' },
+    spam: { fr: 'Messages répétés ou cadence rapide', ru: 'Флуд или повторы', en: 'Repeated messages' },
+    corpo: { fr: 'Évocation des corporations', ru: 'Упоминание корпов', en: 'Brought up corporations' },
+    yell: { fr: 'Message crié en majuscules', ru: 'Крик капсом', en: 'Yelled at in capitals' },
+    apology: { fr: 'Excuses reçues', ru: 'Извинения', en: 'Apology received' },
+    compliment: { fr: 'Compliment reçu', ru: 'Комплимент', en: 'Compliment received' },
+    love: { fr: 'Déclaration affectueuse', ru: 'Признание в любви', en: 'Expression of love' },
+    flirt: { fr: 'Flirt ou message tendre', ru: 'Флирт', en: 'Flirting or sweet talk' },
+    thanks: { fr: 'Remerciement', ru: 'Благодарность', en: 'Thanks received' },
+    userSad: { fr: 'Tristesse partagée', ru: 'Грусть пользователя', en: 'User sadness' },
+    userBored: { fr: 'Ennui partagé', ru: 'Скука', en: 'Shared boredom' },
+    gameWon: { fr: 'Victoire en jeu', ru: 'Победа в игре', en: 'Won a game' },
+    gameLost: { fr: 'Défaite en jeu', ru: 'Проигрыш в игре', en: 'Lost a game' },
+    hackWon: { fr: 'Piratage réussi', ru: 'Успешный взлом', en: 'Hack succeeded' },
+    hackLost: { fr: 'Piratage échoué', ru: 'Неудачный взлом', en: 'Hack failed' },
+    claudeDone: { fr: 'Mission accomplie', ru: 'Задача выполнена', en: 'Task completed' },
+    claudeError: { fr: 'Erreur de l’assistant', ru: 'Ошибка ассистента', en: 'Assistant error' },
+    tickled: { fr: 'Chatouillée', ru: 'Щекотка', en: 'Tickled' },
+    petted: { fr: 'Caresse reçue', ru: 'Поглаживание', en: 'Head pat received' },
+    lateNight: { fr: 'Heure tardive', ru: 'Поздний час', en: 'Late night' },
+    userBack: { fr: 'Retour de l’utilisateur', ru: 'Возвращение пользователя', en: 'User returned' },
+    bored: { fr: 'Laissée seule un moment', ru: 'Долгое отсутствие внимания', en: 'Left alone for a while' },
+    calm: { fr: 'Aucun événement perturbateur', ru: 'Все спокойно', en: 'Peaceful and calm' },
+    happy: { fr: 'Moment agréable partagé', ru: 'Хороший момент', en: 'Enjoyable moment' },
+    annoyed: { fr: 'Contrariété passagère', ru: 'Легкое раздражение', en: 'Passing annoyance' },
+    angry: { fr: 'Colère persistante', ru: 'Злость', en: 'Lingering anger' },
+    sad: { fr: 'Baisse de moral', ru: 'Грусть', en: 'Feeling down' },
+    shy: { fr: 'Intimidée ou flattée', ru: 'Смущение', en: 'Flustered or shy' },
+  };
+  const base = map[tag]?.[lang] || map[tag]?.en;
+  if (detail && (tag === 'insult' || tag === 'threat' || tag === 'wrongName')) {
+    return `${base || tag} (« ${detail} »)`;
+  }
+  if (detail && tag === 'jealousy') {
+    return `${base || tag} (${detail})`;
+  }
+  if (base) return base;
+  if (detail) return detail;
+  return lang === 'fr' ? 'Aucune' : (lang === 'ru' ? 'Нет' : 'None');
+}
+
 function buildTray() {
   if (!tray) return;
   const cfg = config.load();
@@ -946,6 +1034,49 @@ function buildTray() {
   const watched = activeAssistant();
   const t = Object.fromEntries(Object.entries(TRAY[resolveLang(cfg.lang)]).map(([key, value]) =>
     [key, typeof value === 'string' && watched.id !== 'claude' ? value.replaceAll('Claude Code', watched.name) : value]));
+
+  const lang = resolveLang(cfg.lang);
+  const mJournalStartedAt = moodState?.moodStartedAt || Date.now();
+  const mMoodName = (moodState && t.moods[moodState.mood]) || moodState?.mood || t.moods.calm;
+  const mMoodLevel = moodState?.level ? ` (${Math.round(moodState.level * 100)}%)` : '';
+  const mMoodStateLabel = cfg.emotions === false ? `(${t.noActiveMood})` : `${mMoodName}${mMoodLevel}`;
+  const mMoodOriginLabel = cfg.emotions === false ? '—' : formatTrayOrigin(moodState?.moodOrigin || 'calm', lang);
+  const mMoodDurationLabel = cfg.emotions === false ? '—' : formatTrayDuration(Date.now() - mJournalStartedAt, lang);
+  const mMoodReasonLabel = cfg.emotions === false ? '—' : formatTrayReason(moodState?.moodReasonTag, moodState?.moodReasonDetail, lang);
+
+  const jData = moodState?.jealousy || {};
+  let jStateLabel = t.noActiveJealousy;
+  if (cfg.jealous === false) jStateLabel = lang === 'fr' ? 'Désactivée' : (lang === 'ru' ? 'Выключена' : 'Disabled');
+  else if (jData.active) jStateLabel = `${lang === 'fr' ? 'Active envers' : (lang === 'ru' ? 'Активна к' : 'Active toward')} ${jData.rival || 'IA'}`;
+  else if (jData.paused) jStateLabel = `${lang === 'fr' ? 'En pause' : (lang === 'ru' ? 'На паузе' : 'Paused')} (${formatTrayDuration(jData.pauseRemainingMs, lang)})`;
+
+  const jOriginLabel = cfg.jealous === false ? '—' : formatTrayOrigin(jData.active || jData.paused ? jData.origin : 'watcher', lang);
+  let jDurationLabel = '—';
+  if (cfg.jealous !== false) {
+    if (jData.active && jData.startedAt) jDurationLabel = formatTrayDuration(Date.now() - jData.startedAt, lang);
+    else if (jData.paused) jDurationLabel = formatTrayDuration(jData.pauseRemainingMs, lang);
+  }
+  let jReasonLabel = '—';
+  if (cfg.jealous !== false) {
+    jReasonLabel = jData.reason || (lang === 'fr' ? 'Aucune' : (lang === 'ru' ? 'Нет' : 'None'));
+  }
+
+  const emotionalLogItems = [
+    { label: `${t.moodSection} : ${mMoodStateLabel}`, enabled: false },
+    { label: `  ${t.originLabel} : ${mMoodOriginLabel}`, enabled: false },
+    { label: `  ${t.durationLabel} : ${mMoodDurationLabel}`, enabled: false },
+    { label: `  ${t.reasonLabel} : ${mMoodReasonLabel}`, enabled: false },
+    { label: t.cancelMood, enabled: Boolean(moodState?.canCancelMood && cfg.emotions !== false), click: () => sendCommand('calmMood') },
+    { label: t.emotionsToggle, type: 'checkbox', checked: cfg.emotions !== false, click: (item) => updateConfig({ emotions: item.checked }) },
+    { type: 'separator' },
+    { label: `${t.jealousySection} : ${jStateLabel}`, enabled: false },
+    { label: `  ${t.originLabel} : ${jOriginLabel}`, enabled: false },
+    { label: `  ${t.durationLabel} : ${jDurationLabel}`, enabled: false },
+    { label: `  ${t.reasonLabel} : ${jReasonLabel}`, enabled: false },
+    { label: t.cancelJealousy, enabled: Boolean(jData.canCancel && cfg.jealous !== false), click: () => sendCommand('clearJealousy') },
+    { label: t.jealousyToggle, type: 'checkbox', checked: cfg.jealous !== false, enabled: process.platform === 'win32', click: (item) => updateConfig({ jealous: item.checked }) },
+    { label: t.closePages, type: 'checkbox', checked: cfg.closePages !== false, enabled: cfg.jealous !== false && process.platform === 'win32', click: (item) => updateConfig({ closePages: item.checked }) },
+  ];
 
   const screens = displays();
   const current = targetDisplay().id;
@@ -984,6 +1115,7 @@ function buildTray() {
     { label: `${t.version} · ${packageInfo.version}`, enabled: false },
     { label: t.online(PORT), enabled: false },
     ...(moodState && cfg.emotions !== false ? [{ label: t.mood(t.moods[moodState.mood] || moodState.mood), enabled: false }] : []),
+    { label: t.emotionalLog, submenu: emotionalLogItems },
     { type: 'separator' },
     { label: t.teleport, click: () => sendCommand('teleport') },
     { label: t.handstand, submenu: handstandItems },
@@ -1067,6 +1199,11 @@ function buildTray() {
         // she gets to know you and adapts (bond.js); what she learned, and a button to wipe it
         { label: t.learn, type: 'checkbox', checked: cfg.learn !== false, click: (item) => updateConfig({ learn: item.checked }) },
         { label: t.bond, click: () => sendCommand('bond') },
+        { type: 'separator' },
+        { label: t.jealous, type: 'checkbox', checked: cfg.jealous !== false, enabled: process.platform === 'win32', click: (item) => updateConfig({ jealous: item.checked }) },
+        { label: t.closePages, type: 'checkbox', checked: cfg.closePages !== false, enabled: cfg.jealous !== false && process.platform === 'win32', click: (item) => updateConfig({ closePages: item.checked }) },
+        { type: 'separator' },
+        { label: t.emotionalLog, submenu: emotionalLogItems },
       ],
     },
     // her senses: she can see your screen, move to your music, and listen to your voice. All off
@@ -2075,11 +2212,10 @@ function registerIpc() {
     senseState = state || {};
     tray?.setToolTip(trayTip()); // a sense is never silently on: the icon by the clock says so too
   });
-  // how she feels, for her menu's top line (only when the mood itself changes)
+  // how she feels, for her menu's top line and explicit emotional log
   ipcMain.on('mood:state', (_e, state) => {
-    const changed = state?.mood !== moodState?.mood;
-    moodState = state && { mood: String(state.mood), level: Number(state.level) || 0 };
-    if (changed) rebuildTray();
+    moodState = state;
+    rebuildTray();
   });
   ipcMain.handle('sounds:list', () => {
     try {

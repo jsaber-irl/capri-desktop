@@ -236,6 +236,62 @@
 .ring__label-text { min-width: 0; }
 .ring__label-text small { display: block; margin-top: 2px; color: var(--paper-3); font-size: var(--text-meta); }
 
+/* ---------- Journal émotionnel ---------- */
+
+.ring__journal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 6px 0 12px;
+}
+
+.ring__journal-box {
+  background: var(--ink-2);
+  border: 1px solid var(--ring-line);
+  padding: 8px 10px;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+
+.ring__journal-title {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  font-weight: 700;
+  color: var(--red);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ring__journal-grid {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-data);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.ring__journal-label {
+  color: var(--paper-3);
+  font-weight: 600;
+}
+
+.ring__journal-value {
+  color: var(--paper);
+  word-break: break-word;
+}
+
+.ring__journal-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--ring-line);
+}
+
 /* a switch: a chamfered track, a square knob */
 .ring__switch {
   position: relative;
