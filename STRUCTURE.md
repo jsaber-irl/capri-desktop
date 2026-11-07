@@ -100,6 +100,7 @@ capri-desktop-main-main/
 ├── src/
 │   ├── main/
 │   │   ├── anthropic.js
+│   │   ├── ai-title.js
 │   │   ├── app-aliases.js
 │   │   ├── apps.js
 │   │   ├── assistants.js
@@ -113,6 +114,7 @@ capri-desktop-main-main/
 │   │   ├── config.js
 │   │   ├── control.js
 │   │   ├── documents.js
+│   │   ├── desktop-notification.js
 │   │   ├── electron-security.js
 │   │   ├── farewell.js
 │   │   ├── fetch-files.js
@@ -352,7 +354,8 @@ The following are the extension points most contributors should use:
 | `system.js` | Platform-specific system settings, hardware information, audio, capture, window arrangement, theme, and power adapters. |
 | `llm.js` / `anthropic.js` / `ollama.js` | Provider selection and AI requests. |
 | `tts.js` / `stt.js` / `piper.js` / `chatterbox.js` | Voice engines and transcription services. |
-| `windows.js` / `mover.js` / `control.js` | Window observation, movement and approved OS controls. |
+| `ai-title.js` / `windows.js` / `mover.js` / `control.js` | Local rival-AI title matching, platform window observation, movement and approved OS controls. |
+| `desktop-notification.js` | Validates and shows native Electron desktop notifications. |
 | `system.js` | Named native PC operations: settings, system information, volume, capture, window arrangement, theme, and scheduled power actions. |
 | `screen.js` / `mac-permissions.js` | Screen capture and permission reporting. |
 | `files.js` / `documents.js` / `cleanup.js` | Safe file operations, document creation and owned-resource cleanup. |
@@ -363,7 +366,8 @@ The following are the extension points most contributors should use:
 
 - **AI:** `llm.js` selects the provider; `anthropic.js` and `ollama.js` provide dedicated clients; other providers may be OpenAI-compatible.
 - **Applications:** `launch.js` discovers and resolves applications; `apps.js` queries and closes active applications.
-- **Windows:** `windows.js`, `mover.js`, `control.js`, and `mac-permissions.js` handle OS-dependent operations.
+- **Windows:** `ai-title.js` classifies supported AI app names and browser-title segments; `windows.js` handles Windows window metadata and confirmed close requests. `mac-permissions.js` supplies macOS visible-window metadata through System Events. On Linux, `main.js` reads X11 titles through `wmctrl`; Wayland support depends on the compositor.
+- **Notifications:** `desktop-notification.js` shows validated local desktop notifications; reminders also use the Renderer panel.
 - **Audio:** `stt.js`, `tts.js`, `piper.js`, `chatterbox.js`, and `music-control.js` connect interfaces to audio engines.
 - **Files:** `documents.js` creates files without overwriting existing ones; `cleanup.js` only removes items identified as belonging to Capri.
 - **Configuration:** `config.js` uses Electron's `userData` directory. `setup.js` encrypts new keys using `safeStorage`; legacy unencrypted values remain readable for compatibility.
@@ -477,6 +481,7 @@ All 244 tracked files are listed individually. Binary files are described as res
 | **`src/hub-preload.js`** | JavaScript code for the component identified by the path. |
 | **`src/mac-permissions-preload.js`** | JavaScript code for the component identified by the path. |
 | **`src/main/anthropic.js`** | Anthropic API client for conversation and vision. |
+| **`src/main/ai-title.js`** | Matches recognized AI names in browser-tab titles and desktop-app identifiers; parses Linux `wmctrl` output. |
 | **`src/main/app-aliases.js`** | Centralized multilingual application alias dictionary. |
 | **`src/main/apps.js`** | Lists, searches, and closes active applications. |
 | **`src/main/assistants.js`** | Catalog of coding assistants. |
@@ -490,6 +495,7 @@ All 244 tracked files are listed individually. Binary files are described as res
 | **`src/main/config.js`** | Loads, caches, and writes user configuration. |
 | **`src/main/control.js`** | Windows operations and input handling. |
 | **`src/main/documents.js`** | Validation, exclusive file creation, and text file verification. |
+| **`src/main/desktop-notification.js`** | Validates and displays local Electron desktop notifications. |
 | **`src/main/farewell.js`** | Goodbye sequence and application shutdown. |
 | **`src/main/fetch-files.js`** | Downloads and extracts archives with path traversal protection. |
 | **`src/main/hardware.js`** | Collects hardware information for recommendations. |
@@ -593,6 +599,7 @@ All 244 tracked files are listed individually. Binary files are described as res
 | **`src/renderer/terminal.html`** | Structure of an Electron page with local scripts and styles. |
 | **`src/terminal-preload.js`** | JavaScript code for the component identified by the path. |
 | **`tests/acting.test.js`** | Tests for the acting domain; system services are mocked when necessary. |
+| **`tests/ai-title.test.js`** | Tests rival-AI app/title matching and Linux window-list parsing. |
 | **`tests/anthropic.test.js`** | Tests for the anthropic domain; system services are mocked when necessary. |
 | **`tests/bond.test.js`** | Tests for the bond domain; system services are mocked when necessary. |
 | **`tests/character.test.js`** | Tests for the character domain; system services are mocked when necessary. |
@@ -603,6 +610,7 @@ All 244 tracked files are listed individually. Binary files are described as res
 | **`tests/cleanup.test.js`** | Tests for the cleanup domain; system services are mocked when necessary. |
 | **`tests/config.test.js`** | Tests for the config domain; system services are mocked when necessary. |
 | **`tests/documents.test.js`** | Tests for the documents domain; system services are mocked when necessary. |
+| **`tests/desktop-notification.test.js`** | Tests native desktop-notification validation and display behavior. |
 | **`tests/farewell.test.js`** | Tests for the farewell domain; system services are mocked when necessary. |
 | **`tests/fixtures/build-stub-wheel.py`** | Mock program or isolated test data. |
 | **`tests/fixtures/fake-ollama.js`** | Mock program or isolated test data. |
@@ -611,6 +619,7 @@ All 244 tracked files are listed individually. Binary files are described as res
 | **`tests/heart.test.js`** | Tests for the heart domain; system services are mocked when necessary. |
 | **`tests/hooks.test.js`** | Tests for the hooks domain; system services are mocked when necessary. |
 | **`tests/hub.test.js`** | Tests for the hub domain; system services are mocked when necessary. |
+| **`tests/jealousy.test.js`** | Tests AI-detection reactions, snoozing, and Windows-only close behavior. |
 | **`tests/incoming-call.test.js`** | Tests for the incoming call domain; system services are mocked when necessary. |
 | **`tests/labels.test.js`** | Tests for the labels domain; system services are mocked when necessary. |
 | **`tests/launch-resolver.test.js`** | Tests for the launch resolver domain; system services are mocked when necessary. |

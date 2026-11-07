@@ -14,6 +14,9 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 
 - **Coding AI monitoring** (Claude Code, Codex, Antigravity): Capri comments on actions, asks for your permission when needed, and reacts when the task is finished.
 - **AI conversation**: local Ollama, Claude, Gemini, GPT, Groq, and other providers. Capri can speak using Piper, Chatterbox, the system voice, or a cloud service.
+- **AI jealousy**: when enabled, Capri recognizes supported AI names in browser-tab titles and AI desktop-app windows. Detection is available on Windows, macOS, and Linux; closing rival pages remains Windows-only.
+- **Reminders**: create one-time or recurring reminders in the circular menu, with an in-app alert and a desktop notification when they are due.
+- **Voice input**: speak to Capri using Groq (Whisper), OpenAI Whisper, or an OpenAI-compatible transcription server, including local Whisper servers.
 - **Desktop life**: she sits on windows or the taskbar, swings her legs, floats, falls, sleeps, teleports, looks at the satellite, and reacts to the cursor.
 - **Physical interaction**: drag Capri to move her, release with a gesture to throw her, watch her rotate, fall, bounce from screen edges, catch window ledges, crash with speed-sensitive effects, and recover from a knockout.
 - **Window possession**: she can move your windows in eight different ways, then put them back where they were. She immediately releases a window that you grab yourself.
@@ -68,7 +71,7 @@ Windows may display a SmartScreen warning because the installer is unsigned. Thi
 - **Linux:** releases contain an `AppImage` and a Debian `.deb`. The Linux build is tested on Ubuntu in CI. The AppImage is portable; the `.deb` is intended for Debian/Ubuntu-family systems.
 - **Updates:** electron-builder publishes platform metadata (`latest.yml`, `latest-mac.yml`, and `latest-linux.yml`) when a release is published. Capri does not currently run an in-app updater, so updates are installed by downloading the new package. Windows NSIS updates preserve Capri data; the custom uninstaller prompt is not shown during an update.
 
-Linux has no Windows window-tracking or macOS Apple Events integration. Chat, rendering, voice input/output, screen capture where supported by Electron, application launching, and MPRIS media control through `playerctl` are available subject to the desktop environment and installed tools.
+Linux has no Windows window-possession adapter or macOS Apple Events integration. X11 window titles can be checked for jealousy when `wmctrl` is installed; Wayland may restrict access to other applications' titles. Chat, rendering, voice input/output, screen capture where supported by Electron, application launching, and MPRIS media control through `playerctl` are available subject to the desktop environment and installed tools.
 
 ### Distribution verification
 
@@ -222,7 +225,9 @@ Right-click Capri to open the menu. The main sections are:
 
 The `Ctrl+Alt+C` shortcut hides Capri inside her chip. The same shortcut brings her back.
 
-The Character tab lets you turn jealousy off on every platform; closing rival pages remains a Windows-only option. Capri checks recognized browser tab titles (Safari and other supported browsers) and recognized AI desktop-app names, not arbitrary titles from other applications or page contents. On Windows, for a detected rival tab she shows its title and sanitized address (without query parameters) for 1.2 seconds; when page closing is enabled, she then closes rival AI and download tabs and gets angry. The “Leave me alone for 10 minutes” action during the preview cancels that close. Closing a native AI app still requires confirmation. On macOS, title detection uses System Events; allow Capri to control System Events in macOS Automation settings. On Linux, title detection uses `wmctrl` on X11; `wmctrl` must be installed, and Wayland may not expose other applications’ window titles. Neither macOS nor Linux closes windows. An apology in chat or voice, or a head/mane pet, clears that jealous anger. Clicking Capri or “Leave me alone for 10 minutes” pauses alerts for ten minutes. In the **More** tab, you can add, edit, disable, or delete reminders; recurring schedules retain their IANA time zone across restarts and daylight-saving changes.
+The Character tab lets you turn jealousy off on every platform; closing rival pages remains a Windows-only option. Capri checks recognized browser tab titles (Safari and other supported browsers) and recognized AI desktop-app names, not arbitrary titles from other applications or page contents. On Windows, for a detected rival tab she shows its title and sanitized address (without query parameters) for 1.2 seconds; when page closing is enabled, she then closes rival AI and download tabs. She asks for confirmation before closing a native AI app. On macOS, title detection uses System Events; allow Capri to control System Events in macOS Automation settings. On Linux, title detection uses `wmctrl` on X11; install `wmctrl` to enable it. Wayland may not expose other applications’ window titles. Neither macOS nor Linux closes windows. Capri reacts with jealousy when a rival is detected; an apology in chat or voice, or a head/mane pet, clears that jealous anger. Clicking Capri or “Leave me alone for 10 minutes” pauses alerts for ten minutes.
+
+In the **More** tab, add, edit, disable, or delete reminders. Due reminders appear in Capri’s panel and request a desktop notification. Recurring schedules retain their IANA time zone across restarts and daylight-saving changes.
 
 ### Task tracking
 
@@ -292,7 +297,7 @@ After several minutes of inactivity, Capri falls asleep and greatly reduces her 
 
 ### Voice
 
-Available engines:
+Available speech-synthesis engines:
 
 - **Piper**: lightweight, local, and suitable for low-spec systems;
 - **Chatterbox**: more expressive, but heavier;
@@ -300,7 +305,7 @@ Available engines:
 - **OpenAI** and **ElevenLabs**: cloud voices requiring an API key;
 - **Custom server**: OpenAI-compatible server.
 
-Piper searches for a Russian, English, or French voice. The system voice uses `ru-RU`, `en-US`, or `fr-FR`, respectively.
+Piper searches for a Russian, English, or French voice. The system voice uses `ru-RU`, `en-US`, or `fr-FR`, respectively. Compatible custom TTS servers can expose other models and voices through the OpenAI-compatible speech endpoint.
 
 ### Custom voice
 
@@ -314,7 +319,7 @@ These features are disabled by default because they provide access to the screen
 - **Dancing**: she analyzes only the volume and rhythm of system audio, without recording the music.
 - **Microphone**: `Ctrl+Alt+Space` starts capture, transcription, and a response. Conversation mode keeps the microphone open between turns.
 
-Available transcription engines include Groq, OpenAI, and compatible Whisper servers.
+Available transcription engines include Groq (`whisper-large-v3-turbo`), OpenAI (`whisper-1`), and OpenAI-compatible servers such as local `whisper.cpp` or `faster-whisper` instances. Other transcription models can be used through a compatible server when that server supports the configured model. This speech-to-text support is separate from speech synthesis.
 
 ### Window control and messages
 
@@ -582,7 +587,8 @@ The following are present in the current source tree. Capabilities that depend o
 | Screen capture | Native capture where supported | Screen Recording permission required | Depends on Electron/desktop session |
 | Media detection/control | Windows system media sessions | Spotify/Deezer through Apple Events when exposed | MPRIS through `playerctl` |
 | Window possession/tracking | Windows adapter | macOS System Events/Accessibility | Not available |
-| Rival-AI detection and closing | Supported native apps (confirmation) and browser tabs (title/address preview, then automatic close including download tabs) | Not available | Not available |
+| Rival-AI title detection | Supported native apps and browser tabs | Visible window titles via System Events; Automation permission required | X11 titles via `wmctrl`; Wayland support depends on the compositor |
+| Closing rival-AI windows/pages | Supported apps (confirmation) and browser tabs (title/address preview, then automatic close including download tabs) | Not available | Not available |
 
 Build commands are `npm run dist`, `npm run dist:mac`, `npm run dist:linux`, `npm run dist:32`, and `npm run dist:all`. No lint or TypeScript command is defined; the maintained application code is JavaScript, with PowerShell and Python helpers.
 

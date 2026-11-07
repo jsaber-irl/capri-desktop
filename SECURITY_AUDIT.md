@@ -2,8 +2,9 @@
 
 ## Executive Summary
 
-This document describes the current static review baseline. It was updated alongside the
-native PC-control and multi-display documentation on 2026-11-04; it is not a replacement for a
+This document describes the current static review baseline. The baseline was updated alongside
+the native PC-control and multi-display documentation on 2026-11-04; the feature notes below were
+added on 2026-11-07 and are not a new full security audit. It is not a replacement for a
 penetration test or a dependency audit.
 
 The static review covers the 244 paths tracked by Git at the beginning of the audit, including Electron, preloads, IPC calls, processes, downloads, network integrations, permissions, and configuration. No confirmed malicious behavior was identified in the reviewed version-controlled code. This does not prove the absence of threats.
@@ -109,7 +110,9 @@ No files were deleted. `FEATURES.md` and `FEATURES.fr.md` are not tracked in thi
 
 | Feature | Data or authority used | Security boundary |
 |---|---|---|
-| Reminder notification | Local reminder text and timer | Renderer panel and local audio only; no network request. |
+| Reminder notification | Local reminder text and timer | Renderer panel, local audio, and an Electron desktop notification; no network request. Reminder text may be visible in OS notification history or on a lock screen, depending on system settings. |
+| Rival-AI title detection | Window application names and titles; Linux X11 window list via `wmctrl`, macOS visible-window titles via System Events, or Windows window titles via the window watcher | Detection is local and limited to recognized browser titles and AI application names. macOS requires System Events Automation permission; Linux requires `wmctrl` and an X11 session. No page contents are read. |
+| Rival-AI close action | The foreground Windows window ID and recognized AI key | Closing remains Windows-only. Rival browser tabs are revalidated by the helper before close; native app close requires confirmation. macOS/Linux title detection does not close windows. |
 | Caressing Capri | Pointer coordinates and local mood/bond state | Renderer-only; the refusal lightning is visual/audio feedback. |
 | Following the pointer across displays | Cursor position, display geometry, overlay bounds | Main process selects the display; renderer receives geometry through the preload callback. |
 | Window possession and movement | Window metadata and platform automation APIs | Requires the configured feature and applicable OS permissions. |
@@ -118,3 +121,23 @@ No files were deleted. `FEATURES.md` and `FEATURES.fr.md` are not tracked in thi
 When extending any of these features, preserve the rule that user-controlled coordinates are
 validated at the Main boundary and that Renderer code receives capabilities, not raw Electron
 objects.
+
+## Feature notes added 2026-11-07
+
+The jealousy setting is available on all platforms. Detection compares recognized AI names against
+browser window-title segments or application identifiers; it does not inspect page contents or
+send window metadata to a remote service. On macOS, the existing System Events window listing
+requires the user to authorize Capri under Automation. On Linux, `wmctrl -lpGx` supplies X11
+window IDs, application classes, and titles; the command is invoked with fixed arguments and a
+timeout, and Wayland may not provide equivalent visibility. Windows continues to use its existing
+window helper. The close-pages setting remains limited to Windows and is not enabled by these
+title-only paths.
+
+Due reminders now request a native Electron desktop notification in addition to the in-app panel
+notice. The Main IPC handler accepts only requests from the overlay WebContents and validates the
+notification object and text; Electron's notification API is local, but operating-system
+notification history or lock-screen previews can expose reminder text according to the user's
+notification settings.
+
+These notes describe the feature boundaries, not a new test of macOS TCC prompts, Linux X11 or
+Wayland behavior, Windows close races, or operating-system notification privacy settings.
