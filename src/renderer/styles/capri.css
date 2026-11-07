@@ -974,7 +974,7 @@ html[data-motion='reduced'] .panel__bar {
   position: fixed;
   right: 14px;
   top: 14px;
-  z-index: 10;
+  z-index: 20;
   width: min(460px, calc(100vw - 28px));
   color: var(--paper);
   filter: drop-shadow(4px 4px 0 var(--violet));
@@ -1018,11 +1018,11 @@ html[data-motion='reduced'] .panel__bar {
 }
 
 .notice__title {
+  display: block;
   color: var(--paper-2);
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font: 600 12px/1 var(--font-mono);
   letter-spacing: 0.12em;
-  line-height: 1;
+  text-transform: uppercase;
 }
 
 .notice__line {

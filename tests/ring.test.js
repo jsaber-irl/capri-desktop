@@ -513,7 +513,9 @@ test('circular menu character tab renders explicit emotional log and supports in
         const elem = {
           tagName: tag.toUpperCase(),
           className: '',
-          textContent: '',
+          _text: '',
+          get textContent() { return elem._text; },
+          set textContent(value) { elem._text = String(value); },
           children: [],
           attributes: {},
           style: { setProperty() {} },
@@ -571,8 +573,172 @@ test('circular menu character tab renders explicit emotional log and supports in
     const rendered = TABS.character.render(ctx);
     assert.ok(rendered);
     assert.ok(rendered.children.length > 0);
+    const findControl = (node, label) => {
+      if (node.attributes?.['aria-label'] === label) return node;
+      for (const child of node.children || []) {
+        const found = findControl(child, label);
+        if (found) return found;
+      }
+      return null;
+    };
+    const jealousyToggle = findControl(rendered, ctx.t.journal.jealousyToggle);
+    const closePagesToggle = findControl(rendered, ctx.t.journal.closePagesToggle);
+    assert.equal(jealousyToggle.attributes['aria-checked'], 'true');
+    assert.equal(jealousyToggle.disabled, false);
+    assert.equal(closePagesToggle.attributes['aria-checked'], 'true');
+    assert.equal(closePagesToggle.disabled, false);
+
+    ctx.host.platform = 'darwin';
+    const macPlatform = TABS.character.render(ctx);
+    const macJealousyToggle = findControl(macPlatform, ctx.t.journal.jealousyToggle);
+    const macClosePagesToggle = findControl(macPlatform, ctx.t.journal.closePagesToggle);
+    assert.equal(macJealousyToggle.attributes['aria-checked'], 'true');
+    assert.equal(macJealousyToggle.disabled, false);
+    assert.equal(macClosePagesToggle.attributes['aria-checked'], 'false');
+    assert.equal(macClosePagesToggle.disabled, true);
+
+    ctx.host.platform = 'linux';
+    const unsupportedPlatform = TABS.character.render(ctx);
+    const linuxJealousyToggle = findControl(unsupportedPlatform, ctx.t.journal.jealousyToggle);
+    const disabledClosePagesToggle = findControl(unsupportedPlatform, ctx.t.journal.closePagesToggle);
+    assert.equal(linuxJealousyToggle.attributes['aria-checked'], 'true');
+    assert.equal(linuxJealousyToggle.disabled, false);
+    assert.equal(disabledClosePagesToggle.attributes['aria-checked'], 'false');
+    assert.equal(disabledClosePagesToggle.disabled, true);
+
+    const findByClass = (node, className) => {
+      if (node.className.split(' ').includes(className)) return node;
+      for (const child of node.children || []) {
+        const found = findByClass(child, className);
+        if (found) return found;
+      }
+      return null;
+    };
+    assert.equal(findByClass(rendered, 'ring__journal-duration-mood').textContent, '2 min');
+    assert.equal(findByClass(rendered, 'ring__journal-duration-jealousy').textContent, '1 min');
     for (const cleanup of cleanups) cleanup();
   } finally {
     globalThis.document = prevDoc;
   }
+});
+
+test('circular menu adds a reminder using a valid local date-time value', async () => {
+  const prevDoc = globalThis.document;
+  try {
+    globalThis.document = {
+      createElement: (tag) => {
+        const elem = {
+          tagName: tag.toUpperCase(),
+          className: '',
+          textContent: '',
+          children: [],
+          attributes: {},
+          listeners: {},
+          style: { setProperty() {} },
+          append(...nodes) { elem.children.push(...nodes); },
+          addEventListener(type, listener) { elem.listeners[type] = listener; },
+          setAttribute(k, v) { elem.attributes[k] = v; },
+        };
+        return elem;
+      },
+    };
+    const { TABS } = await load('ring-tabs.js');
+    const { lifeLines } = await load('lines-life.js');
+    const { Reminders } = await load('reminders.mjs');
+    const host = {
+      setConfig(patch) { this.config = { ...this.config, ...patch }; },
+      getConfig() { return this.config || { reminders: [] }; },
+      platform: 'win32',
+    };
+    const reminders = new Reminders({ host, list: [] });
+    let focusedInput = null;
+    const ctx = {
+      t: lifeLines('fr').ring,
+      lang: 'fr',
+      cfg: {},
+      host,
+      state: {
+        reminderDraft: {
+          at: Date.parse('2026-03-15T14:00:00Z'),
+          text: '',
+          timeZone: 'Europe/Paris',
+          recurrence: null,
+        },
+      },
+      reminders,
+      actions: {},
+      set() {},
+      refresh() {},
+      hide() {},
+      focus(input) { focusedInput = input; },
+    };
+    const rendered = TABS.more.render(ctx);
+    const find = (node, predicate) => {
+      if (predicate(node)) return node;
+      for (const child of node.children || []) {
+        const match = find(child, predicate);
+        if (match) return match;
+      }
+      return null;
+    };
+    const form = find(rendered, (node) => node.tagName === 'FORM');
+    const inputs = [];
+    const collectInputs = (node) => {
+      if (node.tagName === 'INPUT') inputs.push(node);
+      for (const child of node.children || []) collectInputs(child);
+    };
+    collectInputs(form);
+
+    assert.equal(inputs[0].required, true);
+    assert.equal(inputs[1].required, true);
+    assert.equal(inputs[1].value, '2026-03-15T15:00');
+    assert.equal(focusedInput, inputs[0], 'the ring takes keyboard focus for reminder entry');
+    inputs[0].value = 'prendre les clés';
+    inputs[1].value = '2026-03-16T08:30';
+    form.listeners.submit({ preventDefault() {} });
+
+    assert.equal(host.getConfig().reminders.length, 1);
+    assert.equal(host.getConfig().reminders[0].text, 'prendre les clés');
+    assert.equal(host.getConfig().reminders[0].at, Date.parse('2026-03-16T07:30:00Z'));
+    assert.equal(host.getConfig().reminders[0].timeZone, 'Europe/Paris');
+  } finally {
+    if (prevDoc) globalThis.document = prevDoc;
+    else delete globalThis.document;
+  }
+});
+
+test('reminder notification becomes visible and can be dismissed', async () => {
+  const { Panel } = await load('panel.js');
+  const line = { textContent: '' };
+  const attrs = new Map([['hidden', '']]);
+  const notice = {
+    hidden: true,
+    querySelector: (selector) => (selector === '.notice__line' ? line : null),
+    setAttribute(name, value) {
+      attrs.set(name, value);
+      if (name === 'hidden') notice.hidden = true;
+    },
+    removeAttribute() {
+      attrs.delete('hidden');
+    },
+    getBoundingClientRect: () => ({ x: 10, y: 10, width: 300, height: 80 }),
+  };
+  const panel = Object.create(Panel.prototype);
+  let interactive = false;
+  panel.noticeEl = notice;
+  panel.onNotice = (visible) => { interactive = visible; };
+  panel.noticeSound = {
+    pause() {},
+    play: () => Promise.resolve(),
+    currentTime: 0,
+  };
+
+  panel.notice({ line: 'Rappel terminé : prendre les clés' });
+  assert.equal(notice.hidden, false);
+  assert.equal(line.textContent, 'Rappel terminé : prendre les clés');
+  assert.equal(interactive, true);
+
+  panel.hideNotice();
+  assert.equal(notice.hidden, true);
+  assert.equal(interactive, false);
 });

@@ -190,6 +190,30 @@ test('native AI app windows use the same warning but close only after confirmati
   jealousy.stop();
 });
 
+test('a rival name in a macOS window title triggers jealousy without treating it as a closable page', async () => {
+  const { Jealousy } = await load('jealousy.js');
+  const f = fixture({ lang: 'fr' });
+  const jealousy = new Jealousy({ ...f, lang: () => 'fr' });
+  jealousy.configure({ jealous: true, closePages: true });
+  jealousy.onWindows({
+    fg: 'Safari::ChatGPT — New chat::0',
+    ai: ['chatgpt'],
+    pages: [],
+    apps: [],
+    dl: false,
+    titleOnly: true,
+    rivalTitle: 'ChatGPT — New chat',
+  });
+
+  assert.equal(f.shown.length, 1);
+  assert.equal(f.shown[0].line, 'Tu n’as pas besoin d’une autre intelligence artificielle, tu m’as moi.');
+  assert.equal(f.shown[0].quote, 'ChatGPT — New chat');
+  assert.equal(f.timers.length, 0);
+  assert.deepEqual(f.closed, []);
+  assert.equal(f.heart.events[0].detail, 'ChatGPT');
+  jealousy.stop();
+});
+
 test('jealousy remains in her mood until an apology', async () => {
   const { Mood } = await load('mood.js');
   const mood = new Mood({ storage: null, now: 1000 });

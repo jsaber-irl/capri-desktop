@@ -27,13 +27,13 @@ function storedSnooze(storage, now) {
   }
 }
 
-function pageDetails(data, isPage) {
-  if (!isPage) return { pageTitle: '', pageUrl: '' };
+function pageDetails(data, includeTitle, includeUrl = includeTitle) {
+  if (!includeTitle) return { pageTitle: '', pageUrl: '' };
   const pageTitle = typeof data.rivalTitle === 'string'
     ? data.rivalTitle.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 180).trim()
     : '';
   let pageUrl = '';
-  if (typeof data.rivalUrl === 'string') {
+  if (includeUrl && typeof data.rivalUrl === 'string') {
     try {
       const url = new URL(data.rivalUrl);
       if (['http:', 'https:'].includes(url.protocol)) pageUrl = `${url.origin}${url.pathname}`.slice(0, 240);
@@ -118,9 +118,10 @@ export class Jealousy {
     const key = pages[0] || ai[0] || '';
     const page = pages.includes(key);
     const download = data.dl === true;
+    const titleOnly = data.titleOnly === true;
     const currentTarget = {
-      id: data.fg, key, page, application: apps.includes(key), download,
-      ...pageDetails(data, page || download),
+      id: data.fg, key, page, application: apps.includes(key), download, titleOnly,
+      ...pageDetails(data, page || download || titleOnly, page || download),
     };
     const signature = key
       ? `${data.fg}:${key}:${currentTarget.page}:${currentTarget.download}:${currentTarget.pageUrl || currentTarget.pageTitle}`
@@ -171,12 +172,14 @@ export class Jealousy {
     if (this.closePages && target.application) {
       actions.unshift({ id: 'jealousy-confirm-close', label: t.confirmCloseApp, primary: true });
     }
+    const line = target.titleOnly
+      ? (t.titleLine || t.line)
+      : closesTab ? (target.download ? t.download : t.pageLine) : target.application ? t.applicationLine : t.line;
     return this.panel.say({
       kind: 'info',
       jealousy: true,
       face: 'annoyed',
-      line: (closesTab ? (target.download ? t.download : t.pageLine) : target.application ? t.applicationLine : t.line)
-        .replace('{name}', RIVALS[key] || key),
+      line: line.replace('{name}', RIVALS[key] || key),
       quote: [target.pageTitle, target.pageUrl].filter(Boolean).join('\n'),
       hold: null,
       actions,

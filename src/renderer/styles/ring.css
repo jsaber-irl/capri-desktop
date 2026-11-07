@@ -541,8 +541,7 @@
 }
 
 .ring__reminder-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: 6px;
   margin: 8px 0;
@@ -550,8 +549,27 @@
   background: var(--ink-2);
 }
 
-.ring__reminder-item .ring__label-text { overflow-wrap: anywhere; }
-.ring__reminder-item .ring__btns { flex-wrap: wrap; }
+.ring__reminder-item .ring__label-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ring__reminder-item .ring__btns {
+  flex: none;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin: 0;
+}
+
+.ring__reminder-item .ring__btn {
+  flex: none;
+  padding: 5px 6px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
 
 .ring__reminder-editor {
   display: grid;

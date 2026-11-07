@@ -611,7 +611,7 @@ const character = {
     const moodLevelStr = mJournal.level > 0 ? ` (${Math.round(mJournal.level * 100)}%)` : '';
     const moodStateText = cfg.emotions === false ? (j.status?.disabled || 'Désactivée') : `${moodName}${moodLevelStr}`;
     const moodOriginText = cfg.emotions === false ? '—' : formatOrigin(mJournal.origin, j);
-    const moodDurationVal = el('span', 'ring__journal-duration-mood');
+    const moodDurationVal = el('span', 'ring__journal-value ring__journal-duration-mood');
     const updateMoodDuration = () => {
       const elapsed = Date.now() - (mJournal.startedAt || Date.now());
       moodDurationVal.textContent = cfg.emotions === false ? '—' : formatDuration(elapsed, j.durations || {});
@@ -625,7 +625,7 @@ const character = {
       el('span', 'ring__journal-label', j.originLabel || 'Provenance'),
       el('span', 'ring__journal-value', moodOriginText),
       el('span', 'ring__journal-label', j.durationLabel || 'Durée'),
-      el('span', 'ring__journal-value', moodDurationVal),
+      moodDurationVal,
       el('span', 'ring__journal-label', j.reasonLabel || 'Raison'),
       el('span', 'ring__journal-value', moodReasonText),
     );
@@ -655,7 +655,7 @@ const character = {
     const jealOriginKey = jJournal.active || jJournal.paused ? jJournal.origin : 'watcher';
     const jealOriginText = cfg.jealous === false ? '—' : (j.origins?.[jealOriginKey] || j.origins?.page || jealOriginKey);
 
-    const jealDurationVal = el('span', 'ring__journal-duration-jealousy');
+    const jealDurationVal = el('span', 'ring__journal-value ring__journal-duration-jealousy');
     c.state.openedAt ??= Date.now();
     const updateJealDuration = () => {
       if (cfg.jealous === false) {
@@ -681,7 +681,7 @@ const character = {
       el('span', 'ring__journal-label', j.originLabel || 'Provenance'),
       el('span', 'ring__journal-value', jealOriginText),
       el('span', 'ring__journal-label', j.durationLabel || 'Durée'),
-      el('span', 'ring__journal-value', jealDurationVal),
+      jealDurationVal,
       el('span', 'ring__journal-label', j.reasonLabel || 'Raison'),
       el('span', 'ring__journal-value', jealReasonText),
     );
@@ -695,8 +695,8 @@ const character = {
     jealActions.append(cancelJealBtn);
 
     jealBox.append(jealTitle, jealGrid, jealActions);
-    jealBox.append(toggle(j.jealousyToggle || k.jealous, cfg.jealous !== false, (v) => c.set({ jealous: v }), { disabled: !win }));
-    jealBox.append(toggle(j.closePagesToggle || k.closePages, cfg.closePages !== false, (v) => c.set({ closePages: v }), { disabled: cfg.jealous === false || !win }));
+    jealBox.append(toggle(j.jealousyToggle || k.jealous, cfg.jealous !== false, (v) => c.set({ jealous: v })));
+    jealBox.append(toggle(j.closePagesToggle || k.closePages, win && cfg.jealous !== false && cfg.closePages !== false, (v) => c.set({ closePages: v }), { disabled: cfg.jealous === false || !win }));
     journalWrap.append(jealBox);
 
     root.append(journalWrap);
@@ -903,6 +903,19 @@ const voice = {
 const LANGS = [['auto', null], ['ru', 'Русский'], ['en', 'English'], ['fr', 'Français']];
 const SIZES = [['small', 0.45], ['medium', 0.6], ['large', 0.8]];
 
+function dateTimeInputValue(at, timeZone) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: timeZone || undefined,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(at)).map(({ type, value }) => [type, value]));
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
 const more = {
   render(c) {
     const { t, cfg, host } = c;
@@ -949,8 +962,10 @@ const more = {
         const repeat = reminder.recurrence
           ? ` · ${reminder.recurrence.interval > 1 ? `${reminder.recurrence.interval} ` : ''}${m[`repeat${reminder.recurrence.unit}`]}`
           : '';
-        rowEl.append(el('span', 'ring__label-text',
-          `${reminder.enabled === false ? '○ ' : ''}${reminder.text} · ${time}${repeat} · ${reminder.timeZone || m.localTimeZone}`));
+        const label = el('span', 'ring__label-text',
+          `${reminder.enabled === false ? '○ ' : ''}${reminder.text} · ${time}${repeat} · ${reminder.timeZone || m.localTimeZone}`);
+        label.title = label.textContent;
+        rowEl.append(label);
         rowEl.append(buttons(
           button(m.editReminder, () => {
             c.state.reminderDraft = { ...reminder, recurrence: reminder.recurrence ? { ...reminder.recurrence } : null };
@@ -980,11 +995,13 @@ const more = {
       const textInput = el('input', 'ring__input');
       textInput.type = 'text';
       textInput.maxLength = 140;
+      textInput.required = true;
       textInput.placeholder = m.reminderText;
       textInput.value = draft.text || '';
       const timeInput = el('input', 'ring__input');
       timeInput.type = 'datetime-local';
-      timeInput.value = new Date(draft.at).toLocaleString('sv-SE', { timeZone: draft.timeZone || undefined }).replace(' ', 'T').slice(0, 16);
+      timeInput.required = true;
+      timeInput.value = dateTimeInputValue(draft.at, draft.timeZone);
       const zoneInput = el('input', 'ring__input');
       zoneInput.type = 'text';
       zoneInput.placeholder = 'Europe/Paris';
@@ -1004,6 +1021,7 @@ const more = {
       interval.disabled = recurrence.value === 'none';
       recurrence.addEventListener('change', () => { interval.disabled = recurrence.value === 'none'; });
       const error = el('p', 'ring__note is-dim');
+      error.setAttribute('role', 'alert');
       const save = button(draft.id ? m.saveReminder : m.addReminder, () => form.requestSubmit(), { primary: true });
       const cancel = draft.id ? button(m.cancelEdit, () => {
         delete c.state.reminderDraft;
@@ -1029,6 +1047,7 @@ const more = {
         }
       });
       root.append(form, error);
+      c.focus(textInput);
     }
     root.append(buttons(
       button(m.hide, () => {

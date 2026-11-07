@@ -528,6 +528,7 @@ export class Panel {
     line.textContent = msg.line || '';
     el.setAttribute('aria-label', msg.line || '');
     el.removeAttribute('hidden');
+    el.hidden = false;
     this.onNotice?.(true);
     const rect = el.getBoundingClientRect();
     console.log('[reminder-notice] displayed', {

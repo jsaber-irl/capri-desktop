@@ -1,4 +1,4 @@
-## **Project Capricorn (2.2.6)**
+## **Project Capricorn (2.2.7)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -222,7 +222,7 @@ Right-click Capri to open the menu. The main sections are:
 
 The `Ctrl+Alt+C` shortcut hides Capri inside her chip. The same shortcut brings her back.
 
-On Windows, the Character tab lets you turn jealousy off or keep it while disabling closings. Capri detects supported AI apps and their own browser pages. For a detected rival tab, she shows its title and sanitized address (without query parameters or page contents) for 1.2 seconds; when page closing is enabled, she then closes rival AI and download tabs and gets angry. The “Leave me alone for 10 minutes” action during the preview cancels that close. Closing a native AI app still requires confirmation. An apology in chat or voice, or a head/mane pet, clears that jealous anger. Clicking Capri or “Leave me alone for 10 minutes” pauses alerts for ten minutes. Rival detection and closing are not available on macOS or Linux. In the **More** tab, you can add, edit, disable, or delete reminders; recurring schedules retain their IANA time zone across restarts and daylight-saving changes.
+The Character tab lets you turn jealousy off on every platform; closing rival pages remains a Windows-only option. Capri checks recognized browser tab titles (Safari and other supported browsers) and recognized AI desktop-app names, not arbitrary titles from other applications or page contents. On Windows, for a detected rival tab she shows its title and sanitized address (without query parameters) for 1.2 seconds; when page closing is enabled, she then closes rival AI and download tabs and gets angry. The “Leave me alone for 10 minutes” action during the preview cancels that close. Closing a native AI app still requires confirmation. On macOS, title detection uses System Events; allow Capri to control System Events in macOS Automation settings. On Linux, title detection uses `wmctrl` on X11; `wmctrl` must be installed, and Wayland may not expose other applications’ window titles. Neither macOS nor Linux closes windows. An apology in chat or voice, or a head/mane pet, clears that jealous anger. Clicking Capri or “Leave me alone for 10 minutes” pauses alerts for ten minutes. In the **More** tab, you can add, edit, disable, or delete reminders; recurring schedules retain their IANA time zone across restarts and daylight-saving changes.
 
 ### Task tracking
 

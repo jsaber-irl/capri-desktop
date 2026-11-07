@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('host', {
   getConfig: () => ipcRenderer.invoke('config:get'),
   appVersion: () => ipcRenderer.invoke('app:version'),
   setConfig: (patch) => ipcRenderer.invoke('config:set', patch),
+  reminderNotification: (notification) => ipcRenderer.invoke('reminder:notify', notification),
   listSounds: () => ipcRenderer.invoke('sounds:list'),
   hooksStatus: () => ipcRenderer.invoke('hooks:status'),
   demoWindow: (open) => ipcRenderer.invoke('demo:window', Boolean(open)),
@@ -150,7 +151,7 @@ contextBridge.exposeInMainWorld('host', {
   transcribe: (request) => ipcRenderer.invoke('stt:transcribe', request),
   sttSetup: (choice) => ipcRenderer.invoke('stt:setup', choice),
   sttKeyPage: (engine) => ipcRenderer.send('stt:keyPage', engine),
-  platform: process.platform, // her ring menu greys out what only works on Windows
+  platform: process.platform, // her ring menu greys out features unavailable on this platform
   hands: true, // the control bridge exists in main; hands.js checks the setting
   windowOp: (op, name) => ipcRenderer.invoke('hands:window', { op, name }),
   showDesktop: () => ipcRenderer.invoke('hands:desktop'),

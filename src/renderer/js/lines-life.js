@@ -333,6 +333,7 @@ export const LIFE_LINES = {
       },
       jealousy: {
         line: 'Эй, {name}? Я же лучше, да?',
+        titleLine: 'Тебе не нужен другой ИИ. У тебя есть я.',
         pageLine: 'Ты опять к {name}? Закрываю эту вкладку.',
         applicationLine: 'Эй, {name}? Это приложение мешает нам.',
         download: 'Собрался скачать {name}? Закрываю эту вкладку.',
@@ -818,6 +819,7 @@ export const LIFE_LINES = {
       },
       jealousy: {
         line: 'Hey, {name}? You like me better, right?',
+        titleLine: 'You don’t need another AI. You have me.',
         pageLine: 'Trying to talk to {name}? I’m closing this tab.',
         applicationLine: 'Hey, {name}? This app is getting between us.',
         download: 'Trying to download {name}? I’m closing this tab.',
@@ -1828,6 +1830,7 @@ fr: {
 
     jealousy: {
       line: 'Hé, {name} ? Tu me préfères, non ?',
+      titleLine: 'Tu n’as pas besoin d’une autre intelligence artificielle, tu m’as moi.',
       pageLine: 'Tu veux parler à {name} ? Je ferme cet onglet.',
       applicationLine: 'Hé, {name} ? Cette application s’interpose entre nous.',
       download: 'Tu veux télécharger {name} ? Je ferme cet onglet.',

@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const { spawn: spawnProgram, execFile } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 const {
-  app, BrowserWindow, Tray, Menu, ipcMain, screen, protocol, net, shell, globalShortcut, nativeImage,
+  app, BrowserWindow, Tray, Menu, ipcMain, screen, protocol, net, shell, globalShortcut, nativeImage, Notification,
   desktopCapturer, session, systemPreferences,
   clipboard, ClipboardItem, dialog, powerMonitor,
 } = require('electron');
@@ -16,6 +16,7 @@ const config = require('./config');
 const { TRAY, LANGS } = require('./labels');
 const { createBridge } = require('./bridge');
 const { startWindowWatch } = require('./windows');
+const { findRivalTitle, parseLinuxWindows } = require('./ai-title');
 const { createMover } = require('./mover');
 const llm = require('./llm');
 const setup = require('./setup');
@@ -59,6 +60,7 @@ const { openVideoSearch } = require('./video-search');
 const { openWebSearch } = require('./web-search');
 const { installNavigationGuards } = require('./electron-security');
 const { createFarewell } = require('./farewell');
+const { showDesktopNotification } = require('./desktop-notification');
 const stt = require('./stt');
 const vision = require('./screen');
 const control = require('./control');
@@ -231,7 +233,9 @@ let tray = null;
 let trayMenu = null; // also what she opens when you right-click her
 let demoTimer = null;
 let windowWatch = null;
-let macWindowTimer = null;
+let titleWindowTimer = null;
+let titleWindowRefreshRunning = false;
+let linuxWindowWatchError = '';
 let followTimer = null;
 let handstandActive = false;
 let windowDetection = { ok: true, windows: [] };
@@ -850,6 +854,7 @@ function updateConfig(patch) {
   const changed = config.save(patch);
   if (!changed.length) return rendererConfig();
   const did = (...keys) => keys.some((k) => changed.includes(k));
+  if (did('jealous')) syncTitleWindowTracking();
   if (did('displayId', 'follow')) fitOverlay();
   if (did('rest')) {
     fitOverlay(); // the taskbar in her window or not
@@ -1074,8 +1079,8 @@ function buildTray() {
     { label: `  ${t.durationLabel} : ${jDurationLabel}`, enabled: false },
     { label: `  ${t.reasonLabel} : ${jReasonLabel}`, enabled: false },
     { label: t.cancelJealousy, enabled: Boolean(jData.canCancel && cfg.jealous !== false), click: () => sendCommand('clearJealousy') },
-    { label: t.jealousyToggle, type: 'checkbox', checked: cfg.jealous !== false, enabled: process.platform === 'win32', click: (item) => updateConfig({ jealous: item.checked }) },
-    { label: t.closePages, type: 'checkbox', checked: cfg.closePages !== false, enabled: cfg.jealous !== false && process.platform === 'win32', click: (item) => updateConfig({ closePages: item.checked }) },
+    { label: t.jealousyToggle, type: 'checkbox', checked: cfg.jealous !== false, click: (item) => updateConfig({ jealous: item.checked }) },
+    { label: t.closePages, type: 'checkbox', checked: process.platform === 'win32' && cfg.jealous !== false && cfg.closePages !== false, enabled: cfg.jealous !== false && process.platform === 'win32', click: (item) => updateConfig({ closePages: item.checked }) },
   ];
 
   const screens = displays();
@@ -1200,12 +1205,11 @@ function buildTray() {
         { label: t.learn, type: 'checkbox', checked: cfg.learn !== false, click: (item) => updateConfig({ learn: item.checked }) },
         { label: t.bond, click: () => sendCommand('bond') },
         { type: 'separator' },
-        { label: t.jealous, type: 'checkbox', checked: cfg.jealous !== false, enabled: process.platform === 'win32', click: (item) => updateConfig({ jealous: item.checked }) },
-        { label: t.closePages, type: 'checkbox', checked: cfg.closePages !== false, enabled: cfg.jealous !== false && process.platform === 'win32', click: (item) => updateConfig({ closePages: item.checked }) },
-        { type: 'separator' },
         { label: t.emotionalLog, submenu: emotionalLogItems },
       ],
     },
+    { label: t.jealous, type: 'checkbox', checked: process.platform === 'win32' && cfg.jealous !== false, enabled: process.platform === 'win32', click: (item) => updateConfig({ jealous: item.checked }) },
+    { label: t.closePages, type: 'checkbox', checked: process.platform === 'win32' && cfg.jealous !== false && cfg.closePages !== false, enabled: cfg.jealous !== false && process.platform === 'win32', click: (item) => updateConfig({ closePages: item.checked }) },
     // her senses: she can see your screen, move to your music, and listen to your voice. All off
     // until you turn them on here, and each one is a live use of your screen, sound or microphone.
     {
@@ -1654,63 +1658,116 @@ function watchWindows() {
 
 
 async function refreshMacWindows() {
-    if (process.platform !== 'darwin' || !overlay || overlay.isDestroyed()) {
-        return;
-    }
-
+  if (process.platform !== 'darwin' || !overlay || overlay.isDestroyed() || titleWindowRefreshRunning) return;
+  titleWindowRefreshRunning = true;
+  try {
     const result = await listMacWindows();
+    if (restLevel === 'deep' || !overlay || overlay.isDestroyed()) return;
 
     if (result.ok) {
-        const bounds = overlay.getBounds();
+      const bounds = overlay.getBounds();
+      const filteredWindows = result.windows.filter((win) => {
+        const appName = (win.app || '').trim().toLowerCase();
+        return appName !== 'electron' && appName !== 'capri' && appName !== 'capri helper';
+      });
+      const rival = config.load().jealous !== false ? findRivalTitle(filteredWindows) : null;
+      const wins = filteredWindows
+        .map((win) => ({
+          ...win,
+          x: win.x - bounds.x,
+          y: win.y - bounds.y,
+          max: false,
+        }))
+        .filter((win) => win.x < bounds.width && win.x + win.w > 0 && win.y < bounds.height && win.y + win.h > 0);
 
-        // Exclure Capri et toutes les applications Electron.
-        const filteredWindows = result.windows.filter(win => {
-            const appName = (win.app || '').trim().toLowerCase();
-
-            return appName !== 'electron' &&
-                   appName !== 'capri' &&
-                   appName !== 'capri helper';
-        });
-
-        const wins = filteredWindows
-            .map(win => ({
-                ...win,
-                x: win.x - bounds.x,
-                y: win.y - bounds.y,
-                max: false
-            }))
-            .filter(win =>
-                win.x < bounds.width &&
-                win.x + win.w > 0 &&
-                win.y < bounds.height &&
-                win.y + win.h > 0
-            );
-
-        lastWindows = {
-            fg: null,
-            taskbar: false,
-            over: false,
-            wins
-        };
+      lastWindows = {
+        fg: rival?.id ?? null,
+        ai: rival ? [rival.key] : [],
+        pages: [],
+        apps: [],
+        dl: false,
+        titleOnly: Boolean(rival),
+        rivalTitle: rival?.title || '',
+        taskbar: false,
+        over: false,
+        wins,
+      };
     } else {
-        lastWindows = {
-            fg: null,
-            taskbar: false,
-            over: false,
-            wins: [],
-            detectionError: result.error,
-            permissionNeeded: result.permissionNeeded
-        };
+      lastWindows = {
+        fg: null,
+        ai: [],
+        pages: [],
+        apps: [],
+        dl: false,
+        titleOnly: false,
+        rivalTitle: '',
+        taskbar: false,
+        over: false,
+        wins: [],
+        detectionError: result.error,
+        permissionNeeded: result.permissionNeeded,
+      };
     }
 
     overlay.webContents.send('windows:update', lastWindows);
+  } finally {
+    titleWindowRefreshRunning = false;
+  }
+}
+
+async function refreshLinuxWindows() {
+  if (process.platform !== 'linux' || !overlay || overlay.isDestroyed() || titleWindowRefreshRunning) return;
+  titleWindowRefreshRunning = true;
+  try {
+    const result = await new Promise((resolve) => {
+      execFile('wmctrl', ['-lpGx'], { timeout: 3000, maxBuffer: 1024 * 1024 }, (err, stdout) => {
+        resolve(err ? { error: err.message } : { windows: parseLinuxWindows(stdout) });
+      });
+    });
+    if (restLevel === 'deep' || !overlay || overlay.isDestroyed()) return;
+    if ('error' in result) {
+      if (linuxWindowWatchError !== result.error) console.error('[capri] Linux window title watch:', result.error);
+      linuxWindowWatchError = result.error;
+      lastWindows = { fg: null, ai: [], pages: [], apps: [], dl: false, titleOnly: false, rivalTitle: '', wins: [] };
+    } else {
+      linuxWindowWatchError = '';
+      const windows = result.windows;
+      const rival = config.load().jealous !== false ? findRivalTitle(windows) : null;
+      lastWindows = {
+        fg: rival?.id ?? null,
+        ai: rival ? [rival.key] : [],
+        pages: [],
+        apps: [],
+        dl: false,
+        titleOnly: Boolean(rival),
+        rivalTitle: rival?.title || '',
+        taskbar: false,
+        over: false,
+        wins: [],
+      };
+    }
+    overlay.webContents.send('windows:update', lastWindows);
+  } finally {
+    titleWindowRefreshRunning = false;
+  }
+}
+
+function syncTitleWindowTracking() {
+  clearInterval(titleWindowTimer);
+  titleWindowTimer = null;
+  if (!['darwin', 'linux'].includes(process.platform) || restLevel === 'deep' ||
+      (!handstandActive && config.load().jealous === false)) return;
+  const refresh = process.platform === 'darwin' ? refreshMacWindows : refreshLinuxWindows;
+  const interval = process.platform === 'darwin' && handstandActive ? 1000 : 3000;
+  titleWindowTimer = setInterval(() => {
+    refresh().catch((err) => console.error('[capri] window refresh:', err.message));
+  }, interval);
+  refresh().catch((err) => console.error('[capri] window refresh:', err.message));
 }
 
 function setHandstandTracking(active) {
   handstandActive = Boolean(active);
-  clearInterval(macWindowTimer);
-  macWindowTimer = null;
-  if (handstandActive && process.platform === 'darwin') macWindowTimer = setInterval(() => refreshMacWindows().catch((err) => console.error('[capri] window refresh:', err.message)), 1000);
+  syncTitleWindowTracking();
   rebuildTray();
 }
 
@@ -1734,6 +1791,7 @@ function rest(level) {
     watchWindows();
     watchMedia();
   }
+  syncTitleWindowTracking();
   watchPresence();
 }
 
@@ -1825,6 +1883,11 @@ function registerIpc() {
     if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return rendererConfig();
     const { apiKeys: _keys, ...safe } = patch; // (her keys only go in through setup:use and the voice and ears setups, sealed)
     return updateConfig(safe);
+  });
+  ipcMain.handle('reminder:notify', (event, request) => {
+    if (event.sender !== overlay?.webContents) return { ok: false, error: 'Untrusted notification request.' };
+    if (!request || typeof request !== 'object') return { ok: false, error: 'Invalid notification request.' };
+    return showDesktopNotification(Notification, request);
   });
   ipcMain.handle('demo:window', (_e, open) => demoWindow(open));
   // right-clicking her: the same menu as the tray icon (which Windows often hides behind the ^ by the clock)
@@ -2398,6 +2461,7 @@ function main() {
     startFollowingPointer();
     createTray();
     watchWindows();
+    syncTitleWindowTracking();
     mover = createMover({
       screen,
       bounds: () => overlay.getBounds(),
@@ -2480,8 +2544,8 @@ function main() {
 
   app.on('will-quit', () => {
     config.flush(); // the last changes, written now
-    clearInterval(macWindowTimer);
-    macWindowTimer = null;
+    clearInterval(titleWindowTimer);
+    titleWindowTimer = null;
     clearInterval(followTimer);
     followTimer = null;
     // what she started goes with her (each on its own: one failing must not leave the other running)

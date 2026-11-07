@@ -117,16 +117,6 @@ async function boot() {
   reminders.onDue = (reminder) => {
     console.log('[reminders] app onDue received', { id: reminder.id, text: reminder.text, at: reminder.at });
     const lang = brain.lang === 'fr' ? 'fr-FR' : brain.lang === 'ru' ? 'ru-RU' : 'en-US';
-    panel.say({
-      kind: 'remind',
-      face: 'wide',
-      line: brain.lang === 'fr'
-        ? `Rappel : ${reminder.text} (${clock(reminder.at, lang, true, reminder.timeZone)}).`
-        : brain.lang === 'ru'
-          ? `Напоминание: ${reminder.text} (${clock(reminder.at, lang, true, reminder.timeZone)}).`
-          : `Reminder: ${reminder.text} (${clock(reminder.at, lang, true, reminder.timeZone)}).`,
-      hold: null,
-    });
     const notice = {
       line: brain.lang === 'fr'
         ? `Rappel terminé : ${reminder.text}`
@@ -137,6 +127,24 @@ async function boot() {
     };
     console.log('[reminders] requesting top-right notice', notice);
     panel.notice(notice);
+    host.reminderNotification({
+      title: brain.lang === 'fr' ? 'Rappel' : brain.lang === 'ru' ? 'Напоминание' : 'Reminder',
+      body: reminder.text,
+    }).then((result) => {
+      if (!result?.ok) console.warn('[reminders] desktop notification unavailable:', result?.error || 'unknown error');
+    }).catch((error) => {
+      console.error('[reminders] desktop notification failed:', error);
+    });
+    panel.say({
+      kind: 'remind',
+      face: 'wide',
+      line: brain.lang === 'fr'
+        ? `Rappel : ${reminder.text} (${clock(reminder.at, lang, true, reminder.timeZone)}).`
+        : brain.lang === 'ru'
+          ? `Напоминание: ${reminder.text} (${clock(reminder.at, lang, true, reminder.timeZone)}).`
+          : `Reminder: ${reminder.text} (${clock(reminder.at, lang, true, reminder.timeZone)}).`,
+      hold: null,
+    });
     try {
       capri.perform('remind');
     } catch (error) {
