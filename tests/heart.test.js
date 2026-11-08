@@ -176,6 +176,32 @@ test('the pointer shaken about: a remark and a start', async () => {
   assert.deepEqual(reacted, ['startle']);
 });
 
+test('shaking Capri repeatedly makes her angry and she reacts', async () => {
+  const { heart, said, reacted } = await world();
+  heart.zapLater = () => {};
+  let shakes = 0;
+  heart.shake = { move: () => { shakes++; return true; } };
+  const back = random(0.1);
+  try {
+    let t = 50000;
+    const shake = () => heart.moved(900 + shakes * 100, 300, (t += 20));
+    shake();
+    shake();
+    assert.notEqual(heart.mood.mood, 'angry');
+    shake();
+    assert.equal(heart.mood.mood, 'angry');
+    assert.equal(heart.mood.cause.tag, 'shake');
+    assert.equal(heart.mood.reasonTag, 'shake');
+    assert.equal(shakes, 3);
+    assert.deepEqual(reacted, ['startle', 'rage']);
+    assert.equal(said.at(-1).kind, 'error');
+    const { lifeLines } = await load('lines-life.js');
+    assert.ok(lifeLines('ru').mood.mouse.shakeAngry.includes(said.at(-1).line));
+  } finally {
+    back();
+  }
+});
+
 test('with emotions off she says nothing about the pointer', async () => {
   const { heart, said } = await world();
   heart.enabled = false;
@@ -285,8 +311,8 @@ test('the pointer lines exist in Russian and English, the same set, none empty',
     assert.ok(lang.noAi.click.length >= 4 && lang.noAi.chatter.length >= 4);
     assert.ok(lang.noAi.button.trim());
   }
-  // any other language (a settings file from an older version may still say 'fr') uses the English ones
-  assert.deepEqual(lifeLines('fr').mood.mouse, en.mouse);
+  const fr = lifeLines('fr').mood;
+  assert.ok(fr.mouse.shakeAngry.length >= 3, 'French has localized shake-rage lines');
 });
 
 // ---------- where on her a click lands ----------

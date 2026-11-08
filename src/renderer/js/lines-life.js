@@ -50,6 +50,7 @@ export const LIFE_LINES = {
         doubleClick: ['Дважды? Я с первого раза слышу.', 'Тык-тык. Принято.', 'Не мельтеши, я не глухая.', 'Два клика? Я и один заметила.'],
         // the pointer shaken about
         shake: ['Что, комара ловишь?', 'Курсор бьётся в истерике. Передай ему, что всё хорошо.', 'Так мышь и сломать недолго.', 'Ты там танцуешь или у тебя судорога?', 'Эй, тише! Меня укачивает.'],
+        shakeAngry: ['Хватит меня трясти! Я уже злюсь.', 'Поставь меня на место, пока я не сожгла твой курсор.', 'Всё, с меня достаточно. Не тряси меня больше.'],
         // picked up, carried, put down
         grab: ['Эй! Предупреждай, когда хватаешь.', 'Я сама могу ходить! Ну… летать.', 'Кто разрешал меня хватать?', 'Поймал, значит. Ладно, отпустил, и спасибо.', 'Осторожно с гривой!'],
         carry: ['Ну и поносил ты меня. Я как кошка за шкирку.', 'Укачало. Давай без таких экскурсий.', 'Вид был неплохой. Но в следующий раз спрашивай.'],
@@ -549,6 +550,7 @@ export const LIFE_LINES = {
         legsClick: ['Hands off the legs!', "Those are my boots. They're not buttons.", "Tick— no, stop that.", 'Where are you poking?'],
         doubleClick: ['Twice? I heard you the first time.', 'Click-click. Noted.', "Don't flail, I'm not deaf.", 'Two clicks? I noticed one.'],
         shake: ['What, chasing a mosquito?', 'The cursor is having a fit. Tell it everything is fine.', 'You can break a mouse like that.', 'Are you dancing or is that a cramp?', 'Hey, easy! It makes me dizzy.'],
+        shakeAngry: ['Stop shaking me! I’m getting angry.', 'Put me down before I fry your cursor.', 'That’s enough. Don’t shake me again.'],
         grab: ['Hey! Warn me before you grab.', 'I can walk myself! Well… float.', 'Who said you could grab me?', 'Caught me, then. Fine, thanks for letting go.', 'Careful with the mane!'],
         carry: ['That was a long ride. I felt like a cat held by the scruff.', 'Dizzy. No more sightseeing tours, please.', 'The view was not bad. Ask first next time.'],
         dropFloor: ["Landed. Thanks for not dropping me.", 'That is how it should be done.', 'Home sweet home. The bottom of the screen.'],
@@ -1176,6 +1178,11 @@ fr: {
         'Tu vas finir par casser ta souris comme ça.',
         'Tu danses ou tu as une crampe ?',
         'Hé, doucement ! Ça me donne le tournis.',
+      ],
+      shakeAngry: [
+        'Arrête de me secouer ! Je commence à me fâcher.',
+        'Pose-moi avant que je grille ton curseur.',
+        'Ça suffit. Ne me secoue plus.',
       ],
       grab: [
         'Hé ! Préviens-moi avant de m’attraper.',

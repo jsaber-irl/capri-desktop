@@ -141,3 +141,13 @@ notification settings.
 
 These notes describe the feature boundaries, not a new test of macOS TCC prompts, Linux X11 or
 Wayland behavior, Windows close races, or operating-system notification privacy settings.
+
+### Chat feedback and shake reactions
+
+The cyberpunk-style loading commands, their typewriter animation, and Capri's shake-triggered
+anger are Renderer-side presentation and mood behavior. Detecting a shake uses local pointer
+coordinates; the resulting emotion is stored in the application's existing local mood state.
+Neither adds an IPC capability, executes a system command, nor sends pointer or emotion data to
+an AI provider. The fast replies for simple thanks and apologies are generated locally; other
+chat messages continue through the selected provider as before. These UI and behavior changes
+do not alter the audit's existing IPC, provider, or local-data limitations.

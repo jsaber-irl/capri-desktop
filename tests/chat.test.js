@@ -25,6 +25,108 @@ test('her answer is cleaned of markdown, and of nothing else', async () => {
   assert.equal(clean('[[mood: ha'), '');
 });
 
+test('cyberpunk thinking commands are localized and simple thanks or apologies get a fast reply', async () => {
+  const { quickReply, thinkingCommands } = await load('chat.js');
+  assert.match(thinkingCommands('fr')[0], /^> ICE\/\//);
+  assert.match(thinkingCommands('en')[1], /^> NEURAL_LINK/);
+  assert.match(thinkingCommands('ru')[2], /^> GHOST_PROTOCOL/);
+  assert.deepEqual(quickReply('Merci beaucoup, Capri !'), {
+    kind: 'thanks',
+    text: 'De rien, choom. Pour toi, même le réseau sait dire merci.',
+  });
+  assert.equal(quickReply('Je suis désolée.').kind, 'apology');
+  assert.equal(quickReply('спасибо').kind, 'thanks');
+  assert.equal(quickReply('Sorry about that').kind, 'apology');
+  assert.equal(quickReply('Merci, peux-tu continuer ?'), null, 'a substantive request still goes to the model');
+});
+
+test('thinking commands type one at a time, clear, and then type the next command', async () => {
+  const { Chat, thinkingCommands } = await load('chat.js');
+  const previousSetInterval = globalThis.setInterval;
+  const previousClearInterval = globalThis.clearInterval;
+  const frames = [];
+  let timer;
+  globalThis.setInterval = (callback, delay) => {
+    timer = { callback, delay, cleared: false };
+    return timer;
+  };
+  globalThis.clearInterval = (id) => { if (id) id.cleared = true; };
+  try {
+    const chat = Object.assign(Object.create(Chat.prototype), {
+      turn: 42,
+      open: true,
+      brain: { lang: 'fr' },
+      panel: {
+        thinking: (text) => frames.push(text),
+        clearThinking() {},
+      },
+    });
+    const [first, second] = thinkingCommands('fr');
+    chat.startThinking(42);
+    assert.equal(timer.delay, 34);
+    for (let i = 0; i < first.length; i++) timer.callback();
+    assert.ok(frames.at(-1).startsWith(first), 'the command appears progressively');
+    for (let i = 0; i < 12; i++) timer.callback();
+    assert.equal(frames.at(-1), first, 'the completed command stays visible briefly');
+    timer.callback();
+    assert.equal(frames.at(-1), '', 'the completed command is erased');
+    timer.callback();
+    assert.equal(frames.at(-1), second.slice(0, 1), 'the next command starts from its first character');
+    assert.ok(frames.slice(1, first.length + 1).every((text, i) => text === first.slice(0, i + 1)));
+    chat.stopThinking();
+    assert.equal(timer.cleared, true);
+  } finally {
+    globalThis.setInterval = previousSetInterval;
+    globalThis.clearInterval = previousClearInterval;
+  }
+});
+
+test('simple thanks and apologies are answered without calling the chat model and are remembered', async () => {
+  const { Chat } = await load('chat.js');
+  const saved = [];
+  const shown = [];
+  let modelCalls = 0;
+  const chat = Object.assign(Object.create(Chat.prototype), {
+    open: true,
+    turn: 0,
+    history: [],
+    brain: { lang: 'fr' },
+    capri: { pulse() {} },
+    host: {
+      chatRemember: (history) => saved.push([...history]),
+      chatSend: () => { modelCalls++; },
+    },
+    panel: {
+      setChatBusy() {},
+      setActions() {},
+      chatTurn() {},
+      stream: (text, options) => shown.push({ text, options }),
+      setFace() {},
+    },
+    heart: {
+      enabled: true,
+      feel: () => ({ tags: ['thanks'], reaction: null }),
+      answered() {},
+    },
+    bond: { observe: () => 0, replied() {}, reflect() {} },
+    listApps() {},
+    sayLater() {},
+  });
+  await chat.send('Merci !');
+  assert.equal(modelCalls, 0);
+  assert.equal(chat.history.at(-1).role, 'assistant');
+  assert.match(chat.history.at(-1).content, /De rien/);
+  assert.equal(saved.length, 1);
+  assert.equal(shown[0].options.done, true);
+
+  chat.heart.feel = () => ({ tags: ['apology'], reaction: 'forgive' });
+  await chat.send('Excuse-moi.');
+  assert.equal(modelCalls, 0);
+  assert.equal(chat.history.at(-1).role, 'assistant');
+  assert.match(chat.history.at(-1).content, /Ma colère baisse/);
+  assert.equal(saved.length, 2);
+});
+
 test('"next", "pause" and "go on" in talk are not the music keys; asking for the music is', async () => {
   const { Chat } = await load('chat.js');
   const ask = (text, playing = false) => Chat.prototype.asked.call({

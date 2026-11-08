@@ -390,14 +390,32 @@ export class Panel {
     this.quote.textContent = quote;
     this.quote.hidden = !quote;
     this.line.textContent = '';
+    this.line.classList.remove('is-thinking');
     this.line.classList.add('is-streaming');
     this.place();
+  }
+
+  thinking(text) {
+    if (!this.current?.chat) return;
+    this.stopStream();
+    this.line.textContent = text;
+    this.line.classList.remove('is-streaming', 'is-glitching');
+    this.line.classList.add('is-thinking');
+    this.line.scrollTop = this.line.scrollHeight;
+    this.place();
+  }
+
+  clearThinking() {
+    if (!this.line.classList.contains('is-thinking')) return;
+    this.line.classList.remove('is-thinking');
+    this.line.textContent = '';
   }
 
   // Her answer so far (done: all of it). It decodes in through noise like her other lines, catching
   // up faster the further behind it is (Claude Code's answer comes in one piece), and glitches once done.
   stream(text, { done = false } = {}) {
     if (!this.current?.chat) return;
+    this.line.classList.remove('is-thinking');
     this.streamTo = [...text];
     this.streamDone = done;
     // an answer rewritten rather than added to (a reasoning block cut out, an error): from where they part

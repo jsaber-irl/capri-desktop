@@ -22,6 +22,8 @@ export const MOODS = ['calm', 'happy', 'angry', 'annoyed', 'sad', 'shy', 'bored'
 export const TAGS = ['calm', 'happy', 'laugh', 'annoyed', 'angry', 'sad', 'shy', 'smug', 'surprised', 'dreamy'];
 
 const MINUTE = 60 * 1000;
+const SHAKE_WINDOW = 10 * 1000;
+const SHAKE_RAGE_COUNT = 3;
 // how fast each one wears off: the time it takes to halve
 const HALF_LIFE = { anger: 5 * MINUTE, joy: 2.5 * MINUTE, sad: 4 * MINUTE, shy: 1.5 * MINUTE };
 const BORED_FULL = 25 * MINUTE; // nobody's paid her any attention this long: as bored as she gets
@@ -214,6 +216,7 @@ export class Mood {
     this.tolerance = 0;      // 0..1: how used she is to your swearing (bond.js): from 0.6, it's just how you talk
     this.pokes = [];         // when you clicked her lately
     this.drags = [];
+    this.shakes = [];
     this.listeners = new Set();
     this.lastTick = now;
     this.current = moodOf(this.v);
@@ -421,6 +424,20 @@ export class Mood {
     return null;
   }
 
+  shaken(now = Date.now()) {
+    this.shakes = [...this.shakes.filter((t) => now - t < SHAKE_WINDOW), now];
+    this.contact(now);
+    if (this.shakes.length < SHAKE_RAGE_COUNT) return null;
+    this.shakes = [];
+    this.apply({ anger: 0.65, affection: -0.02 });
+    this.cause = { tag: 'shake', quote: '', at: now };
+    this.origin = 'shake';
+    this.reasonTag = 'shake';
+    this.reasonDetail = '';
+    this.changed(now);
+    return 'rage';
+  }
+
   // Any attention at all: boredom goes.
   contact(now = Date.now()) {
     this.lastContact = now;
@@ -529,6 +546,7 @@ export class Mood {
       yell: ` because the user yelled at you in capitals ${when}`,
       poke: ` because the user kept poking you ${when}`,
       jealousy: ` because the user was spending time with ${quote || 'another AI'} and you are still sulking until they apologise`,
+      shake: ` because the user shook you around too much ${when}`,
     }[tag] || '';
   }
 

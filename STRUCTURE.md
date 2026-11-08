@@ -316,11 +316,11 @@ capri-desktop-main-main/
 - `src/renderer/js/app.js` connects Main events, components, chat, and voice.
 - `capri.js`, `acting.js`, `sprite.js`, `fx.js`, and `fx-life.js` handle the mascot, its sprites, and Canvas effects.
 - `panel.js`, `ring.js`, `ring-tabs.js`, `ring-ui.js`, and `themes.js` compose the conversation interface, radial menu, and settings.
-- `chat.js` routes explicit requests to available actions and delegates other requests to the AI provider.
+- `chat.js` routes explicit requests to available actions, delegates other requests to the AI provider, animates one localized cyberpunk loading command at a time, and answers simple thanks or apologies locally.
 - `chat.js` also parses native PC commands and routes them through `host.pcDo`; power operations stop at a confirmation UI until the user accepts.
 - `pc.js` monitors local CPU, battery, connectivity, plugged devices, USB drives, and foreground games for Capri's autonomous reactions.
 - `hands.js` prepares window controls and messages; sensitive actions follow a confirmation flow.
-- `brain.js`, `mood.js`, `heart.js`, `bond.js`, `life.js`, and `mission.js` compose personality, mood, and autonomous behaviors.
+- `brain.js`, `mood.js`, `heart.js`, `bond.js`, `life.js`, and `mission.js` compose personality, mood, and autonomous behaviors; repeated rapid shakes are detected locally and trigger anger.
 - `ears.js`, `speech.js`, `voice.js`, and `rhythm.js` connect the microphone, recognition, synthesis, and audio systems.
 
 ### Renderer API map
@@ -334,9 +334,9 @@ The following are the extension points most contributors should use:
 | `acting.js` | `ACTS`, `FIDGETS`, `Player` | Add or play frame-based poses without changing the renderer. |
 | `sprite.js` | `SpriteRenderer`, `draw()` | Draw the mascot texture and apply pose uniforms. |
 | `fx.js` / `fx-life.js` | `FxLayer`, `burst()`, `bolt()`, `sparkle()`, `heart()`, `dizzy()` | Add transient Canvas/WebGL effects. |
-| `heart.js` / `mood.js` | `Heart`, `event()`, `pointer()`, `Mood` | Convert user actions into mood and affection changes. |
+| `heart.js` / `mood.js` | `Heart`, `event()`, `pointer()`, `Mood` | Convert user actions, including repeated pointer shakes, into local mood and affection changes. |
 | `bond.js` | `Bond`, `observe()`, `feel()`, `levelOf()` | Persist relationship learning and compatibility reactions. |
-| `panel.js` / `ring.js` | `Panel`, `notice()`, `say()`, `Ring` | Display dialogue, reminders and settings. |
+| `panel.js` / `ring.js` | `Panel`, `notice()`, `say()`, `Ring` | Display dialogue, streaming/typewriter loading text, reminders and settings. |
 | `reminders.mjs` | `Reminders`, `add()`, `check()`, `cancelByText()` | Parse, persist and deliver reminders through `onDue`. |
 | `voice.js` / `speech.js` | `Voice`, `play()`, `Speech` | Audio cues, custom sound files and spoken dialogue. |
 | `lines.js` / `lines-life.js` | `linesFor()`, `lifeLines()` | Localized UI, reactions and autonomous-life dialogue. |
@@ -390,7 +390,7 @@ Chess uses `chess-game.js` for the rules and `chess-window\.js` for game state a
 
 ## Individual Index of Tracked Files
 
-All 244 tracked files are listed individually. Binary files are described as resources; `node_modules` is external and excluded.
+All 281 tracked files are listed individually. Binary files are described as resources; `node_modules` is external and excluded.
 
 | Path | Purpose |
 |---|---|
@@ -552,7 +552,7 @@ All 244 tracked files are listed individually. Binary files are described as res
 | **`src/renderer/js/brain.js`** | Reactions to assistants and conversation. |
 | **`src/renderer/js/capri-satellite-test.js`** | JavaScript code for the component identified by the path. |
 | **`src/renderer/js/capri.js`** | Mascot: geometry, posture, movement, and reactions. |
-| **`src/renderer/js/chat.js`** | Interprets explicit requests and orchestrates chat. |
+| **`src/renderer/js/chat.js`** | Interprets explicit requests, orchestrates chat, animates loading commands, and handles quick courtesy replies. |
 | **`src/renderer/js/chip.js`** | JavaScript code for the component identified by the path. |
 | **`src/renderer/js/custom.js`** | JavaScript code for the component identified by the path. |
 | **`src/renderer/js/ears.js`** | Microphone and transcription. |
@@ -561,7 +561,7 @@ All 244 tracked files are listed individually. Binary files are described as res
 | **`src/renderer/js/fx.js`** | Canvas effects, greetings, and animated text. |
 | **`src/renderer/js/guide.js`** | JavaScript code for the component identified by the path. |
 | **`src/renderer/js/hands.js`** | Interprets controls and prepares actions. |
-| **`src/renderer/js/heart.js`** | Emotional expression. |
+| **`src/renderer/js/heart.js`** | Emotional expression and local pointer interaction. |
 | **`src/renderer/js/hub.js`** | Main configuration window. |
 | **`src/renderer/js/ledges.js`** | JavaScript code for the component identified by the path. |
 | **`src/renderer/js/life.js`** | Autonomous planning. |
@@ -569,9 +569,9 @@ All 244 tracked files are listed individually. Binary files are described as res
 | **`src/renderer/js/lines.js`** | Localized dialogue. |
 | **`src/renderer/js/mac-permissions.js`** | macOS permission states, Apple Events requests, settings, and windows. |
 | **`src/renderer/js/mission.js`** | JavaScript code for the component identified by the path. |
-| **`src/renderer/js/mood.js`** | Mood and emotional classification. |
-| **`src/renderer/js/panel.js`** | Conversation bubble and actions. |
-| **`src/renderer/js/pointer-life.js`** | JavaScript code for the component identified by the path. |
+| **`src/renderer/js/mood.js`** | Mood classification, persistence, decay, and reactions to repeated shakes. |
+| **`src/renderer/js/panel.js`** | Conversation bubble, streaming/typewriter display, and actions. |
+| **`src/renderer/js/pointer-life.js`** | Detects rapid back-and-forth pointer shakes. |
 | **`src/renderer/js/possession.js`** | JavaScript code for the component identified by the path. |
 | **`src/renderer/js/pc.js`** | Monitors CPU, battery, network state, devices, USB drives, and foreground games for autonomous reactions. |
 | **`src/renderer/js/prepare.js`** | Preparation window and progress tracking. |
@@ -603,7 +603,7 @@ All 244 tracked files are listed individually. Binary files are described as res
 | **`tests/anthropic.test.js`** | Tests for the anthropic domain; system services are mocked when necessary. |
 | **`tests/bond.test.js`** | Tests for the bond domain; system services are mocked when necessary. |
 | **`tests/character.test.js`** | Tests for the character domain; system services are mocked when necessary. |
-| **`tests/chat.test.js`** | Tests for the chat domain; system services are mocked when necessary. |
+| **`tests/chat.test.js`** | Tests chat routing, loading-command animation, and fast local courtesy replies. |
 | **`tests/chatterbox.test.js`** | Tests for the chatterbox domain; system services are mocked when necessary. |
 | **`tests/chess-game.test.js`** | Tests for the chess game domain; system services are mocked when necessary. |
 | **`tests/claudecode.test.js`** | Tests for the claudecode domain; system services are mocked when necessary. |
@@ -616,7 +616,7 @@ All 244 tracked files are listed individually. Binary files are described as res
 | **`tests/fixtures/fake-ollama.js`** | Mock program or isolated test data. |
 | **`tests/fixtures/fake-piper.js`** | Mock program or isolated test data. |
 | **`tests/hardware.test.js`** | Tests for the hardware domain; system services are mocked when necessary. |
-| **`tests/heart.test.js`** | Tests for the heart domain; system services are mocked when necessary. |
+| **`tests/heart.test.js`** | Tests emotional reactions, including anger after repeated shakes. |
 | **`tests/hooks.test.js`** | Tests for the hooks domain; system services are mocked when necessary. |
 | **`tests/hub.test.js`** | Tests for the hub domain; system services are mocked when necessary. |
 | **`tests/jealousy.test.js`** | Tests AI-detection reactions, snoozing, and Windows-only close behavior. |
@@ -653,6 +653,6 @@ All 244 tracked files are listed individually. Binary files are described as res
 ## Local Items and Files Not Executed at Startup
 
 - `node_modules/` is installed by npm from `package-lock.json`; external dependencies are not detailed here.
-- `.env`, `.private/`, `.DS_Store`, models, and configuration files are local or ignored in this copy; they are not part of the 244 tracked paths.
+- `.env`, `.private/`, `.DS_Store`, models, and configuration files are local or ignored in this copy; they are not part of the 281 tracked paths.
 - `FEATURES.md` and `FEATURES.fr.md` are located in the ignored `.private/` directory and are not part of the public version-controlled corpus.
 - Scripts in `tools/` rebuild images and are not required for normal application startup.

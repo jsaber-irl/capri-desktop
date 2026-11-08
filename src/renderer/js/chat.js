@@ -23,7 +23,53 @@ const IN_LANGUAGE = {
   fr: { we: '"nous" en français', last: 'Écris tout en français, sauf si l’utilisateur t’écrit dans une autre langue : réponds alors dans sa langue. Les mots de Night City peuvent rester en anglais.' },
 };
 const STAY_MS = 10 * 60 * 1000; // no wandering off mid-conversation
-const LOADING_AFTER_MS = 5000;
+const THINKING_STEP_MS = 34;
+const THINKING_PAUSE_TICKS = 12;
+const THINKING_COMMANDS = {
+  fr: [
+    '> ICE//SCAN --cible: message',
+    '> NEURAL_LINK --synchronisation',
+    '> GHOST_PROTOCOL --masquage actif',
+    '> MEM_POOL --indexation rapide',
+    '> TRACE_ROUTE --Night-City',
+  ],
+  en: [
+    '> ICE//SCAN --target: message',
+    '> NEURAL_LINK --sync',
+    '> GHOST_PROTOCOL --stealth active',
+    '> MEM_POOL --index fast',
+    '> TRACE_ROUTE --Night-City',
+  ],
+  ru: [
+    '> ICE//SCAN --цель: сообщение',
+    '> NEURAL_LINK --синхронизация',
+    '> GHOST_PROTOCOL --режим призрака',
+    '> MEM_POOL --быстрая индексация',
+    '> TRACE_ROUTE --Найт-Сити',
+  ],
+};
+const QUICK_REPLIES = {
+  fr: {
+    thanks: 'De rien, choom. Pour toi, même le réseau sait dire merci.',
+    apology: 'Je t’entends. Ma colère baisse… mais je boude encore un tout petit peu.',
+  },
+  en: {
+    thanks: 'Anytime, choom. Even the Net learns to say thanks for you.',
+    apology: 'I hear you. I’m cooling off… still pouting a tiny bit, though.',
+  },
+  ru: {
+    thanks: 'Всегда пожалуйста, чумба. Ради тебя даже сеть умеет благодарить.',
+    apology: 'Я тебя услышала. Уже не так злюсь… но совсем чуть-чуть ещё дуюсь.',
+  },
+};
+const QUICK_PATTERNS = [
+  { lang: 'fr', kind: 'thanks', pattern: /^(?:merci(?: beaucoup| infiniment)?|merci a toi)$/u },
+  { lang: 'en', kind: 'thanks', pattern: /^(?:thank you(?: so much| very much)?|thanks?(?: a lot| so much)?|thx)$/u },
+  { lang: 'ru', kind: 'thanks', pattern: /^(?:спасибо(?: большое)?|спс|благодарю)$/u },
+  { lang: 'fr', kind: 'apology', pattern: /^(?:desole(?:e|es|s)?|je suis desole(?:e)?|je m excuse|excuse moi|pardon)$/u },
+  { lang: 'en', kind: 'apology', pattern: /^(?:sorry(?: about that)?|i m sorry|my bad|i apologize|i apologise|forgive me)$/u },
+  { lang: 'ru', kind: 'apology', pattern: /^(?:прости(?: меня)?|извини(?: меня)?|прошу прощения|виноват)$/u },
+];
 const APPS_FRESH = 20000;      // the list of open apps is looked up at most this often
 const CLOSE_TAG = /\[\[\s*close\s*:?\s*([^\]]*)\]\]/i; // [[close: AM Music]] at the end of her answer
 // "close", "shut down", "закрой"...
@@ -192,6 +238,27 @@ const SCREEN_Q = /(?:что|чё|чо|какой|кто|where|what|which|who).{0
 // you did ask her to write/send something (so an AI [[msg:...]] tag isn't acted on out of nowhere)
 const WRITE_ASK = /напиш\p{L}*|напеч\p{L}*|отправ\p{L}*|сообщ\p{L}*|скаж\p{L}*|передай|write|send|message|text/iu;
 
+export function thinkingCommands(lang = 'en') {
+  return [...(THINKING_COMMANDS[lang] || THINKING_COMMANDS.en)];
+}
+
+export function quickReply(text) {
+  const normalized = String(text || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/['’\-]/gu, ' ')
+    .replace(/^[\s,.:;!?]*(?:(?:capri|hey|salut|привет)[\s,.:;!?]*)?/u, '')
+    .replace(/[.!?]+$/u, '')
+    .trim()
+    .replace(/[\s,.:;!?]+(?:capri|choom|чумба)$/u, '')
+    .replace(/[\s,.:;!?]*$/u, '')
+    .replace(/\s+/gu, ' ');
+  const match = QUICK_PATTERNS.find(({ pattern }) => pattern.test(normalized));
+  if (!match) return null;
+  return { kind: match.kind, text: QUICK_REPLIES[match.lang || lang]?.[match.kind] || QUICK_REPLIES.en[match.kind] };
+}
+
 export class Chat {
   constructor({ capri, panel, voice, host, brain, reminders = null, satelliteWait = null }) {
     this.capri = capri;
@@ -328,6 +395,7 @@ export class Chat {
   close() {
     if (!this.open) return;
     this.open = false;
+    this.stopThinking();
     clearInterval(this.pcCountdownTimer);
     this.pcCountdownTimer = null;
     this.panel.setTicker(null);
@@ -360,6 +428,39 @@ export class Chat {
     return this.satelliteWait ? this.satelliteWait.run(request, options) : request();
   }
 
+  startThinking(id) {
+    this.stopThinking();
+    const commands = thinkingCommands(this.brain.lang);
+    let index = 0;
+    let typed = 0;
+    let pause = 0;
+    const show = () => {
+      if (this.turn !== id || !this.open) {
+        this.stopThinking();
+        return;
+      }
+      const command = commands[index];
+      if (pause > 0) {
+        pause--;
+      } else if (typed < command.length) {
+        typed++;
+        if (typed === command.length) pause = THINKING_PAUSE_TICKS;
+      } else {
+        index = (index + 1) % commands.length;
+        typed = 0;
+      }
+      this.panel.thinking(command.slice(0, typed));
+    };
+    this.panel.thinking('');
+    this.thinkingTimer = setInterval(show, THINKING_STEP_MS);
+  }
+
+  stopThinking() {
+    clearInterval(this.thinkingTimer);
+    this.thinkingTimer = null;
+    this.panel.clearThinking?.();
+  }
+
   async send(text) {
     if (this.turn || !this.open) return;
     if (/^(?:quelle est )?ma version|version de capri|about capri|à propos de capri$/iu.test(String(text).trim())) {
@@ -380,6 +481,25 @@ export class Chat {
     this.panel.setChatBusy(true);
     this.panel.setActions([]); // a close button she offered before goes with a new message
     this.panel.chatTurn({ quote: text, face: REACTION_FACE[felt.reaction] || 'aside' });
+    const quick = quickReply(text);
+    if (quick) {
+      this.turn = 0;
+      this.shown = quick.text;
+      this.remember({ role: 'assistant', content: quick.text });
+      this.panel.stream(quick.text, { done: true });
+      this.panel.setFace(quick.kind === 'thanks' ? 'smug' : 'calm');
+      this.heart?.answered(quick.kind === 'thanks' ? 'happy' : 'calm', { already: felt.reaction });
+      this.onSpokenText?.(quick.text);
+      this.speech?.say(quick.text, { mood: quick.kind === 'thanks' ? 'happy' : 'calm', kind: 'chat' });
+      this.panel.setChatBusy(false);
+      this.sayLater();
+      this.bond?.replied(quick.text, quick.kind === 'thanks' ? 'happy' : 'calm');
+      if (grew) this.closer(grew, quick.text);
+      this.listApps();
+      this.bond?.reflect(this.history);
+      return;
+    }
+    this.startThinking(id);
     if (!felt.reaction) this.capri.pulse();
     // what you asked for plainly happens right away (the music, the volume, an app you named): her
     // line about it comes under her answer (Claude Code, answering her chat, does things its own way)
@@ -392,6 +512,7 @@ export class Chat {
         const done = await this.doNow(part);
         if (done?.line) lines.push(done.line);
       }
+      this.stopThinking();
       this.turn = 0;
       this.shown = lines.join(' ');
       this.panel.stream(this.shown, { done: true });
@@ -412,6 +533,7 @@ export class Chat {
     this.actionTurn = Boolean(early);
     if (asked && ['openPath', 'currentTime', 'reminder', 'cancelReminder'].includes(asked.kind) && early) {
       const done = await early;
+      this.stopThinking();
       this.turn = 0;
       this.shown = done?.line || '';
       this.panel.stream(this.shown, { done: true });
@@ -429,6 +551,7 @@ export class Chat {
     if (this.speech?.callMode && early) {
       const done = await early;
       if (done && !done.confirm) {
+        this.stopThinking();
         this.turn = 0;
         this.shown = done.line || '';
         this.panel.stream(this.shown, { done: true });
@@ -451,17 +574,13 @@ export class Chat {
     const messages = [{ role: 'system', content: this.persona(text) }, ...this.history.slice(-REMEMBER)];
     // nothing yet after a few seconds: Ollama is still loading the model (the first answer after a start),
     // or Claude Code is at work
-    const wait = this.agent ? this.t.working : this.cold ? this.t.loading : null;
-    const slow = wait && setTimeout(() => {
-      if (this.turn === id && !this.answer && !this.actionTurn) this.panel.stream(wait);
-    }, LOADING_AFTER_MS);
     let res;
     try {
       res = await this.runManagedRequest(() => this.host.chatSend({ id, messages }), { excluded: asked?.kind === 'open', id });
     } catch (error) {
       res = { ok: false, error: String(error?.message || error), code: error?.code || null };
     }
-    clearTimeout(slow);
+    this.stopThinking();
     if (this.turn !== id) {
       // closed meanwhile: your message goes too, or the next answer would answer it as well
       if (this.history.at(-1)?.content === text) this.history.pop();
@@ -1309,7 +1428,10 @@ export class Chat {
     if (id !== this.turn) return;
     this.satelliteWait?.response(id); // the first actual answer chunk ends the reconnect animation
     this.answer += piece;
-    if (!this.actionTurn) this.panel.stream(clean(this.answer));
+    if (!this.actionTurn) {
+      this.stopThinking();
+      this.panel.stream(clean(this.answer));
+    }
     this.voice.play('blip'); // her blips as the words come in
   }
 

@@ -1,4 +1,4 @@
-## **Project Capricorn (2.2.7)**
+## **Project Capricorn (2.2.8)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -13,12 +13,12 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 ## Main features
 
 - **Coding AI monitoring** (Claude Code, Codex, Antigravity): Capri comments on actions, asks for your permission when needed, and reacts when the task is finished.
-- **AI conversation**: local Ollama, Claude, Gemini, GPT, Groq, and other providers. Capri can speak using Piper, Chatterbox, the system voice, or a cloud service.
+- **AI conversation**: local Ollama, Claude, Gemini, GPT, Groq, and other providers. While an answer loads, localized cyberpunk-style commands type out in the chat; simple thanks and apologies receive an immediate reply without waiting for the AI. Capri can speak using Piper, Chatterbox, the system voice, or a cloud service.
 - **AI jealousy**: when enabled, Capri recognizes supported AI names in browser-tab titles and AI desktop-app windows. Detection is available on Windows, macOS, and Linux; closing rival pages remains Windows-only.
 - **Reminders**: create one-time or recurring reminders in the circular menu, with an in-app alert and a desktop notification when they are due.
 - **Voice input**: speak to Capri using Groq (Whisper), OpenAI Whisper, or an OpenAI-compatible transcription server, including local Whisper servers.
 - **Desktop life**: she sits on windows or the taskbar, swings her legs, floats, falls, sleeps, teleports, looks at the satellite, and reacts to the cursor.
-- **Physical interaction**: drag Capri to move her, release with a gesture to throw her, watch her rotate, fall, bounce from screen edges, catch window ledges, crash with speed-sensitive effects, and recover from a knockout.
+- **Physical interaction**: drag Capri to move her, release with a gesture to throw her, watch her rotate, fall, bounce from screen edges, catch window ledges, crash with speed-sensitive effects, and recover from a knockout. Repeated rapid shaking makes her angry.
 - **Window possession**: she can move your windows in eight different ways, then put them back where they were. She immediately releases a window that you grab yourself.
 - **Automatic setup**: she analyzes the CPU, memory, graphics card, and disk, then recommends and installs Ollama, a model, Piper, Chatterbox, or Node.js as needed.
 - **Model tuning**: settings are adapted for conversation, notes, and screen analysis according to model size, language, and measured performance on your computer.
@@ -237,7 +237,11 @@ When Claude is waiting for permission, Capri moves closer to the relevant window
 
 ### Conversation
 
-The chat clearly indicates whether a response comes from a local AI or an online service. Responses can trigger actions such as opening a website or application, but sensitive operations always require confirmation.
+The chat clearly indicates whether a response comes from a local AI or an online service. While she waits for a response, a short cyberpunk-style command is typed out and replaced by the next. Simple thanks and apologies get a fast, local reply; other messages continue to the selected AI. Responses can trigger actions such as opening a website or application, but sensitive operations always require confirmation.
+
+### Emotions and interaction
+
+Capri reacts to pointer movement and physical interaction. Several rapid shakes within a short period make her angry; the emotional state and reaction are handled locally. A sincere apology can help her calm down.
 
 ### Native PC control
 

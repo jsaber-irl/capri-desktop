@@ -1208,7 +1208,7 @@ function buildTray() {
         { label: t.emotionalLog, submenu: emotionalLogItems },
       ],
     },
-    { label: t.jealous, type: 'checkbox', checked: process.platform === 'win32' && cfg.jealous !== false, enabled: process.platform === 'win32', click: (item) => updateConfig({ jealous: item.checked }) },
+    { label: t.jealous, type: 'checkbox', checked: cfg.jealous !== false, click: (item) => updateConfig({ jealous: item.checked }) },
     { label: t.closePages, type: 'checkbox', checked: process.platform === 'win32' && cfg.jealous !== false && cfg.closePages !== false, enabled: cfg.jealous !== false && process.platform === 'win32', click: (item) => updateConfig({ closePages: item.checked }) },
     // her senses: she can see your screen, move to your music, and listen to your voice. All off
     // until you turn them on here, and each one is a live use of your screen, sound or microphone.

@@ -210,8 +210,16 @@ export class Heart {
       this.at = { x, y, since: now, near, told: false };
       if (near && was && !was.near && Math.random() < 0.2) this.remark({ line: pick(this.t.mouse.near), face: 'smug' }, { now });
     }
-    if (this.shake.move(x, now) && Math.random() < 0.7) {
-      if (this.remark({ line: pick(this.t.mouse.shake), face: 'wide' }, { now }) && this.capri.stance === 'stand' && this.mood.mood !== 'angry') this.capri.react('startle', this.towardPointer());
+    if (this.shake.move(x, now)) {
+      if (this.mood.shaken() === 'rage') {
+        this.capri.react('rage', this.towardPointer());
+        this.panel.say({ kind: 'error', face: 'many', line: pick(this.t.mouse.shakeAngry), hold: 3200 });
+        this.zapLater();
+      } else if (Math.random() < 0.7
+        && this.remark({ line: pick(this.t.mouse.shake), face: 'wide' }, { now })
+        && this.capri.stance === 'stand') {
+        this.capri.react('startle', this.towardPointer());
+      }
     }
   }
 
