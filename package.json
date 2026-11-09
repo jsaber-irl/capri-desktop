@@ -1,6 +1,6 @@
 {
   "name": "capri-desktop",
-  "version": "2.2.8",
+  "version": "2.2.9",
   "description": "Capri, the Project Capricorn construct, living on your desktop and narrating what Claude Code is doing.",
   "author": "jsaber and contributors",
   "repository": "github:jsaber-irl/capri-desktop",
@@ -84,7 +84,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
-    "discord-rpc": "^4.0.1"
+    "discord-rpc": "^4.0.1",
+    "electron-updater": "^6.8.11"
   },
   "build": {
     "appId": "capri.desktop",
