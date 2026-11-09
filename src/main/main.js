@@ -1200,6 +1200,7 @@ function buildTray() {
         { label: t.musicAware, type: 'checkbox', checked: cfg.musicAware !== false, enabled: process.platform === 'win32', click: (item) => updateConfig({ musicAware: item.checked }) },
         { label: t.dj, type: 'checkbox', checked: cfg.dj !== false, enabled: process.platform === 'win32' && cfg.musicAware !== false, click: (item) => updateConfig({ dj: item.checked }) },
         { label: t.pcReact, type: 'checkbox', checked: cfg.pcReact !== false, click: (item) => updateConfig({ pcReact: item.checked }) },
+        { label: t.breaks, type: 'checkbox', checked: cfg.breaks !== false, click: (item) => updateConfig({ breaks: item.checked }) },
         { type: 'separator' },
         // she gets to know you and adapts (bond.js); what she learned, and a button to wipe it
         { label: t.learn, type: 'checkbox', checked: cfg.learn !== false, click: (item) => updateConfig({ learn: item.checked }) },
@@ -1849,8 +1850,14 @@ function registerIpc() {
   ipcMain.handle('overlay:move-screen', (_event, id) => moveOverlayToDisplay(id));
   ipcMain.handle('config:get', () => rendererConfig());
   ipcMain.handle('app:version', () => packageInfo.version);
-  // your PC itself, from her chat: settings, what's left, sound, snip, windows, theme, power
-  ipcMain.handle('pc:do', (_e, req) => Promise.resolve(system.act(req, { display: targetDisplay() })).catch(() => null));
+  // your PC itself, from her chat: settings, what's left, sound, snip, windows, theme, power, and
+  // taking care of it (what slows it, space, startup, updates, devices, setups, game mode, internet)
+  ipcMain.handle('pc:do', (_e, req) => Promise.resolve(system.act(req, {
+    display: targetDisplay(),
+    progress: (p) => overlay?.webContents.send('pc:progress', p), // what takes a while: in her ticker
+  })).catch(() => null));
+  // how long since you last touched the keyboard or the mouse, in seconds (her health breaks)
+  ipcMain.handle('pc:idle', () => powerMonitor.getSystemIdleTime());
   ipcMain.handle('pc:cpu', () => cpuLoad());
   ipcMain.handle('terminal:execute', async (_e, command) => (await terminal).execute(command));
   ipcMain.on('terminal:demoLog', (event, message) => {

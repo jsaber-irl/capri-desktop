@@ -41,6 +41,7 @@ const TRAY = {
     noActiveMood: 'Calm',
     lookNow: 'Look at my screen', lookAuto: 'Look at my screen now and then',
     pcReact: 'React to my PC',
+    breaks: 'Health breaks',
     pc: {
       hot: "The processor's at {cpu}%, she's overheating",
       cool: 'The processor cooled down',
@@ -98,6 +99,7 @@ const TRAY = {
     noActiveMood: 'Спокойна',
     lookNow: 'Посмотри на мой экран', lookAuto: 'Иногда смотреть на мой экран',
     pcReact: 'Реагировать на мой ПК',
+    breaks: 'Перерывы для здоровья',
     cloudFree: 'бесплатно, онлайн', cloudSignin: 'Войти в Ollama (бесплатные облачные модели)…',
   },
   fr: {
@@ -138,6 +140,7 @@ const TRAY = {
     noActiveMood: 'Calme',
     lookNow: 'Regarde mon écran', lookAuto: 'Regarder mon écran de temps en temps',
     pcReact: 'Réagir à mon PC',
+    breaks: 'Pauses santé',
     cloudFree: 'gratuit, en ligne', cloudSignin: 'Me connecter à Ollama (modèles cloud gratuits)…',
   },
 };

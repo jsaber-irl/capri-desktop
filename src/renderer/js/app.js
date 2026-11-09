@@ -25,6 +25,8 @@ import { Jealousy } from './jealousy.js';
 import { Ring } from './ring.js';
 import { applyTheme, applyWindowTheme, resolveTheme, askedTheme } from './themes.js';
 import { classify } from './mood.js';
+import { Care } from './care.js';
+import { Breaks } from './breaks.js';
 import { linesFor } from './lines.js';
 import { lifeLines } from './lines-life.js';
 import { pick, fmt, reducedMotion } from './util.js';
@@ -306,6 +308,11 @@ async function boot() {
     const before = seen;
     seen = at;
     const now = performance.now();
+    // the pointer is on her window and she isn't clickable (its moves stopped reaching her): she is now
+    if (at?.inside && !interactive && now - lastMove > WATCH_MS) {
+      mouse = { x: at.x, y: at.y };
+      refreshHit();
+    }
     const moved = at?.inside && before?.inside && (at.x !== before.x || at.y !== before.y);
     if (moved && now - lastMove >= WATCH_MS * 1.5 && now - rearmedAt >= 20000) {
       rearmedAt = now;
@@ -351,7 +358,17 @@ async function boot() {
     const started = await capri.leapTo(leapTarget.side);
     if (!started) leapTarget = null;
   };
-  capri.onScreenOf = (cursor) => startScreenLeap(cursor.display, cursor.side);
+  // the pointer on another of your screens: she follows it there (unless turned off in her menu)
+  let followOn = config.follow !== false;
+  capri.onScreenOf = (cursor) => (followOn ? startScreenLeap(cursor.display, cursor.side) : undefined);
+  // a screen picked in her menu: she goes there, leaping over the side that faces it
+  const goToScreen = async (id) => {
+    const screens = await Promise.resolve(host.screens?.()).catch(() => null);
+    const here = screens?.list?.find((d) => d.id === screens.current);
+    const there = screens?.list?.find((d) => d.id === id);
+    if (!here || !there || here.id === there.id) return;
+    await startScreenLeap(id, there.x + there.w / 2 >= here.x + here.w / 2 ? 1 : -1);
+  };
   capri.chipAt = () => chip.center();
   capri.onStow = () => {
     chip.setMode(capri.mode);
@@ -383,6 +400,16 @@ async function boot() {
     else brain.status({ ...click, double });
   };
   capri.onDrop = (drop) => heart.dragged(drop);
+  // she says hi now and then when she lands on another screen (heart.dragged above handles the throws)
+  capri.onThrown = ({ how } = {}) => {
+    const hello = brain.t.screens?.hello;
+    if (how === 'leap' && hello && Math.random() < 0.4) panel.say({ kind: 'info', face: 'smug', line: pick(hello), hold: 3000 });
+  };
+  // you try to pick her up while she's sulking: she dodges
+  capri.onDodge = () => {
+    const dodge = brain.t.thrown?.dodge;
+    if (dodge) panel.say({ kind: 'info', face: 'smug', line: pick(dodge), hold: 2500 });
+  };
   // With no AI to answer her she says so, with a button for her main menu; asked now and then (not while she is being set up)
   heart.onConnect = () => host.hubShow?.();
   let aiTimer = 0;
@@ -455,6 +482,14 @@ async function boot() {
   });
   const chat = new Chat({ capri, panel, voice, host, brain, reminders, satelliteWait });
   const pc = new Pc({ capri, panel, brain, host, voice, chat, guide, enabled: config.pcReact !== false });
+  let wantsOut = config.visible !== false; // not put away in your settings (Ctrl+Alt+C, her menu)
+  pc.wantsOut = () => wantsOut;
+  // a quiet moment: nothing going on that a line from her would step on
+  const isQuiet = () => !capri.busy && !capri.act && !capri.dragging && !capri.stowed && !capri.dormant && !capri.hidden
+    && capri.mode !== 'alert' && !chat.open && !guide.running && !panel.visible && ['stand', 'sit'].includes(capri.stance);
+  // two hours at your PC without a real break: she tells you to get up (breaks.js)
+  const breaks = new Breaks({ host, panel, brain, capri, pc, quiet: isQuiet });
+  breaks.enabled = config.breaks !== false;
   const satelliteTest = new CapriSatelliteTest({
     chat, panel, isAnimating: () => satelliteAnimationRunning,
     log: (message) => host.terminalDemoLog?.(message),
@@ -607,6 +642,9 @@ async function boot() {
   guide.onTalk = () => chat.start();
   chat.onSetup = (status) => setup.chat(status);
   chat.onBetterModel = () => setup.better();
+  // taking care of your PC from her chat (care.js): what slows it, room, startup, updates, sound,
+  // devices, windows, setups, game mode, the internet
+  chat.care = new Care({ chat, host, panel, brain, capri });
   setup.onReady = () => chat.start();
   // What she calls you, how she is, your lines, what she remembers (custom.js)
   const custom = new Custom({ guide, host, brain, capri, voice });
@@ -719,11 +757,17 @@ async function boot() {
     pc.onWindows(data);
   });
 
+  // her window resized, or moved to another screen (whose pixels may be another size)
+  let dpr = window.devicePixelRatio;
   host.onResize(({ width, height, gap = 0 }) => {
     floorGap = gap;
     fx.resize(width, height);
     chip.place(width, height - gap);
     capri.setView(width, height, height - gap);
+    if (window.devicePixelRatio !== dpr) {
+      dpr = window.devicePixelRatio;
+      capri.setScale(capri.scale); // her drawing redone at the new screen's pixels
+    }
   });
   let screenTransition = null;
   host.onScreenTransition(({ id, side }) => {
@@ -748,6 +792,9 @@ async function boot() {
     bond.configure(cfg);
     life.configure(cfg);
     meterOn = cfg.micMeter !== false;
+    followOn = cfg.follow !== false;
+    breaks.enabled = cfg.breaks !== false;
+    wantsOut = cfg.visible !== false;
     speech.configure(cfg);
     eyes.configure(cfg);
     hands.configure(cfg);
@@ -957,6 +1004,9 @@ async function boot() {
         break;
       case 'setupStep': // --dev: one step of her setup on its own (pickModel, pull, pickKeyed, address…)
         guide.scene(() => setup[cmd.step]?.(...(cmd.args || [])));
+        break;
+      case 'goScreen': // a screen picked in her menu: she goes there
+        goToScreen(cmd.id);
         break;
       case 'rearmed': // a new mouse hook (main.js): click-through until the pointer comes over her again
         mouse = null;
@@ -1225,6 +1275,9 @@ async function boot() {
   }
   host.onCommand(runCommand);
 
+  // what's in here, for --dev scripts (debug route `eval`)
+  window.dev = { capri, brain, panel, chat, guide, fx, voice, heart, life, bond, jealousy, reminders, eyes, hands, ears, pc, setup, breaks, screens: () => host.screens?.() };
+
   // the overlay opened in a plain browser (tests, screenshots): its pieces, to drive it from there
   if (location.protocol === 'http:') window.__capri = { capri, fx, panel, brain, heart, life, chat, speech, voice, eyes, hands, rhythm, ears, bond, ring };
 
@@ -1284,6 +1337,9 @@ async function boot() {
   setInterval(() => {
     const day = mission.day;
     const quiet = !brain.busySessions.length && !panel.visible && !guide.running && !capri.busy && !capri.act;
+    // two hours at your PC without a real break: she tells you to get up (breaks.js)
+    const breaks = new Breaks({ host, panel, brain, capri, pc, quiet });
+    breaks.enabled = config.breaks !== false;
     if (new Date().getHours() < 18 || day.reported || day.missions < 3 || !quiet) return;
     if (capri.stowed || capri.dormant || capri.mode === 'sleep') return;
     if (brain.report()) {

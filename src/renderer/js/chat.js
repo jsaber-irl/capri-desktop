@@ -101,12 +101,21 @@ const MEDIA_ASK = [
 const MUSIC_WORD = /musi|song|track|spotify|deezer|chanson|morceau|j['’]écoute|песн|музык|трек/i;
 const MUSIC_STATUS = /(?:qu['’]est-ce que j['’]écoute|quel (?:morceau|titre|artiste)|what (?:am i|is) listening to|what(?:'s| is) playing|current track|now playing)/i;
 // "put X on Spotify", "включи X в Spotify"
-const SPOTIFY_ASK = /(?:play|put on|put|включи|поставь)\s+(?:me\s+)?(.+?)\s+(?:on|в)\s+spotify/i;
+const SPOTIFY_ASK = /(?:play|put on|put|mets?|joue|lance|écoute|включи|поставь)\s+(?:(?:moi|me)\s+)?(.+?)\s+(?:on|sur|в)\s+spotify/i;
 // "mets Bohemian Rhapsody", "joue Bohemian Rhapsody", "lance Bohemian Rhapsody" (sur YouTube)
-const YOUTUBE_ASK = /\b(?:mets|joue|lance|play|put on)\s+(.+?)(?:\s*(?:sur|on|dans|in)\s+youtube\b|\s*[.!?]*$)/iu;
+const YOUTUBE_ASK = /\b(?:mets?|joue|lance|écoute|play|put on|включи|поставь)\s+(.+?)(?:\s*(?:sur|on|dans|in|в)\s+youtube\b|\s*[.!?]*$)/iu;
+// A song request without naming a player goes to YouTube, as in chat-v2.
+const PLAY_ASK = /^(?:capri,?\s+)?(?:mets?|joue|play|put on|включи|поставь)(?:[- ]moi|[- ]me|\s+me)?\s+(.{2,100})$/iu;
+const GAME_ASK = /^(?:capri,?\s+)?(?:joue|play)\s+(?:à|au|aux|a|the game)\s/i;
+const VAGUE_SONG = /^(?:(?:de\s+la|du|des|la|le|les|une?|some|a|the|un|что-нибудь)\s+)?(?:musique|music|song|sons?|chanson|morceau|truc|something|музыку|песню)?\s*[.!?]*$/iu;
+const HER_PICK = /tu veux|ton choix|surprends|you want|whatever|your choice|surprise me|хочешь|на твой выбор/i;
+const songOf = (value) => value
+  .replace(/^(?:la |le |une? |the |some )?(?:musique|music|chanson|son|morceau|song|track)\s+(?:de |d['’]|du |by |of )?/i, '')
+  .replace(/^(?:(?:du|de la|de l['’]|des|de|some|un peu de)\s+|d['’])/i, '')
+  .replace(/\s+(?:on|sur|en|в)\s+youtube\s*$/i, '').trim();
 const OPEN_APP_ASK = /\b(?:ouvre|ouvrir|lance|lancer|démarre|demarre|open|launch|start|run)\b[\s,:]*(?:le|la|l['’]|the)?\s*(?:application|app|appli)?\s*(?:discord|slack|telegram|whatsapp|spotify|deezer|chrome|firefox|safari|edge|steam|roblox|textedit|weather|météo|meteo)\b/iu;
 // "trouve mon projet After Effects", "cherche un fichier pdf", "ouvre le dossier de mon projet"
-const FIND_FILES_ASK = /\b(?:trouve|trouver|cherche|chercher|find|search|ouvre le dossier de|open the folder of)\b\s+(.+?)(?:\s*(?:et\s+)?(?:ouvre|open|lance|launch)\s+(?:le\s+)?dossier)?\s*[.!?]*$/iu;
+const FIND_FILES_ASK = /(?:\b(?:trouve|trouver|cherche|chercher|find|search|ouvre le dossier de|open the folder of)\b|найди|поищи|отыщи)\s+(.+?)(?:\s*(?:et\s+)?(?:ouvre|open|lance|launch|открой)\s+(?:le\s+|ла\s+)?(?:dossier|folder|папку))?\s*[.!?]*$/iu;
 // "prends une capture d'écran", "fais une capture", "screenshot"
 const SCREENSHOT_ASK = /\b(?:capture|screenshot|fais une capture|photo d[ée]cran|snap)\b/iu;
 // dossiers système par leur nom : "ouvre l'explorateur", "ouvre la corbeille", "ouvre mon bureau"
@@ -165,12 +174,16 @@ const PLACE_VERB = /\b(?:mets?|mettre|place|placer|put|move)\b/i;
 const SIDE = [['left', /\b(?:gauche|left)\b/i], ['right', /\b(?:droite|right)\b/i]];
 
 function duration(text) {
-  const m = /(\d+(?:[.,]\d+)?|un|une|one|a)\s*(secondes?|secs?|s|minutes?|mins?|m|heures?|hours?|h)\b/i.exec(text);
-  if (!m) return 0;
-  const n = /^(?:un|une|one|a)$/i.test(m[1]) ? 1 : Number(m[1].replace(',', '.'));
-  if (!Number.isFinite(n) || n <= 0) return 0;
-  const unit = m[2].toLowerCase();
-  return Math.round(n * (/^(h|heure|heures|hour|hours)$/.test(unit) ? 3600000 : /^(s|sec|secs|seconde|secondes)$/.test(unit) ? 1000 : 60000));
+  const hm = /(\d+)\s*h\s*(\d{1,2})\b/i.exec(text);
+  if (hm) return (Number(hm[1]) * 60 + Number(hm[2])) * 60000;
+  let ms = 0;
+  for (const m of text.matchAll(/(\d+(?:[.,]\d+)?)\s*(h|heures?|hours?|час\p{L}*|min\p{L}*|m|мин\p{L}*|s|sec\p{L}*|сек\p{L}*)(?![\p{L}])/giu)) {
+    const unit = m[2].toLowerCase();
+    ms += Number(m[1].replace(',', '.')) * (/^(?:h|час)/.test(unit) ? 3600000 : /^(?:m|мин)/.test(unit) ? 60000 : 1000);
+  }
+  if (ms) return Math.round(ms);
+  const when = parseWhen(text);
+  return when ? Math.max(0, when.at - Date.now()) : 0;
 }
 
 function span(ms) {
@@ -693,14 +706,14 @@ export class Chat {
     // Roblox : détecter les demandes de lancement de jeux avant la recherche d'applications locales.
     const asksRoblox =
       /\broblox\b/i.test(text) &&
-      (OPEN_ASK.test(text) || PLAY.test(text));
+      (OPEN_ASK.test(text) || PLAY.test(text) || /игра|запусти|включи/i.test(text));
 
     if (asksRoblox) {
       const game = text
         .replace(/\b(?:sur|dans|on|in)\s+roblox\b/gi, '')
         .replace(/\broblox\b/gi, '')
         .replace(
-          /^\s*(?:s'il te plaît|stp|please)?\s*(?:lance(?:r)?|ouvre(?:r)?|joue(?:r)?(?:\s+à)?|play|launch|start|open)\s+/i,
+          /^\s*(?:s'il te plaît|stp|please)?\s*(?:lance(?:r)?|ouvre(?:r)?|joue(?:r)?(?:\s+à)?|play|launch|start|open|запусти|включи|играй(?:\s+в)?)\s+/i,
           ''
         )
         .replace(/^\s*(?:(?:le|la|the)\s+)?(?:jeu|game)\s+/i, '')
@@ -762,8 +775,13 @@ export class Chat {
     // App commands must win over the deliberately broad music wording above:
     // "lance Discord" is an app launch, never a YouTube search for "Discord".
     if (OPEN_APP_ASK.test(text) && !DOCUMENT_CREATE.test(text)) return { kind: 'open', text };
+    if (GAME_ASK.test(text) && count <= 8) return { kind: 'open', text };
     const yt = YOUTUBE_ASK.exec(text);
     if (yt && yt[1] && !requestedService) return { kind: 'youtube', song: yt[1].trim() };
+    const play = PLAY_ASK.exec(text.trim())?.[1]?.replace(/[\s.!?]+$/u, '');
+    if (play && !VAGUE_SONG.test(play) && !HER_PICK.test(play) && !requestedService) {
+      return { kind: 'youtube', song: songOf(play) };
+    }
     const find = FIND_FILES_ASK.exec(text);
     if (find && find[1] && !WEB_SEARCH_ASK.test(text)) return { kind: 'findFiles', query: find[1].trim() };
     const folder = OPEN_SYSTEM_FOLDER.exec(text);

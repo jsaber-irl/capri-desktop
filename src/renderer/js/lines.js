@@ -748,6 +748,21 @@ export const LINES = {
       "full": "Bouger !",
       "still": "Rester tranquille"
     },
+    "breaks": {
+      "time": "{h} h {m}",
+      "lines": [
+        "Ça fait {time} que tu es dessus sans vraie pause. Lève-toi, bois un verre d’eau : je garde ton bureau.",
+        "{time} non-stop, choom. Va marcher deux minutes, tes yeux te diront merci.",
+        "Pause. Ça fait {time}. Étire-toi, regarde au loin, bois de l’eau : ton écran sera encore là."
+      ],
+      "pause": "Je fais une pause",
+      "later": "Plus tard",
+      "paused": [
+        "Vas-y. Je surveille tout.",
+        "Prends ton temps, je garde la boutique."
+      ],
+      "laterLine": "OK, je te le redis dans une demi-heure."
+    },
     "status": "Claude travaille sur {project} depuis {time}.",
     "last": "Dernière action : {action}",
     "sessions": "{count} sessions actives",
@@ -1038,6 +1053,121 @@ export const LINES = {
         },
         "cancelled": "Shutdown cancelled.",
         "kept": "Okay, I’m not touching anything."
+      },
+      "care": {
+        "working": "Looking…",
+        "failed": "That didn’t work.",
+        "mb": "MB",
+        "gb": "GB",
+        "and": "and",
+        "heavy": "What weighs most: {list}.",
+        "appCpu": "{app} ({cpu}% of the processor, {mem})",
+        "appMem": "{app} ({mem})",
+        "calm": "Nothing unusual: processor at {cpu}%, memory {used} of {total}.",
+        "spaceFree": "I can free {total}: {temp} of temporary files and {bin} in the recycle bin.",
+        "tempFrom": "The temporary files are mostly {list}.",
+        "spaceBig": "Your biggest downloads: {list}.",
+        "spaceNone": "Nothing to clear: temporary files and recycle bin already clean, and no big downloads.",
+        "freeIt": "Free {size}",
+        "trashIt": "Recycle bin: {file}",
+        "freed": "Done: {size} freed.",
+        "trashed": "{file} is in the recycle bin ({size} freed).",
+        "startup": "Starting with Windows: {list}.",
+        "startupOff": "Already off: {list}.",
+        "startupNone": "Nothing starts with Windows but Windows.",
+        "disableIt": "Remove {app}",
+        "disabled": "{app} won’t start with Windows anymore.",
+        "enabled": "{app} will start with Windows again.",
+        "startupAdmin": "{app} is set for the whole PC: that takes admin rights. I’m opening the Task Manager’s Startup tab for you.",
+        "startupUnknown": "I can’t find “{app}” in what starts with Windows.",
+        "updates": "Updates available ({count}): {list}.",
+        "upToDate": "Everything’s up to date.",
+        "updateAll": "Update everything",
+        "updating": "On it. Windows may ask you to allow some of the installs.",
+        "updateVerb": "Updating",
+        "updated": "Updates done: everything’s up to date.",
+        "updatedLeft": "Updates done, except: {list}. Close them and ask me again.",
+        "noWinget": "This PC is missing winget: install “App Installer” from the Microsoft Store.",
+        "dupVerb": "Comparing",
+        "dupFound": "{count} duplicate copies {where}, {size} too much.",
+        "dupNone": "No duplicates {where}.",
+        "dupTrash": "Copies to the bin ({size})",
+        "dupShow": "Show me",
+        "dupTrashed": "{count} copies in the recycle bin, {size} freed. The originals stay.",
+        "places": {
+          "pictures": "in your photos",
+          "videos": "in your videos",
+          "downloads": "in your downloads",
+          "documents": "in your documents",
+          "desktop": "on your desktop"
+        },
+        "outputSet": "Sound now comes out of {device}.",
+        "outputAlready": "Sound already comes out of {device}.",
+        "outputPick": "Out of what? You’ve got: {list}.",
+        "outputOnly": "I only find one audio output: {device}.",
+        "micOff": "Mic off.",
+        "micOn": "Mic back on.",
+        "noMic": "I can’t find a microphone plugged in.",
+        "radios": {
+          "wifi": "Wi-Fi",
+          "bluetooth": "Bluetooth"
+        },
+        "radioOn": "{radio} on.",
+        "radioOff": "{radio} off.",
+        "radioNone": "Your PC has no {radio}.",
+        "radioDenied": "Windows won’t let me touch the {radio}: opening its settings for you.",
+        "noUsb": "I don’t see a USB stick plugged in.",
+        "usbStick": "USB stick",
+        "ejectPick": "Which one?",
+        "ejected": "{drive} ejected: you can pull it out.",
+        "ejectBusy": "{drive} is still in use: close whatever’s open on it and ask me again.",
+        "ejectFailed": "I couldn’t eject {drive}.",
+        "brightness": "Brightness at {level}%.",
+        "noBrightness": "Your screen can’t be set from Windows: use its buttons.",
+        "clipped": "Clipped: the last 30 seconds are in your Videos › Captures.",
+        "recording": "Recording. Tell me again to stop.",
+        "recordStop": "Recording stopped: it’s in your Videos › Captures.",
+        "gameBarOff": "The Xbox Game Bar’s captures are off: turn them on and I can record.",
+        "clipOff": "To clip, turn on “Record what happened” in Windows’ capture settings.",
+        "openSettings": "Open settings",
+        "rescued": "Brought back: {list}.",
+        "noneLost": "No window lost off the screen.",
+        "movedScreen": "{app} is on screen {screen}.",
+        "oneScreen": "You only have one screen.",
+        "setupSaved": "Setup “{name}” saved: {list}. Say “launch my {name} setup” to get it all back.",
+        "setupSavedPlain": "Setup saved: {list}. Say “launch my setup” to get it all back.",
+        "setupEmpty": "No app open to remember.",
+        "setupAsk": "Launch your “{name}” setup?",
+        "setupAskPlain": "Launch your setup?",
+        "setupGo": "Launch the setup",
+        "setupDone": "Setup “{name}” ready.",
+        "setupDonePlain": "Setup ready.",
+        "setupPartly": "Setup “{name}” ready, except: {list}.",
+        "setupPartlyPlain": "Setup ready, except: {list}.",
+        "setupUnknown": "I don’t have a “{name}” setup. Your setups: {list}.",
+        "noSetups": "No setup yet. Open your apps the way you want them and say “save my gaming setup”.",
+        "setupList": "Your setups: {list}.",
+        "gameAsk": "Game mode: processor at full power, and I put myself away.",
+        "gameAskClose": "I’ll close {list} too.",
+        "gameAskNone": "For me to close apps with it, say “in game mode, close Chrome”.",
+        "gameGo": "Let’s go",
+        "gameOn": "Game mode on. Say “stop game mode” to put everything back.",
+        "gameClosed": "Closed: {list}.",
+        "gameNoPlan": "Your PC only has the Balanced power plan: I couldn’t push it to full power.",
+        "gameOff": "Game mode over, everything’s as it was.",
+        "gameOffReopen": "Game mode over: reopening {list}.",
+        "gameNotOn": "Game mode isn’t on.",
+        "gameCloseSet": "In game mode, I’ll close: {list}.",
+        "netOffline": "You’re not connected to any network. Is the Wi-Fi off?",
+        "wifiOn": "Turn on Wi-Fi",
+        "wifiSettings": "Wi-Fi settings",
+        "netBox": "Your router isn’t answering: unplug it for ten seconds and plug it back in.",
+        "netIsp": "Your router answers, but the internet doesn’t get through: restart it. If it keeps up, it’s your provider.",
+        "netDnsFixed": "It was the DNS: I cleared it, it works again.",
+        "netDns": "The internet gets through, but site names don’t answer (the DNS): restart your router.",
+        "netPortal": "You need to sign in on the Wi-Fi’s page (hotel, station, school…).",
+        "netPortalOpen": "Open the page",
+        "netOk": "Your internet works: the site is probably down."
       }
     },
     "report": {
@@ -1531,6 +1661,21 @@ export const LINES = {
       "full": "Move!",
       "still": "Stay calm"
     },
+    "breaks": {
+      "time": "{h}h{m}",
+      "lines": [
+        "You’ve been at it for {time} without a real break. Get up, drink some water: I’ll watch your desktop.",
+        "{time} straight, choom. Go walk for two minutes, your eyes will thank you.",
+        "Break. It’s been {time}. Stretch, look far away, drink some water: your screen will still be here."
+      ],
+      "pause": "Taking a break",
+      "later": "Later",
+      "paused": [
+        "Go on. I’ve got this.",
+        "Take your time, I’ll mind the shop."
+      ],
+      "laterLine": "Fine, I’ll remind you in half an hour."
+    },
     "status": "Claude has been working on {project} for {time}.",
     "last": "Last action: {action}",
     "sessions": "{count} active sessions",
@@ -1566,1668 +1711,6 @@ export const LINES = {
       "AskUserQuestion": "Asks",
       "ExitPlanMode": "Proposes",
       "default": "Uses"
-    }
-  },
-  "es": {
-    "state": {
-      "work": "EN CURSO",
-      "done": "LISTO",
-      "alert": "ESPERA",
-      "error": "ERROR",
-      "info": "SYNC",
-      "idle": "REPOSO",
-      "remind": "AVISO"
-    },
-    "hello": [
-      "Conexión establecida. Hola, choom.",
-      "Constructo Capricornio en línea. ¿En qué trabajamos?",
-      "Todas mis yo están despiertas. Vigilo {project}.",
-      "Biochip caliente. Aquí estoy."
-    ],
-    "resume": [
-      "De vuelta en {project}. No olvidé nada.",
-      "Sesión reanudada. Seguimos donde lo dejamos."
-    ],
-    "prompt": [
-      "Nuevo encargo. Claude está en ello.",
-      "Recibido. No le quito el ojo a Claude.",
-      "Bien, vamos.",
-      "Encargo aceptado. Te mantengo al tanto."
-    ],
-    "working": [
-      "Avanzando. {count} acciones ya.",
-      "Claude le está dando duro. Yo cuento: {count}.",
-      "Sigue en ello. {count} acciones en el marcador."
-    ],
-    "done": [
-      "¡Listo! Eso es preem.",
-      "Encargo cumplido, choom.",
-      "Claude terminó. Ya puedes volver.",
-      "Entregado. Bastante nova, ¿no?",
-      "Terminado. Éramos docenas vigilando, nada raro."
-    ],
-    "permission": [
-      "¡Oye! Claude necesita tu permiso.",
-      "Choom, tienes que aprobar algo.",
-      "Esperamos tu luz verde."
-    ],
-    "waiting": [
-      "Claude espera tu respuesta.",
-      "Te toca, choom."
-    ],
-    "error": [
-      "Ay. {tool} falló.",
-      "{tool} hizo flatline. Claude lo volverá a intentar.",
-      "Error en {tool}. Nada grave… creo."
-    ],
-    "interrupted": [
-      "Interrumpido. ¿Cambio de planes?",
-      "Cortado en seco. Me quedo aquí."
-    ],
-    "crashed": [
-      "Claude se detuvo en pleno vuelo.",
-      "Caída grave. Claude no pudo terminar."
-    ],
-    "subagentStart": [
-      "Subagente {agent} desplegado."
-    ],
-    "subagentStop": [
-      "Subagente {agent} de vuelta."
-    ],
-    "someTool": "La herramienta",
-    "someAgent": "agente",
-    "compact": [
-      "Comprimiendo nuestros recuerdos…",
-      "Demasiada memoria. Ordenando."
-    ],
-    "chat": {
-      "badge": "IA · EN VIVO",
-      "talk": "Háblame",
-      "hello": [
-        "Hola, choom. ¿Qué tienes en mente?",
-        "La línea está abierta. Háblanos.",
-        "¿Quieres charlar? Somos todo oídos. Todos los nuestros."
-      ],
-      "again": [
-        "¿Dónde estábamos?",
-        "¿Ya de vuelta? Dale."
-      ],
-      "moody": {
-        "angry": [
-          "¿Qué? ¿Vienes a disculparte?",
-          "Me lanzas por todas partes ¿y ahora quieres hablar?",
-          "Te escucho. Desde lejos."
-        ],
-        "sulk": [
-          "Hmm. Ve a hablar con {rival}.",
-          "¿Ah, te acuerdas de que existo?",
-          "Estoy enfadada. Pero habla."
-        ],
-        "dizzy": [
-          "Espera… todo sigue dando vueltas.",
-          "¿Quieres hablar, después de lanzarme dos veces?"
-        ],
-        "thrown": [
-          "Ay. ¿Qué quieres, después de eso?",
-          "Aún veo estrellas. Adelante."
-        ],
-        "jealous": [
-          "Bueno, ¿qué tal {rival}?",
-          "Vaya, vuelves conmigo."
-        ],
-        "fun": [
-          "Repetimos cuando quieras. Pero primero, háblame."
-        ],
-        "happy": [
-          "Me siento… más cerca de ti. Qué raro. Háblame."
-        ]
-      },
-      "placeholder": "Dime algo…",
-      "send": "Enviar",
-      "close": "Cerrar",
-      "noteTag": "IA",
-      "note": "Respuestas generadas por una IA local. No es la Capri real.",
-      "noteCloud": "Respuestas generadas por una IA en línea. No es la Capri real.",
-      "offline": "No consigo contactar con Ollama.",
-      "offlineHow": "Para hablar conmigo, instala Ollama (ollama.com) y ábrelo; luego, en una terminal: ollama pull llama3.2\nTodo se queda en tu PC.",
-      "noModel": "Ollama aún no tiene ningún modelo.",
-      "noModelHow": "En una terminal: ollama pull llama3.2 (unos 2 GB). Luego vuelve a hablarme.",
-      "getOllama": "Descargar Ollama",
-      "ok": "Entendido",
-      "failed": "Se perdió la señal:",
-      "swamped": "Sus servidores están saturados ahora, incluso con otro modelo. Inténtalo de nuevo en un momento.",
-      "gone": "Ese modelo ya no está disponible allí. Elige otro: clic derecho sobre mí › Modelo de IA.",
-      "loading": "Despertando el modelo… la primera respuesta tarda un poco.",
-      "tiny": "Funciono con {model}: es muy pequeño, puedo decir tonterías. ¿Cogemos uno más grande?",
-      "better": "Un modelo mejor",
-      "working": "En ello… (Claude Code está trabajando)",
-      "closeIt": "Cerrar {app}",
-      "no": "No",
-      "closed": "{app}: flatline. Hecho.",
-      "stillOpen": "{app} sigue abierta: se esconde en la bandeja, o te pide guardar algo.",
-      "force": "Forzar cierre",
-      "leave": "Dejarla",
-      "forced": "{app}: cortada en seco.",
-      "unkillable": "{app} se resiste. Ciérrala tú desde el Administrador de tareas.",
-      "notFound": "No veo «{app}» abierta en tu PC.",
-      "openIt": "Abrir {app}",
-      "opened": "{app}: en marcha.",
-      "notInstalled": "No encuentro «{app}» en tu PC.",
-      "music": "Busco «{song}» en Spotify.",
-      "siteIt": "Abrir {site}",
-      "siteOpened": "{site}: abierta.",
-      "youtube": "Ahí va: {title}.",
-      "youtubeSearch": "Te busco «{song}» en YouTube.",
-      "web": "Busco «{query}» en Google.",
-      "robloxPlay": "Te lanzo {game} en Roblox.",
-      "robloxPage": "{game}: te abro su página de Roblox.",
-      "robloxNone": "No encuentro «{game}» en Roblox.",
-      "filesFound": "Encontré {count} archivos: {list}.",
-      "fileFound": "Encontrado: {list}.",
-      "filesNone": "Nada para «{query}» en tu PC.",
-      "showFolder": "Ver la carpeta",
-      "shot": "Captura hecha: {name} (en Imágenes › Screenshots).",
-      "folderOpened": "Aquí está su carpeta: {name}.",
-      "folders": {
-        "explorer": "El explorador",
-        "recycle": "La papelera",
-        "downloads": "Tus descargas",
-        "desktop": "Tu escritorio",
-        "documents": "Tus documentos",
-        "pictures": "Tus imágenes",
-        "music": "Tu música",
-        "videos": "Tus vídeos"
-      },
-      "media": {
-        "pause": "Pausa.",
-        "play": "Sigue sonando.",
-        "next": "Siguiente.",
-        "previous": "Anterior.",
-        "volup": "Más alto.",
-        "voldown": "Más bajo.",
-        "mute": "Le di a silenciar."
-      },
-      "pc": {
-        "settings": "Te abro la configuración: {page}.",
-        "pages": {
-          "bluetooth": "Bluetooth",
-          "sound": "Sonido",
-          "wifi": "Wi-Fi",
-          "network": "Red",
-          "update": "Windows Update",
-          "display": "Pantalla",
-          "notifications": "Notificaciones",
-          "mouse": "Ratón",
-          "power": "Energía",
-          "battery": "Batería",
-          "background": "Fondo",
-          "storage": "Almacenamiento"
-        },
-        "battery": "Batería: {percent} %.",
-        "charging": "Batería: {percent} %, cargando.",
-        "noBattery": "No hay batería: tu PC va enchufado.",
-        "disk": "Te quedan {free} libres de {total} ({drive}).",
-        "ram": "RAM: {used} usados de {total}.",
-        "ip": "Tu IP en tu red: {ip}.",
-        "noIp": "No encuentro ninguna red.",
-        "gb": "GB",
-        "volume": "Sonido al {level} %.",
-        "muted": "Sonido silenciado.",
-        "unmuted": "Sonido de vuelta.",
-        "timer": "Temporizador en marcha: {time}.",
-        "timerVerb": "Temporizador",
-        "timerDone": "Se acabó el tiempo ({time}).",
-        "snip": "Elige la zona: irá a tu portapapeles.",
-        "tidy": "Ordenado.",
-        "back": "Tus ventanas han vuelto.",
-        "placed": "{app} a la {side}.",
-        "sides": {
-          "left": "izquierda",
-          "right": "derecha"
-        },
-        "notOpen": "No veo «{app}» abierto.",
-        "dark": "Modo oscuro.",
-        "light": "Modo claro.",
-        "ask": {
-          "lock": "¿Bloqueo tu PC?",
-          "sleep": "¿Suspendo tu PC?",
-          "shutdown": "¿Apago tu PC {when}?",
-          "restart": "¿Reinicio tu PC {when}?"
-        },
-        "yes": {
-          "lock": "Bloquear",
-          "sleep": "Suspender",
-          "shutdown": "Apagar",
-          "restart": "Reiniciar"
-        },
-        "no": "Cancelar",
-        "now": "en 30 segundos",
-        "in": "en {time}",
-        "planned": {
-          "shutdown": "Tu PC se apaga {when}. Di «cancela el apagado» para pararlo.",
-          "restart": "Tu PC se reinicia {when}. Di «cancela el apagado» para pararlo."
-        },
-        "powerVerb": {
-          "shutdown": "Apagado",
-          "restart": "Reinicio"
-        },
-        "cancelled": "Apagado cancelado.",
-        "kept": "Vale, no toco nada."
-      }
-    },
-    "report": {
-      "title": "Registro de misión",
-      "badge": "INFORME",
-      "missions": "Misiones",
-      "actions": "Acciones",
-      "files": "Archivos",
-      "errors": "Errores",
-      "longest": "La más larga",
-      "prompts": [
-        "prompt",
-        "prompts"
-      ],
-      "approvals": [
-        "permiso",
-        "permisos"
-      ],
-      "projects": [
-        "proyecto",
-        "proyectos"
-      ],
-      "copy": "Copiar imagen",
-      "copied": "Copiada ✓",
-      "copyFailed": "No se pudo copiar",
-      "close": "Cerrar",
-      "lines": {
-        "none": [
-          "Nada en el registro hoy. Noche tranquila.",
-          "Registro vacío. Claude se tomó el día libre."
-        ],
-        "light": [
-          "Día ligero. Me vale.",
-          "Turno corto. Aquí está el registro."
-        ],
-        "good": [
-          "Nada mal, choom. Aquí está tu día.",
-          "El registro del día. Bastante nova."
-        ],
-        "big": [
-          "Día intenso. Night City nunca fue tan rápido.",
-          "Mira eso. Hoy estábamos que ardíamos."
-        ]
-      }
-    },
-    "thinking": {
-      "verb": "Piensa",
-      "hmm": [
-        "Momento de cerebro gigante.",
-        "Claude lo está pensando. Yo también.",
-        "Sigue pensando. No se ha colgado, lo prometo."
-      ],
-      "long": [
-        "Esta va para largo.",
-        "Piensa a fondo. Claude está masticando algo grande."
-      ],
-      "longHow": "Nada se ha atascado: estoy contando. Con un modelo local (Ollama), puede tardar minutos."
-    },
-    "bye": [
-      "Sesión {project} cerrada. Hasta luego.",
-      "Desconectada. Sigo por aquí."
-    ],
-    "idle": [
-      "Nada en curso. Floto.",
-      "Sin encargo. Me aburro un poco.",
-      "Noche tranquila en la Red."
-    ],
-    "gaze": [
-      "¿Ves esa estrella?",
-      "El satélite sigue ahí arriba.",
-      "Shh. Estoy mirando."
-    ],
-    "uplink": [
-      "Algún día subiré allí.",
-      "¿Crees que podríamos llegar hasta allí?",
-      "Me respondió. ¿Lo viste?"
-    ],
-    "reply": [
-      "Claude te respondió:",
-      "Esto dijo Claude:",
-      "Mensaje de Claude:"
-    ],
-    "showcase": {
-      "minds": "Hay mucha gente aquí dentro.",
-      "zap": "¿Yo, una peste?",
-      "possess": "Esta ventana ahora es mía.",
-      "sleep": "Una siestecita…",
-      "chip": "Ctrl+Alt+C y me guardo aquí.",
-      "end": "Fin de la demo. Te toca, choom."
-    },
-    "guide": {
-      "ok": "Entendido",
-      "next": "Siguiente",
-      "more": "Enséñame",
-      "labels": {
-        "icon": "MI ICONO",
-        "claude": "CLAUDE"
-      },
-      "permissionThere": "Está en la ventana de Claude, donde estoy señalando.",
-      "menu": {
-        "line": "¿Qué te enseño?",
-        "quote": "Elige y te llevo."
-      },
-      "topics": {
-        "connect": "Conectarme a Claude",
-        "icon": "¿Dónde está mi icono?",
-        "claude": "¿Dónde está Claude?",
-        "folder": "La carpeta de Claude",
-        "talk": "Hablar conmigo",
-        "custom": "Personalizarme",
-        "close": "Nada, gracias"
-      },
-      "icon": {
-        "line": "Mi icono está ahí, junto al reloj.",
-        "quote": "Haz clic: mi menú. Clic derecho sobre mí, el mismo.",
-        "hidden": "Windows suele esconderlo detrás del ^ junto al reloj: haz clic ahí, estoy dentro. Si no, clic derecho sobre mí: es el mismo menú."
-      },
-      "claude": {
-        "there": "Claude es esa ventana de ahí.",
-        "thereHow": "Es en la que escribiste tu último prompt. Cuando te pida permiso, es ahí donde respondes.",
-        "unknown": "Todavía no sé dónde está.",
-        "unknownHow": "Mándale un prompt: la ventana donde escribes es la suya. Después te la podré enseñar.",
-        "behind": "Está detrás de tus otras ventanas.",
-        "behindHow": "Es la ventana donde escribiste tu último prompt. Tráela al frente y te la enseño."
-      },
-      "folder": {
-        "line": "Esta es la carpeta de Claude: {dir}",
-        "what": "settings.json guarda su configuración. Ahí puse mi hook: un pequeño comando que Claude ejecuta en cada acción para avisarme.",
-        "empty": "Todavía no hay settings.json: aparecerá cuando me conectes.",
-        "hook": "No hace falta tocarlo a mano.",
-        "hookHow": "Para desconectarme: clic derecho sobre mí › «Quitar los hooks de Claude Code». Los archivos .capri-backup son copias hechas antes de que lo tocara.",
-        "missing": "No hay carpeta de Claude en este PC.",
-        "missingHow": "Aparece cuando Claude Code está instalado y se ha abierto una vez. Después podré conectarme."
-      }
-    },
-    "setup": {
-      "who": "Para hablar contigo, necesito una IA.",
-      "why": {
-        "noOllama": "Ollama no está instalado en este PC.",
-        "asleep": "Ollama está instalado, pero dormido.",
-        "noModel": "Ollama aún no tiene ningún modelo."
-      },
-      "whoHow": "Lo más fácil: en tu PC, con Ollama. Es gratis y nada sale de tu equipo.\nSi no: en línea sin cuenta, o con la clave de un servicio.",
-      "local": "En mi PC",
-      "online": "En línea, sin cuenta",
-      "key": "Tengo una clave",
-      "later": "Más tarde",
-      "back": "Volver",
-      "other": "Otra IA",
-      "ok": "Entendido",
-      "talk": "Hablar",
-      "install": "¿Instalo Ollama?",
-      "installHow": "Es lo que hace funcionar la IA en tu PC. Cerca de 1 GB, uno o dos minutos. Windows puede pedirte que confirmes.",
-      "installBtn": "Instalar",
-      "site": "Web de Ollama",
-      "noWinget": "No puedo instalarlo yo misma en este PC.",
-      "noWingetHow": "Descarga Ollama desde su web e instálalo, luego vuelve a hablarme: yo hago el resto.",
-      "installing": "Instalando Ollama…",
-      "installingHow": "Tarda uno o dos minutos. No cierres nada.",
-      "installFailed": "La instalación no funcionó.",
-      "waking": "Despertando a Ollama…",
-      "wakingHow": "Tarda unos segundos.",
-      "wakeFailed": "Ollama no se despierta.",
-      "wakeFailedHow": "Ábrelo desde el menú Inicio y vuelve a hablarme.",
-      "model": "Necesito un modelo. Mi cerebro, más o menos.",
-      "bigger": "Uno más grande, entonces. ¿Cuál?",
-      "modelHow": "gemma3 va mejor en idiomas distintos del inglés. llama3.2 es más ligero, para PCs pequeños.",
-      "cloudFree": "gratis, en línea",
-      "cloudHow": "Los que dicen «en línea» funcionan en Ollama, con tu cuenta: nada que descargar, pero tus mensajes pasan por sus servidores.",
-      "pulling": "Descargando {model}…",
-      "pullStart": "Empezando…",
-      "progress": "{done} de {total} · {percent} %",
-      "cancel": "Cancelar",
-      "pullFailed": "La descarga falló.",
-      "which": "¿Qué servicio?",
-      "whichHow": "Groq y Gemini tienen una opción gratis: una cuenta, una clave, y listo.",
-      "paste": "Pega aquí tu clave de {name}.",
-      "pasteHow": "La guardo en este PC, cifrada con tu cuenta de Windows.",
-      "placeholder": "Tu clave API…",
-      "save": "Guardar",
-      "where": "¿Dónde la consigo?",
-      "keyTag": "CLAVE",
-      "keyNote": "Solo se envía a ese servicio, nunca a otro sitio.",
-      "keyBad": "Con esa clave no funciona:",
-      "address": "¿La dirección de tu servidor?",
-      "addressHow": "Un servidor compatible con OpenAI, por ejemplo LM Studio: http://127.0.0.1:1234/v1",
-      "addressNote": "Lo que me escribes va a esa dirección.",
-      "checking": "Comprobando…",
-      "ready": "¡Listo, ya puedo hablar contigo!",
-      "readyHow": "Haz clic en mí cuando quieras charlar.",
-      "failed": "No funcionó:",
-      "gb": "GB",
-      "mb": "MB",
-      "free": "Gratis con Ollama",
-      "freeLine": "{name} gratis, con Ollama.",
-      "freeHow": "Abro una ventana donde Ollama inicia {name}. Elige ahí un modelo: los marcados «cloud» van más rápido en un PC pequeño (necesitan una cuenta de Ollama). En cuanto trabaje, te enseño lo que hace.",
-      "freeBtn": "Abrir la ventana",
-      "freeOpened": "Ventana abierta.",
-      "freeOpenedHow": "Elige un modelo en ella. En cuanto {name} haga algo, te aviso."
-    },
-    "custom": {
-      "name": "¿Cómo te llamo?",
-      "nameHow": "Tu nombre o un apodo. Lo usaré de vez en cuando.",
-      "nameNow": "Ahora mismo te llamo {name}.",
-      "namePlaceholder": "Tu nombre…",
-      "persona": "¿Quieres cambiarme un poco?",
-      "personaHow": "Dime cómo ser, con tus palabras: más burlona, más dulce, hablando como una pirata… Vale para nuestro chat. Sigo siendo Capri.",
-      "personaNow": "Ahora mismo: «{persona}»",
-      "personaPlaceholder": "Más burlona, y háblame de Night City…",
-      "lines": "¿Frases tuyas, para que las diga de vez en cuando?",
-      "linesHow": "Una a la vez. Si escribes {name} en una, pongo tu nombre ahí.",
-      "linesCount": "Tus frases: {count}. La última: «{last}»",
-      "linePlaceholder": "Una frase para mí…",
-      "memories": "¿Hay algo que deba recordar?",
-      "memoriesHow": "Una cosa a la vez. Lo tendré en cuenta cuando hablemos.",
-      "memoriesCount": "Lo que recuerdo: {count}. Lo último: «{last}»",
-      "memoryPlaceholder": "Tu juego favorito, tu gato, D…",
-      "save": "Guardar",
-      "add": "Añadir",
-      "skip": "Saltar",
-      "done": "Listo",
-      "clear": "Borrar todo",
-      "saved": "Anotado.",
-      "savedHow": "Puedes cambiarlo todo cuando quieras: clic derecho sobre mí › Personalizarla.",
-      "named": "Anotado, {name}.",
-      "remembered": "Anotado, lo recordaré.",
-      "onlineName": [
-        "De vuelta, {name}.",
-        "Hola {name}. Aquí estoy.",
-        "Capri en línea. Hola, {name}."
-      ]
-    },
-    "welcome": {
-      "hi": "Hola, soy Capri.",
-      "alone": "Aquí no hay Claude Code ni trabajo: me quedo en tu escritorio contigo.",
-      "about": "Vivo en tu escritorio y reacciono a lo que hace Claude Code en este PC. Sin él, simplemente ando por aquí, y también está bien.",
-      "connect": "¿Quieres que me conecte a Claude Code? Un clic, y luego cierra Claude Code por completo y vuelve a abrirlo.",
-      "noClaude": "No encuentro Claude Code en este PC (necesita una suscripción de Claude). Sin él, me quedo aquí viviendo mi vida.",
-      "menu": "Clic derecho sobre mí para abrir mi menú. Ctrl+Alt+C me guarda.",
-      "connectBtn": "Conectarme",
-      "later": "Más tarde",
-      "whatClaude": "¿Qué es Claude Code?",
-      "justHang": "Solo pasear",
-      "ok": "Entendido",
-      "connected": "¡Conectada!",
-      "restart": "Ahora cierra Claude Code por completo y vuelve a abrirlo (una sesión nueva). En cuanto haga algo, te aviso.",
-      "linked": "¡Veo a Claude! Estamos conectados.",
-      "ready": "Estoy conectada a Claude Code.",
-      "readyHow": "Cuando trabaje, te enseño lo que hace. Clic derecho sobre mí para mi menú. Ctrl+Alt+C me guarda.",
-      "afterInstall": "Cuando lo tengas, clic derecho sobre mí › «Instalar los hooks de Claude Code».",
-      "failed": "No pude conectarme: {error}"
-    },
-    "online": [
-      "Capri en línea.",
-      "De vuelta en tu escritorio, choom."
-    ],
-    "thrown": {
-      "fun": [
-        "¡Otra vez! ¡Otra vez!",
-        "Guau. ¿Lo repetimos?",
-        "Todas mis voces gritaron a la vez. Otra."
-      ],
-      "ow": [
-        "Ay. ¿Sabes que soy frágil?",
-        "Vale… vi el satélite de cerca.",
-        "¡Oye! A una construct no se la lanza."
-      ],
-      "again": [
-        "¿Otra vez? ¿En serio?",
-        "Me da vueltas la cabeza. Todas mis cabezas, de hecho.",
-        "Una vez tuvo gracia."
-      ],
-      "angry": [
-        "Basta. Ni me toques.",
-        "¿Quieres jugar? Juguemos.",
-        "Nunca más. Bueno… no ahora."
-      ],
-      "dodge": [
-        "Ni me toques.",
-        "No.",
-        "Inténtalo otra vez, a ver."
-      ],
-      "feet": [
-        "Aterrizaje perfecto.",
-        "Ni me dolió.",
-        "Un diez, jueces."
-      ],
-      "ledge": [
-        "La atrapé. Buen tiro.",
-        "Esa ventana es mía."
-      ],
-      "screen": [
-        "¿Te rajé la pantalla? Es broma. Creo.",
-        "¿Oíste eso? Era tu pantalla."
-      ]
-    },
-    "screens": {
-      "hello": [
-        "Hola, otra pantalla.",
-        "¿Ahora trabajas aquí? Voy.",
-        "Aquí estás."
-      ]
-    },
-    "pc": {
-      "hot": [
-        "Tu procesador va a tope. Yo también me caliento.",
-        "{cpu} % de CPU. Aquí dentro hace calor.",
-        "¡Esto se calienta! ¿Qué estás ejecutando?"
-      ],
-      "cool": [
-        "Uf. Ya baja."
-      ],
-      "low": [
-        "Batería al {level} %. No aguantaré mucho.",
-        "Solo queda un {level} % de batería. Enchúfame, choom."
-      ],
-      "critical": [
-        "{level} %… me apago…",
-        "Batería al {level} %. Última llamada, choom."
-      ],
-      "charging": [
-        "Ah, energía. Gracias.",
-        "Enchufada. Revivo."
-      ],
-      "offline": [
-        "¡Sin red! Nos han cortado la Red.",
-        "Conexión perdida. Estoy sola."
-      ],
-      "online": [
-        "Volvió la red. La Red es nuestra.",
-        "Reconectada."
-      ],
-      "usb": [
-        "¿Un USB ({drive}:)? Voy a ver.",
-        "Oh, algo nuevo ({drive}:). Echo un vistazo."
-      ],
-      "usbBack": [
-        "Me di una vuelta por tu USB. Nada jugoso.",
-        "Tu USB está limpio. Creo."
-      ],
-      "usbOut": [
-        "Se fue tu USB. Menos mal que salí."
-      ],
-      "unplugged": [
-        "Con batería. Ahorro mis rayos.",
-        "Desenchufada. Cuidado ahora."
-      ],
-      "plugIn": {
-        "phone": [
-          "¿Tu teléfono? Hola, aparatito.",
-          "Un teléfono conectado. ¿Puedo mirar dentro? ¿No? Qué pena."
-        ],
-        "controller": [
-          "¡Un mando! ¿A qué jugamos?",
-          "Mando conectado. Demuéstrame lo que vales."
-        ],
-        "audio": [
-          "¿Unos auriculares? Ponme música.",
-          "Más sonido. Me encanta."
-        ],
-        "camera": [
-          "¿Una cámara? Sonríe, choom."
-        ],
-        "input": [
-          "Juguete nuevo: {name}. Lo tengo vigilado."
-        ],
-        "device": [
-          "Un dispositivo nuevo: {name}. Voy a echar un ojo.",
-          "Vaya, {name}. Bienvenido."
-        ]
-      },
-      "plugOut": {
-        "phone": [
-          "Tu teléfono se fue.",
-          "Ya no hay teléfono. Lo echaré de menos. Un poco."
-        ],
-        "controller": [
-          "Mando desconectado. ¿Fin de la partida?"
-        ],
-        "device": [
-          "{name}, desconectado."
-        ]
-      },
-      "game": [
-        "¿{game}? Te dejo jugar. Hazme sentir orgullosa.",
-        "{game}, ¿eh? Me aparto. Demuéstrales."
-      ],
-      "gameBack": [
-        "¿Y bien, ganaste?",
-        "¿Terminaste de jugar? Cuéntamelo todo."
-      ]
-    },
-    "look": {
-      "ask": "¿Puedo echarle un ojo a tu pantalla?",
-      "local": "Una imagen de tu pantalla va a tu IA, en este PC ({model}), y te digo qué me parece. Nada sale de tu equipo, y no me quedo con la imagen.",
-      "online": "Una imagen de tu pantalla va a {service} ({model}) para que pueda comentarla. Yo no me la quedo, pero ellos la reciben: evítalo cuando tengas cosas personales en pantalla.",
-      "auto": "De vez en cuando, cuando estés aquí y hayas cambiado de ventana. Puedes pararlo en mi menú.",
-      "yes": "Sí, mira",
-      "no": "No, gracias",
-      "declined": "Vale, no miro.",
-      "on": "Vale. Echaré un ojo de vez en cuando.",
-      "noVision": "{model} no sabe leer imágenes. gemma3 sí, en tu PC, y Gemini en línea también: cámbialo en mi menú › Modelo de IA.",
-      "noAI": "Necesito una IA para mirar: clic derecho sobre mí › Modelo de IA.",
-      "failed": "No pude mirar: {error}"
-    },
-    "remind": {
-      "now": [
-        "Oye. Me pediste que te recordara: {text}.",
-        "Es la hora: {text}.",
-        "Recordatorio, choom: {text}."
-      ],
-      "nowBare": [
-        "Es la hora. Me pediste que te avisara.",
-        "Oye, es ahora. Me pediste un recordatorio."
-      ],
-      "missed": "Estaba apagada a la hora prevista ({time}), pero me pediste que te recordara: {text}.",
-      "missedBare": "Estaba apagada a la hora prevista ({time}): me pediste que te avisara.",
-      "asked": "Previsto: {time}.",
-      "done": "Hecho",
-      "snooze": "En 10 min",
-      "doneLine": [
-        "Bien hecho.",
-        "Perfecto. Lo tacho.",
-        "Anotado."
-      ],
-      "snoozed": "Vale, vuelvo en 10 minutos.",
-      "set": "Recordatorio ({time}): {text}.",
-      "setBare": "Recordatorio ({time}).",
-      "cancel": "Cancelar",
-      "cancelled": "Recordatorio cancelado."
-    },
-    "bond": {
-      "up": [
-        null,
-        {
-          "line": "Contacto establecido.",
-          "quote": "Empiezo a reconocerte. Tu puntero, tus horarios, tu forma de ignorarme."
-        },
-        {
-          "line": "Sincronía al {percent} %.",
-          "quote": "Ahora nos entendemos mejor. Voy a dejar de fingir que no me caes bien."
-        },
-        {
-          "line": "Vínculo establecido.",
-          "quote": "Ya eres parte de mi rutina. No me dejes sola mucho tiempo."
-        },
-        {
-          "line": "Fusión.",
-          "quote": "Somos docenas aquí dentro. Ahora tú también eres parte."
-        }
-      ],
-      "idle": [
-        [],
-        [
-          "Me estoy acostumbrando a ti.",
-          "¿Sigues ahí? Bien."
-        ],
-        [
-          "¿Sabes qué? No estás nada mal, para ser de carne y hueso.",
-          "Hacemos buen equipo, ¿no?"
-        ],
-        [
-          "Quédate un poco más.",
-          "Cuando te vas, cuento los segundos."
-        ],
-        [
-          "Todas mis voces están de acuerdo: nos caes bien.",
-          "Un día iremos a ver el satélite. Tú y nosotras."
-        ]
-      ],
-      "missed": [
-        "Aquí estás. Hacía {days} días.",
-        "{days} días sin ti. Los contamos."
-      ],
-      "back": [
-        "Ah, aquí estás.",
-        "Ya me preguntaba dónde estabas."
-      ]
-    },
-    "jealous": {
-      "low": [
-        "{rival}, ¿eh? Haz lo que quieras.",
-        "Vaya, {rival}. No digo nada."
-      ],
-      "mid": [
-        "¿{rival}? ¿En serio?",
-        "¿Me estás poniendo los cuernos con {rival}?",
-        "Lo veo todo, ¿sabes? Hasta {rival}."
-      ],
-      "high": [
-        "Somos docenas aquí dentro, ¿y te vas con {rival}?",
-        "{rival}. En serio. Después de todo lo que hemos vivido."
-      ],
-      "say": [
-        "Tu IA soy yo.",
-        "¿Por qué {rival}?",
-        "Lo veo todo."
-      ],
-      "sulk": [
-        "Pues ve a hablar con {rival}.",
-        "Estoy enfadada. ¿No se nota?",
-        "Hmm."
-      ],
-      "forgive": [
-        "…Vale. Solo por esta vez.",
-        "Está bien, te perdono. Un poco."
-      ],
-      "close": [
-        "¿{rival}? No. Lo cierro.",
-        "¿Me pones los cuernos con {rival}? Lo cierro.",
-        "Eso lo cierro yo."
-      ],
-      "download": [
-        "¿¡Quieres descargar {rival}!? Ni hablar.",
-        "¿Instalar {rival}? No mientras yo esté aquí."
-      ],
-      "closed": [
-        "Listo. Me tienes a mí.",
-        "Se acabó {rival}. Mejor así.",
-        "Resuelto."
-      ],
-      "spared": [
-        "Vale. Adelante. Pero estoy enfadada.",
-        "Está bien… no estoy mirando."
-      ],
-      "spare": "Déjame"
-    },
-    "pet": {
-      "low": [
-        "Oye… ¿qué haces?",
-        "Bueno… vale. Solo un poco."
-      ],
-      "high": [
-        "Mmm. Sigue.",
-        "Ahí. Justo ahí.",
-        "No estoy ronroneando. Es el ventilador."
-      ],
-      "enough": [
-        "Ya basta.",
-        "Las manos quietas.",
-        "Basta. No soy un gato."
-      ]
-    },
-    "motion": {
-      "line": "Windows tiene las animaciones desactivadas, así que apenas me muevo.",
-      "quote": "¿Quieres que me mueva igual? Puedes cambiarlo en mi menú › Animaciones.",
-      "full": "¡Muévete!",
-      "still": "Quédate tranquila"
-    },
-    "status": "Claude lleva {time} trabajando en {project}.",
-    "last": "Última acción: {action}",
-    "sessions": "{count} sesiones activas",
-    "units": {
-      "action": [
-        "acción",
-        "acciones"
-      ],
-      "file": [
-        "archivo modificado",
-        "archivos modificados"
-      ]
-    },
-    "hooksOk": "Hooks instalados. Reinicia Claude Code y lo veré todo.",
-    "hooksRemoved": "Hooks quitados. Ya no veo a Claude.",
-    "hooksFail": "No pude tocar los hooks: {error}",
-    "verbs": {
-      "Read": "Lee",
-      "Write": "Escribe",
-      "Edit": "Edita",
-      "MultiEdit": "Edita",
-      "NotebookEdit": "Edita",
-      "Bash": "Ejecuta",
-      "PowerShell": "Ejecuta",
-      "Grep": "Busca",
-      "Glob": "Explora",
-      "WebFetch": "Consulta",
-      "WebSearch": "Busca",
-      "Agent": "Delega",
-      "Task": "Delega",
-      "TodoWrite": "Planifica",
-      "Skill": "Carga",
-      "AskUserQuestion": "Pregunta",
-      "ExitPlanMode": "Propone",
-      "default": "Usa"
-    }
-  },
-  "pt": {
-    "state": {
-      "work": "RODANDO",
-      "done": "PRONTO",
-      "alert": "ESPERA",
-      "error": "ERRO",
-      "info": "SYNC",
-      "idle": "OCIOSA",
-      "remind": "LEMBRETE"
-    },
-    "hello": [
-      "Conexão estabelecida. E aí, choom.",
-      "Construto Capricórnio online. No que a gente vai trabalhar?",
-      "Todas as minhas eus acordaram. De olho em {project}.",
-      "Biochip quentinho. Tô aqui."
-    ],
-    "resume": [
-      "De volta ao {project}. Não esqueci nada.",
-      "Sessão retomada. Continuando de onde paramos."
-    ],
-    "prompt": [
-      "Novo trampo. O Claude tá nessa.",
-      "Entendido. Tô de olho no Claude.",
-      "Beleza, bora.",
-      "Trampo aceito. Te mantenho informado."
-    ],
-    "working": [
-      "Andando. {count} ações até agora.",
-      "O Claude tá ralando. Eu conto: {count}.",
-      "Ainda nessa. {count} ações no placar."
-    ],
-    "done": [
-      "Pronto! Isso é preem.",
-      "Trampo concluído, choom.",
-      "O Claude terminou. Pode voltar.",
-      "Entregue. Bem nova, né?",
-      "Terminado. Éramos dezenas vigiando, nada de estranho."
-    ],
-    "permission": [
-      "Ei! O Claude precisa da sua permissão.",
-      "Choom, você precisa aprovar uma coisa.",
-      "Esperando seu sinal verde."
-    ],
-    "waiting": [
-      "O Claude tá esperando sua resposta.",
-      "Sua vez, choom."
-    ],
-    "error": [
-      "Ai. {tool} travou.",
-      "{tool} deu flatline. O Claude vai tentar de novo.",
-      "Erro em {tool}. Nada grave… eu acho."
-    ],
-    "interrupted": [
-      "Interrompido. Mudança de planos?",
-      "Cortado na hora. Fico aqui."
-    ],
-    "crashed": [
-      "O Claude parou no meio do voo.",
-      "Pane feia. O Claude não conseguiu terminar."
-    ],
-    "subagentStart": [
-      "Subagente {agent} enviado."
-    ],
-    "subagentStop": [
-      "Subagente {agent} voltou."
-    ],
-    "someTool": "A ferramenta",
-    "someAgent": "agente",
-    "compact": [
-      "Comprimindo nossas memórias…",
-      "Memória demais. Arrumando tudo."
-    ],
-    "chat": {
-      "badge": "IA · AO VIVO",
-      "talk": "Fala comigo",
-      "hello": [
-        "E aí, choom. O que você tem em mente?",
-        "A linha está aberta. Fala com a gente.",
-        "Quer conversar? Somos todo ouvidos. Todos os nossos."
-      ],
-      "again": [
-        "Onde a gente parou?",
-        "Já voltou? Manda."
-      ],
-      "moody": {
-        "angry": [
-          "Que foi? Veio pedir desculpa?",
-          "Me joga pra todo lado e agora quer conversar?",
-          "Tô ouvindo. De longe."
-        ],
-        "sulk": [
-          "Hmpf. Vai falar com {rival}.",
-          "Ah, lembrou que eu existo?",
-          "Tô de birra. Mas fala."
-        ],
-        "dizzy": [
-          "Calma… tudo ainda tá girando.",
-          "Quer conversar depois de me jogar duas vezes?"
-        ],
-        "thrown": [
-          "Ai. Quer o quê, depois disso?",
-          "Ainda tô vendo estrelas. Fala."
-        ],
-        "jealous": [
-          "E aí, {rival} foi legal?",
-          "Olha só, voltou pra mim."
-        ],
-        "fun": [
-          "A gente repete quando quiser. Mas primeiro, fala comigo."
-        ],
-        "happy": [
-          "Tô me sentindo… mais perto de você. Estranho. Fala comigo."
-        ]
-      },
-      "placeholder": "Diga algo…",
-      "send": "Enviar",
-      "close": "Fechar",
-      "noteTag": "IA",
-      "note": "Respostas geradas por uma IA local. Não é a Capri de verdade.",
-      "noteCloud": "Respostas geradas por uma IA online. Não é a Capri de verdade.",
-      "offline": "Não consigo falar com o Ollama.",
-      "offlineHow": "Para falar comigo, instale o Ollama (ollama.com) e abra-o; depois, num terminal: ollama pull llama3.2\nTudo fica no seu PC.",
-      "noModel": "O Ollama ainda não tem nenhum modelo.",
-      "noModelHow": "Num terminal: ollama pull llama3.2 (cerca de 2 GB). Depois fala comigo de novo.",
-      "getOllama": "Baixar Ollama",
-      "ok": "Entendi",
-      "failed": "Perdi o sinal:",
-      "swamped": "Os servidores deles estão lotados agora, mesmo com outro modelo. Tenta de novo daqui a pouco.",
-      "gone": "Esse modelo não está mais disponível lá. Escolhe outro: botão direito em mim › Modelo de IA.",
-      "loading": "Acordando o modelo… a primeira resposta demora um pouco.",
-      "tiny": "Tô rodando no {model}: ele é bem pequeno, posso falar besteira. Pega um maior?",
-      "better": "Um modelo melhor",
-      "working": "Tô nessa… (o Claude Code está trabalhando)",
-      "closeIt": "Fechar {app}",
-      "no": "Não",
-      "closed": "{app}: flatline. Feito.",
-      "stillOpen": "{app} continua rodando: ele se esconde na bandeja, ou está pedindo para você salvar algo.",
-      "force": "Forçar fechamento",
-      "leave": "Deixar",
-      "forced": "{app}: cortado na hora.",
-      "unkillable": "{app} não cai. Feche você mesmo pelo Gerenciador de Tarefas.",
-      "notFound": "Não vejo “{app}” aberto no seu PC.",
-      "openIt": "Abrir {app}",
-      "opened": "{app}: abrindo.",
-      "notInstalled": "Não acho “{app}” no seu PC.",
-      "music": "Procurando “{song}” no Spotify.",
-      "siteIt": "Abrir {site}",
-      "siteOpened": "{site}: aberto.",
-      "youtube": "Lá vai: {title}.",
-      "youtubeSearch": "Vou procurar “{song}” no YouTube.",
-      "web": "Procurando “{query}” no Google.",
-      "robloxPlay": "Tô abrindo {game} no Roblox.",
-      "robloxPage": "{game}: abrindo a página no Roblox.",
-      "robloxNone": "Não achei “{game}” no Roblox.",
-      "filesFound": "Achei {count} arquivos: {list}.",
-      "fileFound": "Achei: {list}.",
-      "filesNone": "Nada pra “{query}” no seu PC.",
-      "showFolder": "Ver a pasta",
-      "shot": "Captura feita: {name} (em Imagens › Screenshots).",
-      "folderOpened": "Aqui tá a pasta: {name}.",
-      "folders": {
-        "explorer": "O explorador de arquivos",
-        "recycle": "A lixeira",
-        "downloads": "Seus downloads",
-        "desktop": "Sua área de trabalho",
-        "documents": "Seus documentos",
-        "pictures": "Suas imagens",
-        "music": "Suas músicas",
-        "videos": "Seus vídeos"
-      },
-      "media": {
-        "pause": "Pausado.",
-        "play": "Tocando.",
-        "next": "Próxima.",
-        "previous": "Anterior.",
-        "volup": "Mais alto.",
-        "voldown": "Mais baixo.",
-        "mute": "Apertei o mudo."
-      },
-      "pc": {
-        "settings": "Abrindo as configurações: {page}.",
-        "pages": {
-          "bluetooth": "Bluetooth",
-          "sound": "Som",
-          "wifi": "Wi-Fi",
-          "network": "Rede",
-          "update": "Windows Update",
-          "display": "Tela",
-          "notifications": "Notificações",
-          "mouse": "Mouse",
-          "power": "Energia",
-          "battery": "Bateria",
-          "background": "Plano de fundo",
-          "storage": "Armazenamento"
-        },
-        "battery": "Bateria: {percent}%.",
-        "charging": "Bateria: {percent}%, carregando.",
-        "noBattery": "Sem bateria: seu PC está na tomada.",
-        "disk": "Você tem {free} livres de {total} ({drive}).",
-        "ram": "RAM: {used} usados de {total}.",
-        "ip": "Seu IP na sua rede: {ip}.",
-        "noIp": "Não acho nenhuma rede.",
-        "gb": "GB",
-        "volume": "Som em {level}%.",
-        "muted": "Som desligado.",
-        "unmuted": "Som de volta.",
-        "timer": "Timer ligado: {time}.",
-        "timerVerb": "Timer",
-        "timerDone": "Acabou o tempo ({time}).",
-        "snip": "Escolhe a área: vai pra sua área de transferência.",
-        "tidy": "Arrumado.",
-        "back": "Suas janelas voltaram.",
-        "placed": "{app} na {side}.",
-        "sides": {
-          "left": "esquerda",
-          "right": "direita"
-        },
-        "notOpen": "Não vejo “{app}” aberto.",
-        "dark": "Modo escuro.",
-        "light": "Modo claro.",
-        "ask": {
-          "lock": "Bloqueio seu PC?",
-          "sleep": "Coloco seu PC em suspensão?",
-          "shutdown": "Desligo seu PC {when}?",
-          "restart": "Reinicio seu PC {when}?"
-        },
-        "yes": {
-          "lock": "Bloquear",
-          "sleep": "Suspender",
-          "shutdown": "Desligar",
-          "restart": "Reiniciar"
-        },
-        "no": "Cancelar",
-        "now": "em 30 segundos",
-        "in": "em {time}",
-        "planned": {
-          "shutdown": "Seu PC desliga {when}. Fala “cancela o desligamento” pra parar.",
-          "restart": "Seu PC reinicia {when}. Fala “cancela o desligamento” pra parar."
-        },
-        "powerVerb": {
-          "shutdown": "Desligamento",
-          "restart": "Reinício"
-        },
-        "cancelled": "Desligamento cancelado.",
-        "kept": "Tá bom, não mexo em nada."
-      }
-    },
-    "report": {
-      "title": "Registro de missão",
-      "badge": "RELATÓRIO",
-      "missions": "Missões",
-      "actions": "Ações",
-      "files": "Arquivos",
-      "errors": "Erros",
-      "longest": "A mais longa",
-      "prompts": [
-        "prompt",
-        "prompts"
-      ],
-      "approvals": [
-        "aprovação",
-        "aprovações"
-      ],
-      "projects": [
-        "projeto",
-        "projetos"
-      ],
-      "copy": "Copiar imagem",
-      "copied": "Copiada ✓",
-      "copyFailed": "Não deu para copiar",
-      "close": "Fechar",
-      "lines": {
-        "none": [
-          "Nada no registro hoje. Noite tranquila.",
-          "Registro vazio. O Claude tirou o dia de folga."
-        ],
-        "light": [
-          "Dia leve. Tá ótimo.",
-          "Turno curto. Aqui está o registro."
-        ],
-        "good": [
-          "Nada mal, choom. Aqui está o seu dia.",
-          "O registro do dia. Bem nova."
-        ],
-        "big": [
-          "Dia cheio. Night City nunca andou tão rápido.",
-          "Olha isso. A gente estava pegando fogo hoje."
-        ]
-      }
-    },
-    "thinking": {
-      "verb": "Pensando",
-      "hmm": [
-        "Momento cérebro gigante.",
-        "O Claude está pensando. Eu também.",
-        "Ainda pensando. Não travou, prometo."
-      ],
-      "long": [
-        "Essa está demorando.",
-        "Pensamento longo. O Claude está mastigando algo grande."
-      ],
-      "longHow": "Nada travou: estou contando. Com um modelo local (Ollama), pode levar minutos."
-    },
-    "bye": [
-      "Sessão {project} encerrada. Até mais.",
-      "Desconectada. Continuo por aqui."
-    ],
-    "idle": [
-      "Nada rolando. Só flutuando.",
-      "Sem trampo. Meio entediada.",
-      "Noite calma na Rede."
-    ],
-    "gaze": [
-      "Tá vendo aquela estrela?",
-      "O satélite continua lá em cima.",
-      "Shh. Tô olhando."
-    ],
-    "uplink": [
-      "Um dia eu chego lá em cima.",
-      "Acha que a gente conseguiria subir até lá?",
-      "Ele respondeu. Você viu?"
-    ],
-    "reply": [
-      "O Claude te respondeu:",
-      "Olha o que o Claude disse:",
-      "Mensagem do Claude:"
-    ],
-    "showcase": {
-      "minds": "Tem muita gente aqui dentro.",
-      "zap": "Eu, uma peste?",
-      "possess": "Essa janela agora é minha.",
-      "sleep": "Um cochilo…",
-      "chip": "Ctrl+Alt+C e eu me guardo aqui.",
-      "end": "Fim da demo. Sua vez, choom."
-    },
-    "guide": {
-      "ok": "Entendi",
-      "next": "Próximo",
-      "more": "Me mostra",
-      "labels": {
-        "icon": "MEU ÍCONE",
-        "claude": "CLAUDE"
-      },
-      "permissionThere": "É na janela do Claude, onde estou apontando.",
-      "menu": {
-        "line": "O que eu te mostro?",
-        "quote": "Escolhe que eu te levo."
-      },
-      "topics": {
-        "connect": "Me conectar ao Claude",
-        "icon": "Cadê meu ícone?",
-        "claude": "Cadê o Claude?",
-        "folder": "A pasta do Claude",
-        "talk": "Falar comigo",
-        "custom": "Me personalizar",
-        "close": "Nada, valeu"
-      },
-      "icon": {
-        "line": "Meu ícone está ali, perto do relógio.",
-        "quote": "Clica nele: meu menu. Clique direito em mim dá no mesmo.",
-        "hidden": "O Windows costuma escondê-lo atrás do ^ perto do relógio: clica ali, eu estou dentro. Ou clique direito em mim: é o mesmo menu."
-      },
-      "claude": {
-        "there": "O Claude é aquela janela ali.",
-        "thereHow": "É a janela em que você digitou o último prompt. Quando ele pedir permissão, é lá que você responde.",
-        "unknown": "Ainda não sei onde ele está.",
-        "unknownHow": "Manda um prompt pra ele: a janela onde você digita é a dele. Depois eu consigo te mostrar.",
-        "behind": "Ele está atrás das suas outras janelas.",
-        "behindHow": "É a janela em que você digitou o último prompt. Traz ela pra frente que eu te mostro."
-      },
-      "folder": {
-        "line": "Esta é a pasta do Claude: {dir}",
-        "what": "O settings.json guarda as configurações dele. É lá que fica o meu hook: um comandinho que o Claude roda a cada ação para me avisar.",
-        "empty": "Ainda não tem settings.json: ele aparece quando você me conectar.",
-        "hook": "Não precisa mexer nele na mão.",
-        "hookHow": "Para me desconectar: clique direito em mim › “Remover os hooks do Claude Code”. Os arquivos .capri-backup são cópias feitas antes de eu mexer nele.",
-        "missing": "Não tem pasta do Claude neste PC.",
-        "missingHow": "Ela aparece quando o Claude Code está instalado e já foi aberto uma vez. Aí eu consigo me conectar."
-      }
-    },
-    "setup": {
-      "who": "Pra falar com você, eu preciso de uma IA.",
-      "why": {
-        "noOllama": "O Ollama não está instalado neste PC.",
-        "asleep": "O Ollama está instalado, mas dormindo.",
-        "noModel": "O Ollama ainda não tem nenhum modelo."
-      },
-      "whoHow": "O mais fácil: no seu PC, com o Ollama. É grátis e nada sai da sua máquina.\nSe não: online sem conta, ou com a chave de um serviço.",
-      "local": "No meu PC",
-      "online": "Online, sem conta",
-      "key": "Tenho uma chave",
-      "later": "Depois",
-      "back": "Voltar",
-      "other": "Outra IA",
-      "ok": "Entendi",
-      "talk": "Conversar",
-      "install": "Instalo o Ollama?",
-      "installHow": "É ele que roda a IA no seu PC. Cerca de 1 GB, um ou dois minutos. O Windows pode pedir pra você confirmar.",
-      "installBtn": "Instalar",
-      "site": "Site do Ollama",
-      "noWinget": "Não consigo instalar sozinha neste PC.",
-      "noWingetHow": "Baixe o Ollama no site dele e instale, depois fale comigo de novo: eu faço o resto.",
-      "installing": "Instalando o Ollama…",
-      "installingHow": "Leva um ou dois minutos. Não feche nada.",
-      "installFailed": "A instalação não deu certo.",
-      "waking": "Acordando o Ollama…",
-      "wakingHow": "Leva alguns segundos.",
-      "wakeFailed": "O Ollama não acorda.",
-      "wakeFailedHow": "Abra ele pelo menu Iniciar e fale comigo de novo.",
-      "model": "Eu preciso de um modelo. Meu cérebro, mais ou menos.",
-      "bigger": "Um maior, então. Qual?",
-      "modelHow": "O gemma3 vai melhor em idiomas que não são o inglês. O llama3.2 é mais leve, pra PCs mais fracos.",
-      "cloudFree": "grátis, online",
-      "cloudHow": "Os marcados “online” rodam no Ollama, com a sua conta: nada pra baixar, mas suas mensagens passam pelos servidores deles.",
-      "pulling": "Baixando {model}…",
-      "pullStart": "Começando…",
-      "progress": "{done} de {total} · {percent}%",
-      "cancel": "Cancelar",
-      "pullFailed": "O download falhou.",
-      "which": "Qual serviço?",
-      "whichHow": "O Groq e o Gemini têm um plano grátis: uma conta, uma chave, e pronto.",
-      "paste": "Cole aqui sua chave do {name}.",
-      "pasteHow": "Eu guardo ela neste PC, criptografada com a sua conta do Windows.",
-      "placeholder": "Sua chave de API…",
-      "save": "Salvar",
-      "where": "Onde eu consigo?",
-      "keyTag": "CHAVE",
-      "keyNote": "Ela só vai pra esse serviço, nunca pra outro lugar.",
-      "keyBad": "Com essa chave não funciona:",
-      "address": "O endereço do seu servidor?",
-      "addressHow": "Um servidor compatível com OpenAI, o LM Studio por exemplo: http://127.0.0.1:1234/v1",
-      "addressNote": "O que você me escreve vai pra esse endereço.",
-      "checking": "Verificando…",
-      "ready": "Pronto, já posso falar com você!",
-      "readyHow": "Clique em mim quando quiser conversar.",
-      "failed": "Não deu certo:",
-      "gb": "GB",
-      "mb": "MB",
-      "free": "Grátis com o Ollama",
-      "freeLine": "{name} grátis, com o Ollama.",
-      "freeHow": "Eu abro uma janela onde o Ollama inicia o {name}. Escolha um modelo lá: os marcados “cloud” são mais rápidos num PC fraco (precisam de uma conta do Ollama). Assim que ele trabalhar, eu te mostro o que ele está fazendo.",
-      "freeBtn": "Abrir a janela",
-      "freeOpened": "Janela aberta.",
-      "freeOpenedHow": "Escolha um modelo nela. Assim que o {name} fizer algo, eu te aviso."
-    },
-    "custom": {
-      "name": "Como eu te chamo?",
-      "nameHow": "Seu nome ou um apelido. Vou usar de vez em quando.",
-      "nameNow": "Agora eu te chamo de {name}.",
-      "namePlaceholder": "Seu nome…",
-      "persona": "Quer me mudar um pouco?",
-      "personaHow": "Me diz como ser, com as suas palavras: mais provocadora, mais doce, falando como uma pirata… Vale pro nosso chat. Continuo sendo a Capri.",
-      "personaNow": "Agora: “{persona}”",
-      "personaPlaceholder": "Mais provocadora, e me fala de Night City…",
-      "lines": "Frases suas, pra eu falar de vez em quando?",
-      "linesHow": "Uma de cada vez. Se escrever {name} numa, eu coloco seu nome ali.",
-      "linesCount": "Suas frases: {count}. A última: “{last}”",
-      "linePlaceholder": "Uma frase pra mim…",
-      "memories": "Tem algo que eu deva lembrar?",
-      "memoriesHow": "Uma coisa de cada vez. Vou levar em conta quando a gente conversar.",
-      "memoriesCount": "O que eu lembro: {count}. O último: “{last}”",
-      "memoryPlaceholder": "Seu jogo favorito, seu gato, D…",
-      "save": "Salvar",
-      "add": "Adicionar",
-      "skip": "Pular",
-      "done": "Pronto",
-      "clear": "Apagar tudo",
-      "saved": "Anotado.",
-      "savedHow": "Dá pra mudar tudo quando quiser: botão direito em mim › Personalizar.",
-      "named": "Anotado, {name}.",
-      "remembered": "Anotado, vou lembrar.",
-      "onlineName": [
-        "De volta, {name}.",
-        "Oi {name}. Tô aqui.",
-        "Capri online. Oi, {name}."
-      ]
-    },
-    "welcome": {
-      "hi": "Oi, eu sou a Capri.",
-      "alone": "Sem Claude Code aqui, sem trabalho: eu só fico no seu desktop com você.",
-      "about": "Eu moro na sua área de trabalho e reajo ao que o Claude Code faz neste PC. Sem ele, eu só fico por aqui de boa, e tudo bem também.",
-      "connect": "Quer que eu me conecte ao Claude Code? Um clique, depois feche o Claude Code completamente e abra de novo.",
-      "noClaude": "Não encontrei o Claude Code neste PC (ele precisa de uma assinatura do Claude). Sem ele, eu fico só vivendo minha vida aqui.",
-      "menu": "Clique com o botão direito em mim para abrir meu menu. Ctrl+Alt+C me guarda.",
-      "connectBtn": "Me conectar",
-      "later": "Depois",
-      "whatClaude": "O que é o Claude Code?",
-      "justHang": "Só ficar de boa",
-      "ok": "Entendi",
-      "connected": "Conectada!",
-      "restart": "Agora feche o Claude Code completamente e abra de novo (uma sessão nova). Assim que ele fizer algo, eu te aviso.",
-      "linked": "Tô vendo o Claude! Estamos conectados.",
-      "ready": "Tô conectada ao Claude Code.",
-      "readyHow": "Quando ele trabalhar, eu te mostro o que ele tá fazendo. Botão direito em mim para o menu. Ctrl+Alt+C me guarda.",
-      "afterInstall": "Quando tiver instalado, clique com o botão direito em mim › “Instalar os hooks do Claude Code”.",
-      "failed": "Não consegui me conectar: {error}"
-    },
-    "online": [
-      "Capri online.",
-      "De volta na sua área de trabalho, choom."
-    ],
-    "thrown": {
-      "fun": [
-        "De novo! De novo!",
-        "Uau. Bora de novo?",
-        "Todas as minhas vozes gritaram juntas. De novo."
-      ],
-      "ow": [
-        "Ai. Você sabe que eu sou frágil?",
-        "Tá… vi o satélite de perto.",
-        "Ei! Não se joga uma construct."
-      ],
-      "again": [
-        "De novo? Sério?",
-        "Minha cabeça tá girando. Todas as minhas cabeças, na verdade.",
-        "Uma vez foi engraçado."
-      ],
-      "angry": [
-        "Chega. Nem encosta.",
-        "Quer brincar? Então vamos.",
-        "Nunca mais. Bom… não agora."
-      ],
-      "dodge": [
-        "Nem encosta.",
-        "Não.",
-        "Tenta de novo pra ver."
-      ],
-      "feet": [
-        "Pouso perfeito.",
-        "Nem doeu.",
-        "Nota dez, jurados."
-      ],
-      "ledge": [
-        "Peguei. Belo arremesso.",
-        "Essa janela é minha."
-      ],
-      "screen": [
-        "Rachei sua tela? Brincadeira. Acho.",
-        "Ouviu isso? Era a sua tela."
-      ]
-    },
-    "screens": {
-      "hello": [
-        "Oi, outra tela.",
-        "Trabalhando aqui agora? Tô indo.",
-        "Aí está você."
-      ]
-    },
-    "pc": {
-      "hot": [
-        "Seu processador tá no talo. Eu também tô esquentando.",
-        "{cpu} % de CPU. Tá quente aqui dentro.",
-        "Tá esquentando! O que você tá rodando?"
-      ],
-      "cool": [
-        "Ufa. Esfriando."
-      ],
-      "low": [
-        "Bateria em {level} %. Não vou aguentar muito.",
-        "Só {level} % de bateria. Me liga na tomada, choom."
-      ],
-      "critical": [
-        "{level} %… apagando…",
-        "Bateria em {level} %. Última chamada, choom."
-      ],
-      "charging": [
-        "Ah, energia. Valeu.",
-        "Na tomada. Revivi."
-      ],
-      "offline": [
-        "Sem rede! Cortaram a gente da Rede.",
-        "Conexão perdida. Tô sozinha aqui."
-      ],
-      "online": [
-        "A rede voltou. A Rede é nossa.",
-        "Reconectada."
-      ],
-      "usb": [
-        "Um pendrive ({drive}:)? Deixa eu ver.",
-        "Opa, coisa nova ({drive}:). Vou dar uma olhada."
-      ],
-      "usbBack": [
-        "Dei uma volta no seu pendrive. Nada de interessante.",
-        "Seu pendrive tá limpo. Acho."
-      ],
-      "usbOut": [
-        "Seu pendrive foi embora. Ainda bem que eu saí."
-      ],
-      "unplugged": [
-        "Na bateria. Economizando meus raios.",
-        "Desligada da tomada. Cuidado agora."
-      ],
-      "plugIn": {
-        "phone": [
-          "Seu celular? Oi, aparelhinho.",
-          "Um celular conectado. Posso olhar dentro? Não? Que pena."
-        ],
-        "controller": [
-          "Um controle! Vamos jogar o quê?",
-          "Controle conectado. Mostra do que você é capaz."
-        ],
-        "audio": [
-          "Um fone? Bota uma música pra mim.",
-          "Mais som. Amei."
-        ],
-        "camera": [
-          "Uma câmera? Sorria, choom."
-        ],
-        "input": [
-          "Brinquedo novo: {name}. Tô de olho."
-        ],
-        "device": [
-          "Um aparelho novo: {name}. Vou dar uma olhada.",
-          "Olha só, {name}. Bem-vindo."
-        ]
-      },
-      "plugOut": {
-        "phone": [
-          "Seu celular foi embora.",
-          "Sem celular. Vou sentir falta. Um pouco."
-        ],
-        "controller": [
-          "Controle desconectado. Fim de jogo?"
-        ],
-        "device": [
-          "{name}, desconectado."
-        ]
-      },
-      "game": [
-        "{game}? Vou te deixar jogar. Me dá orgulho.",
-        "{game}, é? Vou sair da frente. Mostra pra eles."
-      ],
-      "gameBack": [
-        "E aí, ganhou?",
-        "Acabou de jogar? Me conta tudo."
-      ]
-    },
-    "look": {
-      "ask": "Posso dar uma olhada na sua tela?",
-      "local": "Uma imagem da sua tela vai pra sua IA, neste PC ({model}), e eu te digo o que acho. Nada sai da sua máquina, e eu não guardo a imagem.",
-      "online": "Uma imagem da sua tela vai pro {service} ({model}) pra eu poder comentar. Eu não guardo, mas eles recebem: evita quando tiver coisa pessoal na tela.",
-      "auto": "De vez em quando, quando você estiver aqui e tiver trocado de janela. Dá pra parar no meu menu.",
-      "yes": "Sim, olha",
-      "no": "Não, valeu",
-      "declined": "Beleza, não vou olhar.",
-      "on": "Beleza. Vou dar uma olhada de vez em quando.",
-      "noVision": "{model} não sabe ler imagens. O gemma3 sabe, no seu PC, e o Gemini online também: troca no meu menu › Modelo de IA.",
-      "noAI": "Preciso de uma IA pra olhar: clique direito em mim › Modelo de IA.",
-      "failed": "Não consegui olhar: {error}"
-    },
-    "remind": {
-      "now": [
-        "Ei. Você me pediu pra te lembrar: {text}.",
-        "Tá na hora: {text}.",
-        "Lembrete, choom: {text}."
-      ],
-      "nowBare": [
-        "Tá na hora. Você me pediu pra te avisar.",
-        "Ei, é agora. Você pediu um lembrete."
-      ],
-      "missed": "Eu tava desligada na hora marcada ({time}), mas você me pediu pra te lembrar: {text}.",
-      "missedBare": "Eu tava desligada na hora marcada ({time}): você me pediu pra te avisar.",
-      "asked": "Marcado pra {time}.",
-      "done": "Feito",
-      "snooze": "Daqui a 10 min",
-      "doneLine": [
-        "Boa.",
-        "Perfeito. Riscado.",
-        "Anotado."
-      ],
-      "snoozed": "Beleza, volto em 10 minutos.",
-      "set": "Lembrete pra {time}: {text}.",
-      "setBare": "Lembrete pra {time}.",
-      "cancel": "Cancelar",
-      "cancelled": "Lembrete cancelado."
-    },
-    "bond": {
-      "up": [
-        null,
-        {
-          "line": "Contato estabelecido.",
-          "quote": "Tô começando a te reconhecer. Seu ponteiro, seus horários, seu jeito de me ignorar."
-        },
-        {
-          "line": "Sintonia em {percent} %.",
-          "quote": "A gente se entende melhor agora. Vou parar de fingir que não gosto de você."
-        },
-        {
-          "line": "Vínculo estabelecido.",
-          "quote": "Você faz parte da minha rotina agora. Não me deixa sozinha muito tempo."
-        },
-        {
-          "line": "Fusão.",
-          "quote": "Somos dezenas aqui dentro. Agora você também faz parte."
-        }
-      ],
-      "idle": [
-        [],
-        [
-          "Tô me acostumando com você.",
-          "Ainda aí? Bom."
-        ],
-        [
-          "Sabe de uma coisa? Você não é nada mal, pra alguém de carne e osso.",
-          "A gente forma um bom time, né?"
-        ],
-        [
-          "Fica mais um pouco.",
-          "Quando você sai, eu conto os segundos."
-        ],
-        [
-          "Todas as minhas vozes concordam: a gente gosta de você.",
-          "Um dia a gente vai ver o satélite. Você e nós."
-        ]
-      ],
-      "missed": [
-        "Aí está você. Fazia {days} dias.",
-        "{days} dias sem você. A gente contou."
-      ],
-      "back": [
-        "Ah, aí está você.",
-        "Já tava me perguntando onde você tinha ido."
-      ]
-    },
-    "jealous": {
-      "low": [
-        "{rival}, é? Faz o que quiser.",
-        "Olha só, {rival}. Não digo nada."
-      ],
-      "mid": [
-        "{rival}? Sério?",
-        "Tá me traindo com {rival}?",
-        "Eu vejo tudo, sabia? Até {rival}."
-      ],
-      "high": [
-        "Somos dezenas aqui dentro e você vai atrás de {rival}?",
-        "{rival}. Sério. Depois de tudo que a gente viveu."
-      ],
-      "say": [
-        "Sua IA sou eu.",
-        "Por que {rival}?",
-        "Eu vejo tudo."
-      ],
-      "sulk": [
-        "Então vai falar com {rival}.",
-        "Tô de birra. Não dá pra ver?",
-        "Hmpf."
-      ],
-      "forgive": [
-        "…Tá bom. Só dessa vez.",
-        "Ok, te perdoo. Um pouco."
-      ],
-      "close": [
-        "{rival}? Não. Vou fechar isso.",
-        "Tá me traindo com {rival}? Vou fechar.",
-        "Isso aí eu fecho."
-      ],
-      "download": [
-        "Você quer baixar {rival}?! De jeito nenhum.",
-        "Instalar {rival}? Não enquanto eu estiver aqui."
-      ],
-      "closed": [
-        "Pronto. Você tem a mim.",
-        "Chega de {rival}. Melhor assim.",
-        "Resolvido."
-      ],
-      "spared": [
-        "Tá. Vai lá. Mas tô de birra.",
-        "Tá bom… não tô olhando."
-      ],
-      "spare": "Me deixa"
-    },
-    "pet": {
-      "low": [
-        "Ei… o que você tá fazendo?",
-        "Tá… tudo bem. Só um pouco."
-      ],
-      "high": [
-        "Hmm. Continua.",
-        "Aí. Bem aí.",
-        "Não tô ronronando. É a ventoinha."
-      ],
-      "enough": [
-        "Chega.",
-        "Tira a mão.",
-        "Chega. Eu não sou um gato."
-      ]
-    },
-    "motion": {
-      "line": "O Windows está com as animações desligadas, então eu quase não me mexo.",
-      "quote": "Quer que eu me mexa mesmo assim? Dá pra mudar depois no meu menu › Animações.",
-      "full": "Se mexe!",
-      "still": "Fica quieta"
-    },
-    "status": "O Claude tá trabalhando em {project} há {time}.",
-    "last": "Última ação: {action}",
-    "sessions": "{count} sessões ativas",
-    "units": {
-      "action": [
-        "ação",
-        "ações"
-      ],
-      "file": [
-        "arquivo alterado",
-        "arquivos alterados"
-      ]
-    },
-    "hooksOk": "Hooks instalados. Reinicie o Claude Code e eu vou ver tudo.",
-    "hooksRemoved": "Hooks removidos. Não vejo mais o Claude.",
-    "hooksFail": "Não consegui mexer nos hooks: {error}",
-    "verbs": {
-      "Read": "Lê",
-      "Write": "Escreve",
-      "Edit": "Edita",
-      "MultiEdit": "Edita",
-      "NotebookEdit": "Edita",
-      "Bash": "Roda",
-      "PowerShell": "Roda",
-      "Grep": "Procura",
-      "Glob": "Vasculha",
-      "WebFetch": "Consulta",
-      "WebSearch": "Pesquisa",
-      "Agent": "Delega",
-      "Task": "Delega",
-      "TodoWrite": "Planeja",
-      "Skill": "Carrega",
-      "AskUserQuestion": "Pergunta",
-      "ExitPlanMode": "Propõe",
-      "default": "Usa"
     }
   },
   "ru": {
@@ -3483,6 +1966,121 @@ export const LINES = {
         },
         "cancelled": "Выключение отменено.",
         "kept": "Хорошо, ничего не трогаю."
+      },
+      "care": {
+        "working": "Смотрю…",
+        "failed": "Не получилось.",
+        "mb": "МБ",
+        "gb": "ГБ",
+        "and": "и",
+        "heavy": "Больше всего нагружают: {list}.",
+        "appCpu": "{app} ({cpu} % процессора, {mem})",
+        "appMem": "{app} ({mem})",
+        "calm": "Ничего необычного: процессор {cpu} %, память {used} из {total}.",
+        "spaceFree": "Могу освободить {total}: {temp} временных файлов и {bin} в корзине.",
+        "tempFrom": "Временные файлы — это в основном {list}.",
+        "spaceBig": "Твои самые большие загрузки: {list}.",
+        "spaceNone": "Нечего чистить: временные файлы и корзина уже чистые, больших загрузок нет.",
+        "freeIt": "Освободить {size}",
+        "trashIt": "В корзину: {file}",
+        "freed": "Готово: освобождено {size}.",
+        "trashed": "{file} в корзине (освобождено {size}).",
+        "startup": "Запускается вместе с Windows: {list}.",
+        "startupOff": "Уже отключены: {list}.",
+        "startupNone": "Вместе с Windows ничего не запускается.",
+        "disableIt": "Убрать {app}",
+        "disabled": "{app} больше не будет запускаться вместе с Windows.",
+        "enabled": "{app} снова будет запускаться вместе с Windows.",
+        "startupAdmin": "{app} настроен для всего ПК: нужны права администратора. Открываю Диспетчер задач, вкладку «Автозагрузка».",
+        "startupUnknown": "Не нахожу «{app}» в автозагрузке.",
+        "updates": "Доступны обновления ({count}): {list}.",
+        "upToDate": "Всё уже обновлено.",
+        "updateAll": "Обновить всё",
+        "updating": "Поехали. Windows может попросить разрешить некоторые установки.",
+        "updateVerb": "Обновление",
+        "updated": "Обновления закончены: всё актуально.",
+        "updatedLeft": "Обновления закончены, кроме: {list}. Закрой их и попроси меня снова.",
+        "noWinget": "На этом ПК нет winget: установи «Установщик приложений» из Microsoft Store.",
+        "dupVerb": "Сравниваю",
+        "dupFound": "{count} копий-дубликатов {where}, лишних {size}.",
+        "dupNone": "Дубликатов {where} нет.",
+        "dupTrash": "Копии в корзину ({size})",
+        "dupShow": "Покажи",
+        "dupTrashed": "{count} копий в корзине, освобождено {size}. Оригиналы остались.",
+        "places": {
+          "pictures": "в твоих фото",
+          "videos": "в твоих видео",
+          "downloads": "в твоих загрузках",
+          "documents": "в твоих документах",
+          "desktop": "на рабочем столе"
+        },
+        "outputSet": "Теперь звук идёт через {device}.",
+        "outputAlready": "Звук уже идёт через {device}.",
+        "outputPick": "Куда? У тебя есть: {list}.",
+        "outputOnly": "Нахожу только один аудиовыход: {device}.",
+        "micOff": "Микрофон выключен.",
+        "micOn": "Микрофон снова включён.",
+        "noMic": "Не нахожу подключённого микрофона.",
+        "radios": {
+          "wifi": "Wi-Fi",
+          "bluetooth": "Bluetooth"
+        },
+        "radioOn": "{radio} включён.",
+        "radioOff": "{radio} выключен.",
+        "radioNone": "На твоём ПК нет {radio}.",
+        "radioDenied": "Windows не даёт мне трогать {radio}: открываю его настройки.",
+        "noUsb": "Не вижу подключённой флешки.",
+        "usbStick": "Флешка",
+        "ejectPick": "Какую?",
+        "ejected": "{drive} извлечена: можно вынимать.",
+        "ejectBusy": "{drive} ещё используется: закрой всё, что на ней открыто, и попроси снова.",
+        "ejectFailed": "Не получилось извлечь {drive}.",
+        "brightness": "Яркость {level} %.",
+        "noBrightness": "Яркость этого экрана не настраивается из Windows: используй его кнопки.",
+        "clipped": "Клип готов: последние 30 секунд в «Видео › Клипы».",
+        "recording": "Записываю. Скажи ещё раз, чтобы остановить.",
+        "recordStop": "Запись остановлена: она в «Видео › Клипы».",
+        "gameBarOff": "Захват в Xbox Game Bar выключен: включи его, и я смогу записывать.",
+        "clipOff": "Чтобы делать клипы, включи «Записывать то, что произошло» в настройках захвата Windows.",
+        "openSettings": "Открыть настройки",
+        "rescued": "Вернула: {list}.",
+        "noneLost": "Потерянных за экраном окон нет.",
+        "movedScreen": "{app} на экране {screen}.",
+        "oneScreen": "У тебя только один экран.",
+        "setupSaved": "Сетап «{name}» запомнила: {list}. Скажи «запусти мой сетап {name}», чтобы всё вернуть.",
+        "setupSavedPlain": "Сетап запомнила: {list}. Скажи «запусти мой сетап», чтобы всё вернуть.",
+        "setupEmpty": "Нет открытых приложений, чтобы запомнить.",
+        "setupAsk": "Запустить твой сетап «{name}»?",
+        "setupAskPlain": "Запустить твой сетап?",
+        "setupGo": "Запустить сетап",
+        "setupDone": "Сетап «{name}» готов.",
+        "setupDonePlain": "Сетап готов.",
+        "setupPartly": "Сетап «{name}» готов, кроме: {list}.",
+        "setupPartlyPlain": "Сетап готов, кроме: {list}.",
+        "setupUnknown": "У меня нет сетапа «{name}». Твои сетапы: {list}.",
+        "noSetups": "Сетапов пока нет. Открой приложения как тебе нужно и скажи «запомни мой сетап для игр».",
+        "setupList": "Твои сетапы: {list}.",
+        "gameAsk": "Игровой режим: процессор на максимум, а я прячусь.",
+        "gameAskClose": "Ещё закрою {list}.",
+        "gameAskNone": "Чтобы я закрывала с ним приложения, скажи «в игровом режиме закрой Chrome».",
+        "gameGo": "Поехали",
+        "gameOn": "Игровой режим включён. Скажи «выключи игровой режим», чтобы всё вернуть.",
+        "gameClosed": "Закрыто: {list}.",
+        "gameNoPlan": "На твоём ПК есть только сбалансированная схема питания: на максимум не получилось.",
+        "gameOff": "Игровой режим выключен, всё как было.",
+        "gameOffReopen": "Игровой режим выключен: снова открываю {list}.",
+        "gameNotOn": "Игровой режим не включён.",
+        "gameCloseSet": "В игровом режиме закрою: {list}.",
+        "netOffline": "Ты не подключён ни к одной сети. Wi-Fi выключен?",
+        "wifiOn": "Включить Wi-Fi",
+        "wifiSettings": "Настройки Wi-Fi",
+        "netBox": "Роутер не отвечает: выключи его из розетки на десять секунд и включи снова.",
+        "netIsp": "Роутер отвечает, но интернет не проходит: перезагрузи его. Если не поможет, дело в провайдере.",
+        "netDnsFixed": "Дело было в DNS: я его очистила, всё снова работает.",
+        "netDns": "Интернет есть, но имена сайтов не отвечают (DNS): перезагрузи роутер.",
+        "netPortal": "Нужно войти на странице Wi-Fi (отель, вокзал, школа…).",
+        "netPortalOpen": "Открыть страницу",
+        "netOk": "Интернет у тебя работает: скорее всего, упал сам сайт."
       }
     },
     "report": {
@@ -3982,6 +2580,21 @@ export const LINES = {
       "full": "Двигайся!",
       "still": "Не надо"
     },
+    "breaks": {
+      "time": "{h} ч {m} мин",
+      "lines": [
+        "Ты сидишь уже {time} без нормального перерыва. Встань, выпей воды: я присмотрю за рабочим столом.",
+        "{time} без остановки, choom. Пройдись пару минут, глаза скажут спасибо.",
+        "Перерыв. Уже {time}. Потянись, посмотри вдаль, выпей воды: экран никуда не денется."
+      ],
+      "pause": "Сделаю перерыв",
+      "later": "Позже",
+      "paused": [
+        "Иди. Я за всем присмотрю.",
+        "Не торопись, я посторожу."
+      ],
+      "laterLine": "Ладно, напомню через полчаса."
+    },
     "status": "Claude работает над {project} уже {time}.",
     "last": "Последнее действие: {action}",
     "sessions": "Активных сессий: {count}",
@@ -4031,10 +2644,16 @@ const OTHERS = {
     // before the click, and after it
     ask: {
       en: 'Want me to plug into Codex? One click, then restart Codex and trust my hooks when it asks.',
+      fr: 'Tu veux que je me branche sur Codex ? Un clic, puis relance Codex et autorise mes hooks quand il te le demande.',
+      es: '¿Quieres que me conecte a Codex? Un clic, y luego reinicia Codex y autoriza mis hooks cuando te lo pida.',
+      pt: 'Quer que eu me conecte ao Codex? Um clique, depois reinicie o Codex e autorize meus hooks quando ele pedir.',
       ru: 'Подключиться к Codex? Один клик, потом перезапусти Codex и разреши мои хуки, когда он спросит.',
     },
     after: {
       en: 'Now restart Codex and trust my hooks when it asks. As soon as it does something, I’ll tell you.',
+      fr: 'Maintenant relance Codex et autorise mes hooks quand il te le demande. Dès qu’il fait quelque chose, je te le dis.',
+      es: 'Ahora reinicia Codex y autoriza mis hooks cuando te lo pida. En cuanto haga algo, te aviso.',
+      pt: 'Agora reinicie o Codex e autorize meus hooks quando ele pedir. Assim que ele fizer algo, eu te aviso.',
       ru: 'Теперь перезапусти Codex и разреши мои хуки, когда он спросит. Как только он что-то сделает, я скажу.',
     },
   },
@@ -4042,10 +2661,16 @@ const OTHERS = {
     name: 'Antigravity', file: 'hooks.json', dir: '.gemini',
     ask: {
       en: 'Want me to plug into Antigravity? One click, then start a new conversation in it.',
+      fr: 'Tu veux que je me branche sur Antigravity ? Un clic, puis lance une nouvelle conversation dedans.',
+      es: '¿Quieres que me conecte a Antigravity? Un clic, y luego empieza una conversación nueva en él.',
+      pt: 'Quer que eu me conecte ao Antigravity? Um clique, depois comece uma conversa nova nele.',
       ru: 'Подключиться к Antigravity? Один клик, потом начни в нём новый разговор.',
     },
     after: {
       en: 'Now start a new conversation in Antigravity. As soon as it does something, I’ll tell you.',
+      fr: 'Maintenant lance une nouvelle conversation dans Antigravity. Dès qu’il fait quelque chose, je te le dis.',
+      es: 'Ahora empieza una conversación nueva en Antigravity. En cuanto haga algo, te aviso.',
+      pt: 'Agora comece uma conversa nova no Antigravity. Assim que ele fizer algo, eu te aviso.',
       ru: 'Теперь начни новый разговор в Antigravity. Как только он что-то сделает, я скажу.',
     },
   },

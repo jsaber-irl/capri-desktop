@@ -1,4 +1,4 @@
-## **Project Capricorn (2.2.9)**
+## **Project Capricorn (2.2.10)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -26,6 +26,8 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 - **Cleanup**: the menu shows how much space downloaded components occupy and lets you remove items that belong to Capri.
 - **Structured memory**: the bond panel can export and import local Markdown memory. Entries remain on this computer, can be removed selectively, and are not transmitted unless you explicitly send them to a provider.
 - **Native PC control from chat**: ask Capri to open system settings, report battery/disk/RAM/IP information, set or mute the volume, start a timer, capture a region, arrange or minimize windows, switch the system theme, or schedule a shutdown/restart. Lock, sleep, shutdown, and restart always require an explicit confirmation button.
+- **PC care and routines**: ask what is slowing the PC, inspect storage, manage startup apps and updates, check duplicate files, switch audio devices, mute the microphone, control Wi-Fi/Bluetooth, eject USB drives, adjust brightness, use Game Bar, recover off-screen windows, move apps to another display, or save and restore named work setups. These controls have their broadest support on Windows.
+- **Health breaks**: Capri can suggest a break after extended activity, waits for a quiet moment, avoids interrupting a game, and lets you pause or defer the reminder.
 
 ## Table of contents
 
@@ -243,7 +245,7 @@ The chat clearly indicates whether a response comes from a local AI or an online
 
 Capri reacts to pointer movement and physical interaction. Several rapid shakes within a short period make her angry; the emotional state and reaction are handled locally. A sincere apology can help her calm down.
 
-### Native PC control
+### Native PC control and PC care
 
 Capri can execute supported operating-system actions from natural-language chat through the
 secure Renderer → Preload → Main IPC path. Examples include:
@@ -265,6 +267,12 @@ and power actions. macOS supports selected settings, volume, disk/RAM/IP informa
 interactive region capture. Linux support depends on installed desktop utilities such as
 `pavucontrol`, `nm-connection-editor`, `blueman-manager`, and `gnome-screenshot`; unsupported
 operations return an explicit failure instead of being simulated.
+
+The additional PC-care actions for startup apps, updates, cleanup, USB devices, radio controls,
+brightness, Game Bar, window recovery, and saved work setups are currently Windows-specific.
+Cleanup previews what will be removed; files selected for removal go to the Recycle Bin. Actions
+that change settings, close apps, remove files, or restore a setup are shown in chat with a review
+step where applicable.
 
 ## Configuration
 
@@ -358,6 +366,9 @@ npm run demo -- ru
 The demo plays through a complete fictional session, then shows Capri's autonomous behaviors. The sequence also accepts `en` and `fr`.
 
 ## Security
+
+See [SECURITY.md](SECURITY.md) for the project's security boundaries, data handling, platform
+permissions, and known limitations.
 
 - The application's code is included in this repository.
 - Communication with Claude Code uses `127.0.0.1`.
@@ -538,7 +549,7 @@ Important interaction contracts:
   say and how to update `Heart`/`Bond`.
 - `Capri.onTeleport` brackets long movements so the panel can suspend while Capri is elsewhere.
 - `host.onResize()` must update `FxLayer`, `Chip`, and `Capri.setView()` together.
-- A new Main capability must be added to the preload API and validated in `SECURITY_AUDIT.md`;
+- A new Main capability must be added to the preload API and its security boundary documented in [SECURITY.md](SECURITY.md);
   renderer code must not import Node or Electron directly.
 
 ### Developer map: Main process
@@ -563,8 +574,8 @@ The project's code is distributed under the MIT License, in accordance with the 
 
 ## Project structure and security review
 
-- [STRUCTURE.md](STRUCTURE.md) lists the versioned project files and explains the Electron processes, services, user interfaces, scripts and tests.
-- [SECURITY_AUDIT.md](SECURITY_AUDIT.md) records the static review, sensitive behaviors, fixes and remaining limitations.
+- [STRUCTURE.md](STRUCTURE.md) maps the main project directories and explains the Electron processes, services, user interfaces, scripts and tests.
+- [SECURITY.md](SECURITY.md) documents security boundaries, sensitive actions, data handling and known limitations. It is a project security overview, not a new penetration test or dependency audit.
 
 ### Features available in the current code
 
@@ -574,6 +585,8 @@ The following are present in the current source tree. Capabilities that depend o
 - **Mac permissions:** macOS-only controls report Accessibility, microphone, screen recording and per-target Automation states where Electron/macOS can verify them. Some TCC states are inherently unknown until a real operation is attempted.
 - **Application and file actions:** application names are resolved from installed application metadata and aliases. Explicit document creation writes a new text file without overwriting an existing one, verifies it by reading it back, and opens it in TextEdit on macOS when that step succeeds. It does not automate arbitrary document editing inside every application.
 - **Native PC control:** chat commands are parsed in `src/renderer/js/chat.js` and sent through `preload.js` to `src/main/system.js`. Supported operations include system settings, hardware/network information, audio volume, native capture, Windows arrangement/minimization, appearance, timers, and confirmed power actions. Availability is platform-specific and failures are reported.
+- **PC care:** `src/renderer/js/care.js` recognizes PC maintenance, audio-device, radio, removable-drive, brightness, Game Bar, window recovery, display movement, and named-workspace requests. Main-process services in `src/main/system.js`, `src/main/devices.js`, and `src/main/setups.js` perform supported operations. Most of this extended set is Windows-specific.
+- **Health breaks:** `src/renderer/js/breaks.js` checks local idle time and suggests a break after two hours of activity, at a quiet moment and outside an active game. The feature can be disabled from the menu.
 - **Video search:** a latest-video request opens YouTube search results ordered by date. Capri does not verify which result is genuinely newest or automatically select a video; inspect the results page yourself.
 - **Music:** terminal, chat and voice requests use the shared media controller and available platform adapters. Say **« ouvre le mini-lecteur de musique »** in the chat or run `/music player`. On macOS, the mini-player can detect an open Deezer desktop session, its current track and playlist metadata when Deezer exposes it through Apple Events; browser tabs remain limited by the operating system. Track metadata, volume control, native apps and browser sessions vary by operating system and reader.
 - **Translation:** open **Translate a page or file** from Capri's menu, or ask in chat to translate a file or web page. The window can be closed with its × button and accepts an HTTP(S) page, a text/Markdown/HTML file, or pasted text. MyMemory is used free of charge by default; DeepL, Google Cloud Translation and LibreTranslate can be selected with their API key or endpoint. API keys are stored with the system's encrypted storage.

@@ -41,6 +41,10 @@ const DEFAULTS = {
   pcReact: true,     // she reacts to your PC: the processor at full tilt, the battery, the network, a USB stick, a game (pc.js)
   watchScreen: false, // she looks at your screen now and then and says something about it (look.js)
   lookAsked: false,  // she told you what looking means (where the picture goes) and you said yes
+  breaks: true,      // after two hours at your PC without a real break, she tells you to take one (breaks.js)
+  setups: {},        // your setups, by name: the apps you had open and where (setups.js)
+  gameClose: [],     // the apps game mode closes, as you named them
+  gameMode: null,    // game mode on: { plan, closed, since }, to put everything back after
   // her character (mood.js, life.js, themes.js, speech.js)
   emotions: true,    // she has moods: she gets angry, laughs, sulks, gets flustered
   colourTheme: 'classic', // her colours: a key of themes.js THEMES, or 'mood'
@@ -96,6 +100,7 @@ const DEFAULTS = {
   translationProvider: 'mymemory', // translation API; MyMemory is free and needs no key
   translationApiKey: '',
   translationApiUrl: '',
+
 };
 
 let cache = null;
