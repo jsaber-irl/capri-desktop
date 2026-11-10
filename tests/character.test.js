@@ -88,6 +88,33 @@ test('compliments fluster her, poking her over and over makes her blow up', asyn
   assert.equal(pokes[5], 'rage');
 });
 
+test('three KO animations close together make her angry; separated KOs do not', async () => {
+  const { Mood } = await load('mood.js');
+  const m = new Mood({ storage: null, now: 0 });
+  assert.equal(m.knockedOut(1000), null);
+  assert.equal(m.knockedOut(5000), null);
+  assert.equal(m.knockedOut(15000), 'rage');
+  assert.equal(m.mood, 'angry');
+  assert.equal(m.cause.tag, 'ko');
+  assert.equal(m.reasonTag, 'ko');
+
+  const separated = new Mood({ storage: null, now: 0 });
+  assert.equal(separated.knockedOut(1000), null);
+  assert.equal(separated.knockedOut(22000), null);
+  assert.equal(separated.knockedOut(43000), null);
+  assert.notEqual(separated.mood, 'angry');
+});
+
+test('affectionate declarations are recognized in French, English and Russian', async () => {
+  const { classify } = await load('mood.js');
+  for (const text of ['Je t’aime', 'Je t’adore', 'Tu comptes beaucoup pour moi', 'Je tiens à toi', 'Tu m’as manqué', 'I love you', 'I adore you', 'I really like you', 'You mean a lot to me', 'I missed you', 'Я тебя люблю', 'Я обожаю тебя', 'Ты мне очень нравишься']) {
+    assert.ok(classify(text).tags.some((tag) => ['love', 'compliment'].includes(tag)), text);
+  }
+  assert.ok(classify('Tu es adorable').tags.includes('compliment'));
+  assert.ok(classify('You’re so cute').tags.includes('compliment'));
+  assert.ok(classify('Ты такая милая').tags.includes('compliment'));
+});
+
 test('left alone, she gets bored', async () => {
   const { Mood } = await load('mood.js');
   const m = new Mood({ storage: null, now: 0 });

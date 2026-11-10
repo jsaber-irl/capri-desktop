@@ -239,6 +239,13 @@ export function clock(at, lang = 'en', seconds = false, timeZone) {
   return new Intl.DateTimeFormat(lang, sameDay ? opts : { weekday: 'short', ...opts }).format(d);
 }
 
+function devLog(...args) {
+  const enabled = typeof window !== 'undefined'
+    ? window.host?.isDev === true
+    : process.env.CAPRI_DEV_MODE === '1';
+  if (enabled) console.log(...args);
+}
+
 // The ones she keeps: [{ id, at, text, made }], saved in her settings (main.js shows them in her
 // menu, where you can cancel one). onDue(reminder) when one comes due, one at a time.
 export class Reminders {
@@ -249,21 +256,21 @@ export class Reminders {
     this.onDue = null;
     this.firing = new Set(); // ids being shown right now
     this.timer = null;
-    console.log('[reminders] initialized', { count: this.list.length, reminders: this.list });
+    devLog('[reminders] initialized', { count: this.list.length, reminders: this.list });
   }
 
   start() {
     if (this.timer) {
-      console.log('[reminders] polling already started');
+      devLog('[reminders] polling already started');
       return;
     }
     if (!this.onDue) {
-      console.log('[reminders] polling not started: onDue callback is not set');
+      devLog('[reminders] polling not started: onDue callback is not set');
       return;
     }
     this.timer = setInterval(() => this.check(), 5000);
     this.timer.unref?.();
-    console.log('[reminders] polling started');
+    devLog('[reminders] polling started');
   }
 
   // the list as saved (after one was cancelled from her menu)
@@ -368,7 +375,7 @@ export class Reminders {
     const now = this.now();
     const due = this.upcoming.find((r) => r.enabled !== false && !r.made && !this.firing.has(r.id) && r.at <= now);
     if (!due) return;
-    console.log('[reminders] reminder due', { id: due.id, text: due.text, at: due.at, now });
+    devLog('[reminders] reminder due', { id: due.id, text: due.text, at: due.at, now });
     this.firing.add(due.id);
     try {
       const occurredAt = due.at;
@@ -380,14 +387,14 @@ export class Reminders {
         due.made = null;
       }
       this.save();
-      console.log('[reminders] calling onDue', { id: due.id });
+      devLog('[reminders] calling onDue', { id: due.id });
       this.onDue(due.recurrence ? { ...due, at: occurredAt } : due);
     } finally {
       this.firing.delete(due.id);
       if (!due.recurrence) {
         // le rappel a sonné : on le retire de la liste (il n'encombre plus le menu ni la config)
         this.remove(due.id);
-        console.log('[reminders] reminder removed after onDue', { id: due.id });
+        devLog('[reminders] reminder removed after onDue', { id: due.id });
       }
     }
   }

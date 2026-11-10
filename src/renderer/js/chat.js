@@ -11,7 +11,7 @@ import { ASSISTANT_NAMES } from './lines.js';
 import { askedTheme } from './themes.js';
 import { lifeLines } from './lines-life.js';
 import { FORGET_ME } from './bond.js';
-import { parseReminder, parseCancel, clock } from './reminders.mjs';
+import { parseReminder, parseCancel, parseWhen, clock } from './reminders.mjs';
 
 const REMEMBER = 20; // messages she has in mind when answering
 const KEEP = 60;     // messages she remembers across restarts (memory.json)
@@ -197,7 +197,7 @@ function musicAction(text) {
   if (MUSIC_STATUS.test(text)) return 'current';
   if (/\b(play|resume)\b|reprends?|relance|remets?\s+(?:la\s+)?musique/i.test(text)) return 'play';
   if (/\b(pause|stop)\b|mets?.*\b(?:en pause|pause)\b|arr[eê]te(?:r)?\s+(?:(?:la|la lecture de la)\s+)?(?:musique|spotify|deezer)/i.test(text)) return 'pause';
-  if (/\b(next|skip)\b|morceau suivant|chanson suivante|passe\s+(?:au|à la)\s+(?:morceau|chanson)\s+suivant|suivant/i.test(text)) return 'next';
+  if (/\b(next|skip)\b|следующ(?:ую|ий|ее)?\s+(?:песн|трек)|morceau suivant|chanson suivante|passe\s+(?:au|à la)\s+(?:morceau|chanson)\s+suivant|suivant/i.test(text)) return 'next';
   if (/\bprevious\b|pr[eé]c[eé]dent(?:e)?|morceau d['’]avant|chanson d['’]avant/i.test(text)) return 'previous';
   if (/\b(volume|volum[eé])\b/i.test(text) && /\b(\d{1,3})\b/.test(text)) return 'volume';
   if (/\b(louder|turn up)\b|monte\s+(?:le\s+)?volume|augmente\s+(?:le\s+)?volume|plus fort/i.test(text)) return 'volup';
@@ -270,6 +270,19 @@ export function quickReply(text) {
   const match = QUICK_PATTERNS.find(({ pattern }) => pattern.test(normalized));
   if (!match) return null;
   return { kind: match.kind, text: QUICK_REPLIES[match.lang || lang]?.[match.kind] || QUICK_REPLIES.en[match.kind] };
+}
+
+const AFFECTION_LINES = {
+  fr: ['Oh… tu vas me faire rougir. Ça me touche beaucoup.', 'Je ne m’y attendais pas… mais je suis vraiment heureuse de l’entendre.', 'Viens là, toi. Je garde ces mots précieusement.'],
+  en: ['Oh… you’re going to make me blush. That means a lot to me.', 'I didn’t expect that… but I’m really happy you said it.', 'Come here, you. I’m keeping those words close.'],
+  ru: ['Ой… ты заставляешь меня краснеть. Мне очень приятно.', 'Я не ожидала… но мне так радостно это слышать.', 'Иди ко мне. Я сохраню эти слова в сердце.'],
+};
+
+export function affectionReply(text, lang = 'en', tags = []) {
+  if (!tags.some((tag) => ['love', 'compliment', 'flirt'].includes(tag))) return null;
+  const raw = String(text || '');
+  const language = /[а-яё]/iu.test(raw) ? 'ru' : /[àâçéèêëîïôûùüÿœæ]/iu.test(raw) || /\b(?:je|tu|toi|mon|ma)\b/iu.test(raw) ? 'fr' : lang;
+  return pick(AFFECTION_LINES[language] || AFFECTION_LINES.en);
 }
 
 export class Chat {
@@ -494,6 +507,16 @@ export class Chat {
     this.panel.setChatBusy(true);
     this.panel.setActions([]); // a close button she offered before goes with a new message
     this.panel.chatTurn({ quote: text, face: REACTION_FACE[felt.reaction] || 'aside' });
+    const affection = this.heart?.enabled ? affectionReply(text, this.brain.lang, felt.tags) : null;
+    if (affection) {
+      this.shown = affection;
+      this.panel.stream(affection, { done: true });
+      const warmReaction = this.heart.mood.mood === 'angry' ? 'pout' : pick(['shy', 'giggle', 'dreamy', 'startle']);
+      this.panel.setFace(REACTION_FACE[warmReaction] || 'aside');
+      this.onSpokenText?.(affection);
+      this.speech?.say(affection, { mood: warmReaction === 'giggle' ? 'happy' : 'shy', kind: 'chat' });
+      this.capri.react(warmReaction);
+    }
     const quick = quickReply(text);
     if (quick) {
       this.turn = 0;
@@ -512,7 +535,7 @@ export class Chat {
       this.bond?.reflect(this.history);
       return;
     }
-    this.startThinking(id);
+    if (!affection) this.startThinking(id);
     if (!felt.reaction) this.capri.pulse();
     // what you asked for plainly happens right away (the music, the volume, an app you named): her
     // line about it comes under her answer (Claude Code, answering her chat, does things its own way)
@@ -616,6 +639,11 @@ export class Chat {
         }
       }
       this.history.pop();
+      if (affection) {
+        this.panel.setChatBusy(false);
+        this.actionTurn = false;
+        return;
+      }
       this.panel.setFace('wide');
       // too busy or gone even after trying other models (main.js): said plainly, not the server's JSON
       const known = { busy: 'swamped', gone: 'gone', credit: 'credit', badkey: 'badkey', refused: 'refused' }[res.code];

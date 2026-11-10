@@ -22,6 +22,7 @@ import { Pc } from './pc.js';
 import { Reminders, clock } from './reminders.mjs';
 import { Bond } from './bond.js';
 import { Jealousy } from './jealousy.js';
+import { devLog } from './dev-log.js';
 import { Ring } from './ring.js';
 import { applyTheme, applyWindowTheme, resolveTheme, askedTheme } from './themes.js';
 import { classify } from './mood.js';
@@ -117,7 +118,7 @@ async function boot() {
   const brain = new Brain({ capri, panel, voice, host, mission, lang: config.lang, assistant: config.assistant });
   const reminders = new Reminders({ host, list: config.reminders });
   reminders.onDue = (reminder) => {
-    console.log('[reminders] app onDue received', { id: reminder.id, text: reminder.text, at: reminder.at });
+    devLog('[reminders] app onDue received', { id: reminder.id, text: reminder.text, at: reminder.at });
     const lang = brain.lang === 'fr' ? 'fr-FR' : brain.lang === 'ru' ? 'ru-RU' : 'en-US';
     const notice = {
       line: brain.lang === 'fr'
@@ -127,7 +128,7 @@ async function boot() {
           : `Reminder finished: ${reminder.text}`,
       kind: 'remind',
     };
-    console.log('[reminders] requesting top-right notice', notice);
+    devLog('[reminders] requesting top-right notice', notice);
     panel.notice(notice);
     host.reminderNotification({
       title: brain.lang === 'fr' ? 'Rappel' : brain.lang === 'ru' ? 'Напоминание' : 'Reminder',
@@ -285,7 +286,7 @@ async function boot() {
     refreshHit();
     hoverChip();
     // tickling her, patting her head, shaking the pointer about, resting it by her (heart.js)
-    heart.moved(mouse.x, mouse.y);
+    heart.moved(mouse.x, mouse.y, performance.now(), onHer);
     if (!capri.hidden && capri.stance !== 'fall') {
       const h = onHer && capri.head();
       const onHead = onHer && !capri.pettingRefused && Math.hypot(mouse.x - h.x, mouse.y - (h.y - 34 * capri.scale)) < 62 * capri.scale;
@@ -399,7 +400,10 @@ async function boot() {
     if (panel.visible && !(double && panel.current?.kind === 'idle')) panel.hide();
     else brain.status({ ...click, double });
   };
+  capri.onDragStart = () => heart.dragStarted();
   capri.onDrop = (drop) => heart.dragged(drop);
+  capri.onDragMove = (x, y, now) => heart.dragMoved(x, y, now);
+  capri.onKnockout = () => heart.knockedOut();
   // she says hi now and then when she lands on another screen (heart.dragged above handles the throws)
   capri.onThrown = ({ how } = {}) => {
     const hello = brain.t.screens?.hello;

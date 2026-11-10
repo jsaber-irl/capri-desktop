@@ -43,10 +43,13 @@ export const buttons = (...list) => {
 
 // An on/off row.
 export function toggle(label, on, onChange, { hint = '', disabled = false } = {}) {
-  const sw = el('button', `ring__switch${on ? ' is-on' : ''}`);
+  // A disabled option is unavailable right now; show it as off so the visual state cannot
+  // suggest that a dependent feature is active while its parent or platform support is absent.
+  const active = Boolean(on) && !disabled;
+  const sw = el('button', `ring__switch${active ? ' is-on' : ''}`);
   sw.type = 'button';
   sw.setAttribute('role', 'switch');
-  sw.setAttribute('aria-checked', String(Boolean(on)));
+  sw.setAttribute('aria-checked', String(active));
   sw.setAttribute('aria-label', label);
   sw.disabled = disabled;
   sw.addEventListener('click', (e) => {

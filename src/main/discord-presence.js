@@ -1,5 +1,7 @@
 'use strict';
 
+const { DEV } = require('./logger');
+
 const CLIENT_ID = '1566378293899296909';
 const GITHUB_URL = 'https://github.com/jsaber-irl/capri-desktop';
 const BUTTONS = [{ label: 'GitHub Repository', url: GITHUB_URL }];
@@ -50,7 +52,7 @@ function createDiscordPresence({ RPC, logger = console, clientId = CLIENT_ID } =
     let ready = false;
 
     client.on('disconnected', () => {
-        console.log('[Discord] RPC disconnected');
+        if (DEV) logger.log('[Discord] RPC disconnected');
         if (rpc === client) rpc = null;
     });
     client.on('error', (error) => {
@@ -63,7 +65,7 @@ function createDiscordPresence({ RPC, logger = console, clientId = CLIENT_ID } =
             return;
         }
 
-        logger.log('[Discord] Capri Rich Presence connected');
+        if (DEV) logger.log('[Discord] Capri Rich Presence connected');
         try {
             await client.setActivity({
                 details,
@@ -74,7 +76,7 @@ function createDiscordPresence({ RPC, logger = console, clientId = CLIENT_ID } =
                 buttons: BUTTONS,
                 instance: false,
             });
-            logger.log('[Discord] Rich Presence activated');
+            if (DEV) logger.log('[Discord] Rich Presence activated');
         } catch (error) {
             logRpcError('Activity error', error, logger);
         }
@@ -105,7 +107,7 @@ function createDiscordPresence({ RPC, logger = console, clientId = CLIENT_ID } =
     if (!client) return;
 
     await closeClient(client);
-    logger.log('[Discord] Capri Rich Presence stopped');
+    if (DEV) logger.log('[Discord] Capri Rich Presence stopped');
     }
 
     return {

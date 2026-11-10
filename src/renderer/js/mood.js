@@ -24,6 +24,8 @@ export const TAGS = ['calm', 'happy', 'laugh', 'annoyed', 'angry', 'sad', 'shy',
 const MINUTE = 60 * 1000;
 const SHAKE_WINDOW = 10 * 1000;
 const SHAKE_RAGE_COUNT = 3;
+const KO_WINDOW = 20 * 1000;
+const KO_RAGE_COUNT = 3;
 // how fast each one wears off: the time it takes to halve
 const HALF_LIFE = { anger: 5 * MINUTE, joy: 2.5 * MINUTE, sad: 4 * MINUTE, shy: 1.5 * MINUTE };
 const BORED_FULL = 25 * MINUTE; // nobody's paid her any attention this long: as bored as she gets
@@ -81,11 +83,12 @@ const PATTERNS = {
   laughing: re(`(?:${L}(?:ха){2,}|${L}(?:ах){2,}а?|${L}(?:хе){2,}|${L}хд${R}|${L}лол${R}|${L}ржу|${L}ору${R}|${L}кек${R}|😂|🤣|😆|😹|${L}(?:ha){2,}|${L}(?:he){2,}${R}|${L}lol${R}|${L}lmao|${L}rofl|${L}xd${R})`),
   compliment: re([
     `${L}(?:ты|вы)\\s+(?:такая\\s+|очень\\s+|самая\\s+|прям\\s+|просто\\s+|реально\\s+|сегодня\\s+|всё\\s+же\\s+)*(?:классн|крут|мил|красив|умн|лучш|прелест|чудесн|потрясающ|шикарн|няш|кавайн|замечательн|офигенн|кл[её]в|хорош|прекрасн|великолепн|восхитительн|забавн|смешн|топ${R}|огонь|секси|горяч)`,
-    `${L}(?:умничка|умница|красотка|красавица|милашка|прелесть|солнышко|зайка|лапочка|котик|хорошая\\s+девочка|молодец|ты\\s+(?:мне\\s+)?нравишься|мне\\s+нравится\\s+(?:с\\s+тобой|твой|твоя|твои|как\\s+ты))`,
-    `${L}you(?:'re|\\s+are)\\s+(?:so\\s+|really\\s+|the\\s+|such\\s+a\\s+|very\\s+|pretty\\s+)*(?:cute|beautiful|pretty|awesome|amazing|best|smart|gorgeous|adorable|cool|great|lovely|funny|clever|sweet|hot|cutest)`,
-    `${L}(?:i\\s+like\\s+you|good\\s+girl|well\\s+done|nice\\s+job|great\\s+job|good\\s+job)`,
+    `${L}(?:умничка|умница|красотка|красавица|милашка|прелесть|солнышко|зайка|лапочка|котик|хорошая\\s+девочка|молодец|ты\\s+(?:мне\\s+)?нравишься|ты\\s+мне\\s+(?:очень\\s+)?нравишься|мне\\s+нравится\\s+(?:с\\s+тобой|твой|твоя|твои|как\\s+ты)|ты\\s+такая\\s+милая)`,
+    `${L}(?:tu\\s+es\\s+(?:si\\s+)?(?:adorable|mignon(?:ne)?|adorable)|tu\\s+comptes\\s+(?:beaucoup\\s+)?pour\\s+moi|je\\s+tiens\\s+[àa]\\s+toi|tu\\s+m['’]as\\s+manqu[ée])`,
+    `${L}you(?:['’]re|\\s+are)\\s+(?:so\\s+|really\\s+|the\\s+|such\\s+a\\s+|very\\s+|pretty\\s+)*(?:cute|beautiful|pretty|awesome|amazing|best|smart|gorgeous|adorable|cool|great|lovely|funny|clever|sweet|hot|cutest)`,
+    `${L}(?:i\\s+like\\s+you|i\\s+really\\s+like\\s+you|you\\s+mean\\s+(?:a\\s+lot|so\\s+much)\\s+to\\s+me|i\\s+missed\\s+you|good\\s+girl|well\\s+done|nice\\s+job|great\\s+job|good\\s+job)`,
   ].join('|')),
-  love: re(`${L}(?:люблю\\s+тебя|я\\s+тебя\\s+люблю|влюбил|влюбл[её]н|обожаю\\s+тебя|i\\s+love\\s+you|love\\s+you|luv\\s+u)`),
+  love: re(`${L}(?:люблю\\s+тебя|я\\s+тебя\\s+люблю|влюбил|влюбл[её]н|обожаю\\s+тебя|я\\s+обожаю\\s+тебя|i\\s+love\\s+you|love\\s+you|luv\\s+u|i\\s+adore\\s+you|je\\s+t['’]aime|je\\s+t['’]adore)`),
   flirt: re(`${L}(?:обним|поцелу|целую|чмок|обнимаш|давай\\s+встречаться|будь\\s+моей|выходи\\s+за\\s+меня|hug|kiss|marry\\s+me|be\\s+my\\s+girlfriend)`),
   thanks: re(`${L}(?:спасибо|спс${R}|благодар|пасиб|thank|thx${R}|ty${R})`),
   apology: re(`${L}(?:прости|извини|сорри|сори${R}|прошу\\s+прощения|виноват|не\\s+обижайся|не\\s+злись|sorry|my\\s+bad|apologi[sz]e|forgive\\s+me|pardon|d[ée]sol[ée](?:e|es|s)?|excuse[-\\s]+moi|je\\s+m['’]excuse)`),
@@ -217,6 +220,7 @@ export class Mood {
     this.pokes = [];         // when you clicked her lately
     this.drags = [];
     this.shakes = [];
+    this.knockouts = [];
     this.listeners = new Set();
     this.lastTick = now;
     this.current = moodOf(this.v);
@@ -433,6 +437,20 @@ export class Mood {
     this.cause = { tag: 'shake', quote: '', at: now };
     this.origin = 'shake';
     this.reasonTag = 'shake';
+    this.reasonDetail = '';
+    this.changed(now);
+    return 'rage';
+  }
+
+  knockedOut(now = Date.now()) {
+    this.knockouts = [...this.knockouts.filter((t) => now - t < KO_WINDOW), now];
+    this.contact(now);
+    if (this.knockouts.length < KO_RAGE_COUNT) return null;
+    this.knockouts = [];
+    this.apply({ anger: 0.65, affection: -0.02 });
+    this.cause = { tag: 'ko', quote: '', at: now };
+    this.origin = 'ko';
+    this.reasonTag = 'ko';
     this.reasonDetail = '';
     this.changed(now);
     return 'rage';

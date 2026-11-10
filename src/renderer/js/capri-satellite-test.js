@@ -1,4 +1,5 @@
 import { SATELLITE_WAIT_MS } from './satellite-wait.js';
+import { devLog } from './dev-log.js';
 
 // The terminal and scripts/demo.js both dispatch this test into the running renderer. It goes
 // through Chat.runManagedRequest, the same timed request wrapper used by real model responses.
@@ -22,7 +23,7 @@ export class CapriSatelliteTest {
   async execute() {
     const prefix = '[CapriSatelliteTest]';
     const say = (message) => {
-      console.log(`${prefix} ${message}`);
+      devLog(`${prefix} ${message}`);
       this.log(`${prefix} ${message}`);
     };
     say('Test satellite appelé');

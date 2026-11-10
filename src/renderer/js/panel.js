@@ -1,6 +1,7 @@
 // The transmission panel next to Capri, and the one-line ticker she wears while Claude works.
 
 import { clamp, ease, reducedMotion } from './util.js';
+import { devLog } from './dev-log.js';
 
 const NOISE = '▚▞▙▟░▒#%&/\\<>01XZ';
 
@@ -94,7 +95,7 @@ export class Panel {
     this.chatClose.addEventListener('click', () => this.hide());
 
     this.noticeEl = document.getElementById('notice');
-    console.log('[reminder-notice] DOM element', this.noticeEl);
+    devLog('[reminder-notice] DOM element', this.noticeEl);
     this.noticeEl?.querySelector('.notice__close')?.addEventListener('click', (event) => {
       event.stopPropagation();
       this.hideNotice();
@@ -535,12 +536,12 @@ export class Panel {
   notice(msg) {
     const el = this.noticeEl;
     if (!el) {
-      console.log('[reminder-notice] cannot display: #notice is missing', msg);
+      devLog('[reminder-notice] cannot display: #notice is missing', msg);
       return;
     }
     const line = el.querySelector('.notice__line');
     if (!line) {
-      console.log('[reminder-notice] cannot display: .notice__line is missing', msg);
+      devLog('[reminder-notice] cannot display: .notice__line is missing', msg);
       return;
     }
     line.textContent = msg.line || '';
@@ -549,7 +550,7 @@ export class Panel {
     el.hidden = false;
     this.onNotice?.(true);
     const rect = el.getBoundingClientRect();
-    console.log('[reminder-notice] displayed', {
+    devLog('[reminder-notice] displayed', {
       line: line.textContent,
       hidden: el.hidden,
       rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
@@ -557,7 +558,7 @@ export class Panel {
     this.noticeSound.pause();
     this.noticeSound.currentTime = 0;
     this.noticeSound.play().then(() => {
-      console.log('[reminder-notice] notification sound played');
+      devLog('[reminder-notice] notification sound played');
     }).catch((error) => {
       console.error('[reminder-notice] notification sound failed', error);
     });

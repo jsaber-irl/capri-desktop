@@ -11,6 +11,8 @@ const {
   clipboard, ClipboardItem, dialog, powerMonitor,
 } = require('electron');
 const packageInfo = require('../../package.json');
+const { checkboxState } = require('./menu-state');
+const { devLog } = require('./logger');
 
 const config = require('./config');
 const { TRAY, LANGS } = require('./labels');
@@ -541,7 +543,7 @@ function rearmOverlay() {
   overlay.setAlwaysOnTop(true, 'screen-saver');
   fitOverlay();
   sendCommand('rearmed'); // click-through again: she waits for the pointer to be on her
-  console.log('[capri] mouse hook set up again');
+  devLog('[capri] mouse hook set up again');
 }
 
 // Back on top of everything, the taskbar included (it comes up over her when it's clicked, and when a window
@@ -603,7 +605,7 @@ function createOverlay() {
   if (DEV) {
     overlay.webContents.on('console-message', (e) => {
       const { level, message, lineNumber, sourceId } = e;
-      console.log(`[renderer:${level}] ${message} (${String(sourceId).split('/').pop()}:${lineNumber})`);
+      devLog(`[renderer:${level}] ${message} (${String(sourceId).split('/').pop()}:${lineNumber})`);
     });
     if (process.env.CAPRI_DEVTOOLS) overlay.webContents.openDevTools({ mode: 'detach' });
   }
@@ -1197,8 +1199,8 @@ function buildTray() {
       submenu: [
         { label: t.emotions, type: 'checkbox', checked: cfg.emotions !== false, click: (item) => updateConfig({ emotions: item.checked }) },
         { label: t.life, type: 'checkbox', checked: cfg.life !== false, click: (item) => updateConfig({ life: item.checked }) },
-        { label: t.musicAware, type: 'checkbox', checked: cfg.musicAware !== false, enabled: process.platform === 'win32', click: (item) => updateConfig({ musicAware: item.checked }) },
-        { label: t.dj, type: 'checkbox', checked: cfg.dj !== false, enabled: process.platform === 'win32' && cfg.musicAware !== false, click: (item) => updateConfig({ dj: item.checked }) },
+        { label: t.musicAware, type: 'checkbox', ...checkboxState(process.platform === 'win32', cfg.musicAware !== false), click: (item) => updateConfig({ musicAware: item.checked }) },
+        { label: t.dj, type: 'checkbox', ...checkboxState(process.platform === 'win32' && cfg.musicAware !== false, cfg.dj !== false), click: (item) => updateConfig({ dj: item.checked }) },
         { label: t.pcReact, type: 'checkbox', checked: cfg.pcReact !== false, click: (item) => updateConfig({ pcReact: item.checked }) },
         { label: t.breaks, type: 'checkbox', checked: cfg.breaks !== false, click: (item) => updateConfig({ breaks: item.checked }) },
         { type: 'separator' },
@@ -1222,7 +1224,7 @@ function buildTray() {
         { label: t.rhythm, type: 'checkbox', checked: cfg.rhythm === true, click: (item) => updateConfig({ rhythm: item.checked }) },
         { type: 'separator' },
         { label: t.ears, type: 'checkbox', checked: cfg.ears === true, click: (item) => updateConfig({ ears: item.checked }) },
-        { label: t.converse, type: 'checkbox', checked: cfg.converse === true, enabled: cfg.ears === true, click: (item) => updateConfig({ converse: item.checked }) },
+        { label: t.converse, type: 'checkbox', ...checkboxState(cfg.ears === true, cfg.converse === true), click: (item) => updateConfig({ converse: item.checked }) },
         { label: `${t.pushToTalk}: ${prettyKey(cfg.pushToTalk)}`, enabled: false },
         { type: 'separator' },
         { label: t.visionSetup, click: () => sendCommand('setupVision') },
@@ -1234,8 +1236,8 @@ function buildTray() {
     {
       label: t.hands,
       submenu: [
-        { label: t.handsOn, type: 'checkbox', checked: cfg.hands === true, enabled: process.platform === 'win32', click: (item) => updateConfig({ hands: item.checked }) },
-        { label: t.handsType, type: 'checkbox', checked: cfg.handsType !== false, enabled: process.platform === 'win32' && cfg.hands === true, click: (item) => updateConfig({ handsType: item.checked }) },
+        { label: t.handsOn, type: 'checkbox', ...checkboxState(process.platform === 'win32', cfg.hands === true), click: (item) => updateConfig({ hands: item.checked }) },
+        { label: t.handsType, type: 'checkbox', ...checkboxState(process.platform === 'win32' && cfg.hands === true, cfg.handsType !== false), click: (item) => updateConfig({ handsType: item.checked }) },
       ],
     },
     {
@@ -1310,7 +1312,7 @@ function buildTray() {
     },
     { label: t.wander, type: 'checkbox', checked: cfg.wander, click: (item) => updateConfig({ wander: item.checked }) },
     { label: t.possess, type: 'checkbox', checked: cfg.possess, click: (item) => updateConfig({ possess: item.checked }) },
-    { label: t.possessMove, type: 'checkbox', checked: cfg.possess && cfg.possessMove !== false, enabled: cfg.possess, click: (item) => updateConfig({ possessMove: item.checked }) },
+    { label: t.possessMove, type: 'checkbox', ...checkboxState(cfg.possess, cfg.possessMove !== false), click: (item) => updateConfig({ possessMove: item.checked }) },
     {
       label: t.rest,
       submenu: [['corner', t.restCorner], ['taskbar', t.restTaskbar]].map(([rest, label]) => ({
@@ -1781,7 +1783,7 @@ function rest(level) {
   if (!['awake', 'sleep', 'deep'].includes(level) || level === restLevel) return;
   const was = restLevel;
   restLevel = level;
-  if (DEV) console.log(`[capri] rest: ${was} -> ${level}`);
+  devLog(`[capri] rest: ${was} -> ${level}`);
   if (level === 'deep') {
     windowWatch?.stop();
     windowWatch = null;
@@ -1866,7 +1868,7 @@ function registerIpc() {
   });
   ipcMain.on('capri:animation', (event, name) => {
     if (!DEV || event.sender !== overlay?.webContents) return;
-    console.log(`[capri] animation: ${String(name || '').slice(0, 100)}`);
+    devLog(`[capri] animation: ${String(name || '').slice(0, 100)}`);
   });
 
   // Lancement d'un jeu Roblox
@@ -2388,7 +2390,7 @@ function applyRender() {
     app.commandLine.appendSwitch('enable-unsafe-swiftshader'); // her drawing still needs WebGL, done on the CPU
   }
   // --dev: what Chromium ended up drawing with
-  if (DEV) app.whenReady().then(() => setTimeout(() => console.log('[capri] display:', render, JSON.stringify(app.getGPUFeatureStatus())), 4000));
+  if (DEV) app.whenReady().then(() => setTimeout(() => devLog('[capri] display:', render, JSON.stringify(app.getGPUFeatureStatus())), 4000));
 }
 
 // Her own removal: all of what she put on this PC comes off, then (if she came from the installer) the installer's

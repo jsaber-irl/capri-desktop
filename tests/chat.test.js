@@ -40,6 +40,14 @@ test('cyberpunk thinking commands are localized and simple thanks or apologies g
   assert.equal(quickReply('Merci, peux-tu continuer ?'), null, 'a substantive request still goes to the model');
 });
 
+test('affection gets an immediate localized line while keeping model answers available', async () => {
+  const { affectionReply } = await load('chat.js');
+  for (const [text, lang, tags] of [['Je t’aime', 'fr', ['love']], ['I love you', 'en', ['love']], ['Я тебя люблю', 'ru', ['love']]]) {
+    assert.ok(affectionReply(text, lang, tags));
+  }
+  assert.equal(affectionReply('What time is it?', 'en', []), null);
+});
+
 test('thinking commands type one at a time, clear, and then type the next command', async () => {
   const { Chat, thinkingCommands } = await load('chat.js');
   const previousSetInterval = globalThis.setInterval;

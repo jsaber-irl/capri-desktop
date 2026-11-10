@@ -182,6 +182,9 @@ export class Capri {
     this.mouse = null; // last pointer position seen
 
     this.onMove = null;     // her head moved on screen
+    this.onKnockout = null; // () => rage on her next recovery, if she's been KO'd repeatedly
+    this.onDragStart = null; // dragging begins after the pointer has moved away from the grab point
+    this.onDragMove = null; // (x, y, now): pointer movement while she is being carried
     this.onTeleport = null; // ('start' | 'end')
     this.onClick = null;
     this.onMenu = null;   // right-click on her
@@ -2444,18 +2447,20 @@ export class Capri {
     this.lying = { c: { x: flight.c.x, y: at.y }, side };
     this.layFlightDown();
     this.perform('ko');
+    const rageOnRecovery = this.onKnockout?.() === true;
     marks.dizzy(this.fx, () => this.screenPoint(SPRITE.head.x, SPRITE.head.y - 20), { life: 2200 });
     this.onTeleport?.('end');
     this.place();
     setTimeout(() => {
       if (this.throwId !== id || this.stance !== 'down') return;
       this.busy = false;
-      this.perform('shake').then(() => {
+      this.perform('shake').then(async () => {
         if (this.throwId !== id) return;
         this.setStance('stand');
         this.pos.y = this.floor;
-        this.perform('land');
+        await this.perform('land');
         this.onThrown?.({ how: 'ko', hard: true, hits: flight.hits });
+        if (rageOnRecovery && this.throwId === id) this.react('rage');
         this.place();
       });
     }, 1400);
@@ -2655,6 +2660,7 @@ window.addEventListener('mousemove', (e) => {
             if (!down.handstand) this.pickUp(down);
             this.dragging = true;
             this.nudge();
+            this.onDragStart?.();
 
             // Si elle ne fait pas le poirier, comportement habituel.
             if (!down.handstand) {
@@ -2716,6 +2722,7 @@ window.addEventListener('mousemove', (e) => {
 
             this.p.glitchSeed = Math.random() * 100;
             this.place();
+            this.onDragMove?.(e.clientX, e.clientY, now);
         }
 
         return;

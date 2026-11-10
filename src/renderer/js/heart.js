@@ -43,6 +43,8 @@ export class Heart {
     this.aiReady = true;     // app.js: false while her chat has nothing to answer with
     this.onConnect = null;   // () => void: the "Connect" button of what she says then (her main menu)
     this.shake = new Shake();
+    this.dragShakeActive = false;
+    this.dragShook = false;
     this.at = null;          // the pointer: { x, y, since, near, told } (moved())
     this.sampledAt = -Infinity;
     this.lastRemark = 0;
@@ -117,8 +119,15 @@ export class Heart {
 
   event(name, detail) {
     if (this.enabled) {
+      const angry = name === 'petted' && this.mood.mood === 'angry';
       if (name === 'jealousy') this.mood.event(name, Date.now(), detail);
       else this.mood.event(name);
+      if (name === 'petted') this.mood.shakes = [];
+      if (angry) {
+        this.mood.apply({ anger: -0.12 });
+        this.mood.changed();
+        this.capri.react('pout');
+      }
     }
   }
 
@@ -169,6 +178,12 @@ export class Heart {
   // dizzy after a few in a row, otherwise now and then a word about it.
   dragged({ ms = 0, where = 'floor' } = {}) {
     if (!this.enabled) return;
+    this.shake.reset();
+    this.dragShakeActive = false;
+    if (this.dragShook) {
+      this.dragShook = false;
+      return;
+    }
     if (this.mood.dragged() === 'dizzy') {
       setTimeout(() => {
         this.capri.react('dizzy');
@@ -180,6 +195,47 @@ export class Heart {
     const m = this.t.mouse;
     const lines = ms > CARRY_MS ? m.carry : Math.random() < 0.35 ? m.grab : where === 'window' ? m.dropWindow : m.dropFloor;
     setTimeout(() => this.remark({ line: pick(lines), face: 'look' }), 800);
+  }
+
+  // Capri reports pointer motion only after she's actually picked up. This keeps a fast
+  // drag from being mistaken for a stroke over her mane, while using the same shake detector.
+  dragStarted() {
+    this.shake.reset();
+    this.dragShakeActive = true;
+    this.dragShook = false;
+  }
+
+  dragMoved(x, y, now = performance.now()) {
+    if (!this.enabled) return;
+    if (!this.dragShakeActive) {
+      this.dragStarted();
+    }
+    if (this.shake.move(x, now)) {
+      this.dragShook = true;
+      this.shakeReaction();
+    }
+  }
+
+  shakeReaction(now = performance.now()) {
+    if (this.mood.shaken() === 'rage') {
+      this.capri.react('rage', this.towardPointer());
+      this.panel.say({ kind: 'error', face: 'many', line: pick(this.t.mouse.shakeAngry), hold: 3200 });
+      this.zapLater();
+      return;
+    }
+    if (Math.random() < 0.7
+      && this.remark({ line: pick(this.t.mouse.shake), face: 'wide' }, { now })
+      && this.capri.stance === 'stand') {
+      this.capri.react('startle', this.towardPointer());
+    }
+  }
+
+  knockedOut() {
+    if (!this.enabled) return false;
+    if (this.mood.knockedOut() !== 'rage') return false;
+    // The KO animation owns Capri until she gets back up; capri.js plays the rage act after recovery.
+    this.voice.play('rage');
+    return true;
   }
 
   // ---------- what the pointer is up to (not just over her) ----------
@@ -200,7 +256,7 @@ export class Heart {
   }
 
   // The pointer moved anywhere on her screen (app.js): shaken about, or coming up to her.
-  moved(x, y, now = performance.now()) {
+  moved(x, y, now = performance.now(), overCapri = false) {
     if (!this.enabled || now - this.sampledAt < SAMPLE_MS) return;
     this.sampledAt = now;
     const h = this.capri.head();
@@ -210,17 +266,11 @@ export class Heart {
       this.at = { x, y, since: now, near, told: false };
       if (near && was && !was.near && Math.random() < 0.2) this.remark({ line: pick(this.t.mouse.near), face: 'smug' }, { now });
     }
-    if (this.shake.move(x, now)) {
-      if (this.mood.shaken() === 'rage') {
-        this.capri.react('rage', this.towardPointer());
-        this.panel.say({ kind: 'error', face: 'many', line: pick(this.t.mouse.shakeAngry), hold: 3200 });
-        this.zapLater();
-      } else if (Math.random() < 0.7
-        && this.remark({ line: pick(this.t.mouse.shake), face: 'wide' }, { now })
-        && this.capri.stance === 'stand') {
-        this.capri.react('startle', this.towardPointer());
-      }
-    }
+    // Capri's mane strokes also make quick left-right turns. She handles those in capri.stroke();
+    // don't let the global shake detector count the same gesture as shaking her around.
+    if (!this.capri.dragging && (!overCapri || this.capri.pet)) {
+      this.shake.reset();
+    } else if (!this.capri.dragging && this.shake.move(x, now)) this.shakeReaction(now);
   }
 
   // Every few seconds: the pointer left to rest by her, and with no AI, a word about it now and then.
@@ -313,14 +363,8 @@ export class Heart {
     this.calmUntil = performance.now() + COOLDOWN * 2;
     this.clearJealousy();
     const angry = this.mood.mood === 'angry';
-    this.mood.event('petted');
-    if (angry) {
-      // still angry: she shakes it off, but it helps a little
-      this.mood.apply({ anger: -0.12 });
-      this.mood.changed();
-      this.capri.react('pout');
-      return;
-    }
+    this.event('petted');
+    if (angry) return; // she calms down a little; event() also handles her reaction
     this.capri.react('shy');
     const h = this.capri.head();
     marks.heart(this.capri.fx, h.x, h.top + 30, { scale: this.capri.scale * 1.5 });

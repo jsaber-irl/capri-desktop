@@ -168,7 +168,7 @@ test('the pointer shaken about: a remark and a start', async () => {
   const { heart, said, reacted } = await world();
   const back = random(0.1);
   let t = 50000;
-  for (const x of [900, 1000, 900, 1000, 900, 1000, 900, 1000]) heart.moved(x, 300, (t += 100));
+  for (const x of [900, 1000, 900, 1000, 900, 1000, 900, 1000]) heart.moved(x, 300, (t += 100), true);
   back();
   assert.equal(said.length, 1);
   const { lifeLines } = await load('lines-life.js');
@@ -184,7 +184,7 @@ test('shaking Capri repeatedly makes her angry and she reacts', async () => {
   const back = random(0.1);
   try {
     let t = 50000;
-    const shake = () => heart.moved(900 + shakes * 100, 300, (t += 20));
+    const shake = () => heart.moved(900 + shakes * 100, 300, (t += 20), true);
     shake();
     shake();
     assert.notEqual(heart.mood.mood, 'angry');
@@ -202,16 +202,65 @@ test('shaking Capri repeatedly makes her angry and she reacts', async () => {
   }
 });
 
+test('shaking Capri while she is being dragged uses the same shake and anger response', async () => {
+  const { heart, capri, reacted } = await world();
+  heart.zapLater = () => {};
+  capri.dragging = true;
+  const back = random(0.1);
+  try {
+    let t = 50000;
+    const gesture = () => {
+      heart.shake.reset();
+      for (const x of [100, 200, 100, 200, 100, 200]) {
+        heart.dragMoved(x, 300, (t += 100));
+        heart.moved(x, 300, t, false); // app's ordinary pointer path runs after Capri's drag path
+      }
+    };
+    gesture();
+    gesture();
+    assert.notEqual(heart.mood.mood, 'angry');
+    gesture();
+    assert.equal(heart.mood.mood, 'angry');
+    assert.equal(heart.mood.reasonTag, 'shake');
+    assert.ok(reacted.includes('rage'));
+  } finally {
+    back();
+  }
+});
+
+test('repeated KO events make her angry and play her rage voice', async () => {
+  const { heart, reacted } = await world();
+  let voice = '';
+  heart.voice = { play: (name) => { voice = name; } };
+  assert.equal(heart.knockedOut(), false);
+  assert.equal(heart.knockedOut(), false);
+  assert.equal(heart.knockedOut(), true);
+  assert.equal(heart.mood.cause.tag, 'ko');
+  assert.equal(voice, 'rage');
+  assert.deepEqual(reacted, []); // Capri waits for KO recovery before playing the rage animation.
+});
+
 test('with emotions off she says nothing about the pointer', async () => {
   const { heart, said } = await world();
   heart.enabled = false;
   const back = random(0.01);
   let t = 50000;
-  for (const x of [900, 1000, 900, 1000, 900, 1000, 900, 1000]) heart.moved(x, 300, (t += 100));
+  for (const x of [900, 1000, 900, 1000, 900, 1000, 900, 1000]) heart.moved(x, 300, (t += 100), true);
   heart.moved(560, 500, 60000);
   heart.watch(90000);
   back();
   assert.equal(said.length, 0);
+});
+
+test('shake detection ignores movement outside Capri and mane petting resets the shake trace', async () => {
+  const { heart } = await world();
+  let shakes = 0;
+  heart.shake = { move: () => { shakes++; return true; }, reset() { shakes = 0; } };
+  heart.moved(900, 300, 50000, false);
+  assert.equal(shakes, 0);
+  heart.capri.pet = { active: true };
+  heart.moved(900, 300, 50100, true);
+  assert.equal(shakes, 0);
 });
 
 test('stroking her mane clears jealous anger', async () => {

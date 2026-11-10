@@ -4,7 +4,7 @@
 // its battery's charge, disk and memory and what its IP is, set its sound, start a snip, get its
 // windows out of the way or side by side, switch it dark or light, and lock it, put it to sleep,
 // shut it down or restart it (those only after your click in her chat). Keeping it in shape is in
-// upkeep.js, its sound and devices in devices.js, your windows' routines in setups.js.
+// unkeep.js, its sound and devices in devices.js, your windows' routines in setups.js.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -12,7 +12,7 @@ const { execFile } = require('node:child_process');
 const { shell, screen } = require('electron');
 
 const apps = require('./apps');
-const upkeep = require('./upkeep');
+const upkeep = require('./unkeep');
 const devices = require('./devices');
 const setups = require('./setups');
 
@@ -416,7 +416,7 @@ function act(req = {}, { display, progress = () => {} } = {}) {
   switch (req.action) {
 
     // ==========================================
-    // PC MAINTENANCE (upkeep.js)
+    // PC MAINTENANCE (unkeep.js)
     // ==========================================
 
     case 'heavy':

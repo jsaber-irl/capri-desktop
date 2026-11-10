@@ -8,6 +8,7 @@ const songs = [
   'High Forever',
 ];
 const host = window.host;
+const devLog = (...args) => { if (host?.isDev) console.log(...args); };
 const track = document.getElementById('track');
 const service = document.getElementById('service');
 const title = document.getElementById('title');
@@ -154,11 +155,36 @@ document.getElementById('next').addEventListener('click', async () => {
   await openSelected();
 });
 document.getElementById('heart').addEventListener('click', (event) => { event.currentTarget.classList.toggle('is-liked'); });
-document.getElementById('close').addEventListener('click', (event) => {
+let closeRequested = false;
+async function closePlayer(event) {
+  devLog('[music-player:close] renderer: événement reçu', event.type, {
+    target: event.target?.id || event.target?.className || event.target?.tagName,
+    defaultPrevented: event.defaultPrevented,
+  });
   event.preventDefault();
   event.stopPropagation();
-  host.musicPlayerClose();
-});
+  if (closeRequested) {
+    devLog('[music-player:close] renderer: demande déjà en cours');
+    return;
+  }
+  closeRequested = true;
+  try {
+    devLog('[music-player:close] renderer: appel host.musicPlayerClose');
+    const result = await host.musicPlayerClose();
+    devLog('[music-player:close] renderer: résultat', result);
+    if (!result?.ok) {
+      closeRequested = false;
+      console.error('Unable to close music player:', result?.error || 'IPC request failed');
+    }
+  } catch (error) {
+    closeRequested = false;
+    console.error('[music-player:close] renderer: exception', error);
+  }
+}
+const closeButton = document.getElementById('close');
+// Pointerdown remains reliable if Electron suppresses click on a frameless drag-region edge.
+// Keep click for keyboard activation; closeRequested prevents the pointer click firing twice.
+closeButton.addEventListener('click', closePlayer);
 render();
 detectSessions().catch((error) => console.error('Unable to detect music sessions:', error));
 startProgressPolling();

@@ -1,6 +1,33 @@
 'use strict';
 
 const { contextBridge, ipcRenderer } = require('electron');
+const DEV = process.env.CAPRI_DEV_MODE === '1';
+const devLog = (...args) => { if (DEV) console.log(...args); };
+
+// Route mouse close directly through the trusted preload: renderer drag-region handling can
+// suppress the subsequent click on a frameless window. Keep keyboard activation in the renderer.
+if (process.isMainFrame && window.location.pathname.endsWith('/music-player.html')) {
+  let closePending = false;
+  window.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('pointerdown', (event) => {
+      if (!event.target?.closest?.('#close')) return;
+      devLog('[music-player:close] preload: pointerdown sur #close');
+      ipcRenderer.send('music-player:close-debug', 'preload:pointerdown');
+      if (event.button !== 0 || closePending) return;
+      event.preventDefault();
+      event.stopPropagation();
+      closePending = true;
+      devLog('[music-player:close] preload: envoi direct de la fermeture');
+      ipcRenderer.invoke('music-player:close').then((result) => {
+        devLog('[music-player:close] preload: résultat fermeture directe', result);
+        if (!result?.ok) closePending = false;
+      }).catch((error) => {
+        closePending = false;
+        if (DEV) console.error('[music-player:close] preload: échec fermeture directe', error);
+      });
+    }, true);
+  }, { once: true });
+}
 
 const on = (channel) => (fn) => {
   const listener = (_e, payload) => fn(payload);
@@ -9,6 +36,7 @@ const on = (channel) => (fn) => {
 };
 
 contextBridge.exposeInMainWorld('host', {
+  isDev: DEV,
   onClaudeEvent: on('claude:event'),
   onCommand: on('capri:command'),
   farewellDone: () => ipcRenderer.send('farewell:done'),
@@ -103,7 +131,17 @@ contextBridge.exposeInMainWorld('host', {
   musicPlayerSessions: () => ipcRenderer.invoke('music-player:sessions'),
   musicPlayerTab: (request) => ipcRenderer.invoke('music-player:tab', request || {}),
   musicPlayerOpen: () => ipcRenderer.invoke('music-player:open'),
-  musicPlayerClose: () => ipcRenderer.send('music-player:close-window'),
+  musicPlayerClose: async () => {
+    devLog('[music-player:close] preload: IPC invoke envoyé');
+    try {
+      const result = await ipcRenderer.invoke('music-player:close');
+      devLog('[music-player:close] preload: réponse IPC', result);
+      return result;
+    } catch (error) {
+      if (DEV) console.error('[music-player:close] preload: IPC rejeté', error);
+      throw error;
+    }
+  },
   translationSettings: () => ipcRenderer.invoke('translation:settings'),
   translationOpen: (source) => ipcRenderer.invoke('translation:open', source || null),
   translationSetSettings: (settings) => ipcRenderer.invoke('translation:setSettings', settings || {}),
