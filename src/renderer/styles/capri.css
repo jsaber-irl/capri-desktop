@@ -1218,3 +1218,53 @@ html[data-motion='reduced'] .panel[data-kind='alert'] .panel__state {
 .senses__stop:hover { color: var(--paper); }
 
 [data-motion='reduced'] .senses__mic.is-live { animation: none; }
+/* Optional Capri cursor theme. The renderer protocol serves these local assets on every OS. */
+html[data-capri-cursor="windows"] *,
+html[data-capri-cursor="animated"] * {
+  cursor: url("../../../assets/cursors/gif/NormalSelect.gif") 4 4, auto;
+}
+html[data-capri-cursor="windows"] * {
+  cursor: url("../../../assets/cursors/ani/NormalSelect.ani") 4 4, url("../../../assets/cursors/gif/NormalSelect.gif") 4 4, auto;
+}
+html[data-capri-cursor="animated"] :is(a, button, [role="button"], input[type="button"], input[type="submit"], select, summary, label[for], .ring__sector, .ring__quote, .panel__note) {
+  cursor: url("../../../assets/cursors/gif/LinkSelect.gif") 4 4, pointer;
+}
+html[data-capri-cursor="windows"] :is(a, button, [role="button"], input[type="button"], input[type="submit"], select, summary, label[for], .ring__sector, .ring__quote, .panel__note) {
+  cursor: url("../../../assets/cursors/ani/LinkSelect.ani") 4 4, url("../../../assets/cursors/gif/LinkSelect.gif") 4 4, pointer;
+}
+html[data-capri-cursor="off"] body[data-capri-cursor-role="link"] #chip { cursor: pointer; }
+html[data-capri-cursor="animated"] body[data-capri-cursor-role="link"] #chip {
+  cursor: url("../../../assets/cursors/gif/LinkSelect.gif") 4 4, pointer;
+}
+html[data-capri-cursor="windows"] body[data-capri-cursor-role="link"] #chip {
+  cursor: url("../../../assets/cursors/ani/LinkSelect.ani") 4 4, url("../../../assets/cursors/gif/LinkSelect.gif") 4 4, pointer;
+}
+html[data-capri-cursor="animated"] :is(input:not([type]), input[type="text"], input[type="search"], input[type="url"], input[type="tel"], input[type="email"], input[type="password"], input[type="number"], textarea, [contenteditable="true"]) {
+  cursor: url("../../../assets/cursors/gif/text%20select.gif") 4 4, text;
+}
+html[data-capri-cursor="windows"] :is(input:not([type]), input[type="text"], input[type="search"], input[type="url"], input[type="tel"], input[type="email"], input[type="password"], input[type="number"], textarea, [contenteditable="true"]) {
+  cursor: url("../../../assets/cursors/ani/text%20select.ani") 4 4, url("../../../assets/cursors/gif/text%20select.gif") 4 4, text;
+}
+html[data-capri-cursor="windows"] :is(:disabled, [aria-disabled="true"]) { cursor: not-allowed; }
+html[data-capri-cursor="animated"] :is(:disabled, [aria-disabled="true"]) { cursor: not-allowed; }
+html[data-capri-cursor="animated"] [data-cursor="busy"],
+html[data-capri-cursor="animated"] [aria-busy="true"] {
+  cursor: url("../../../assets/cursors/gif/Busy.gif") 4 4, progress;
+}
+html[data-capri-cursor="windows"] :is([data-cursor="busy"], [aria-busy="true"]) {
+  cursor: url("../../../assets/cursors/ani/Busy.ani") 4 4, url("../../../assets/cursors/gif/Busy.gif") 4 4, progress;
+}
+html[data-capri-cursor="animated"] :is([data-cursor="move"], [draggable="true"]) {
+  cursor: url("../../../assets/cursors/gif/Move.gif") 4 4, move;
+}
+html[data-capri-cursor="windows"] :is([data-cursor="move"], [draggable="true"]) {
+  cursor: url("../../../assets/cursors/ani/Move.ani") 4 4, url("../../../assets/cursors/gif/Move.gif") 4 4, move;
+}
+html[data-capri-cursor="animated"] [data-cursor="resize-horizontal"] { cursor: url("../../../assets/cursors/gif/horizontal.gif") 32 32, ew-resize; }
+html[data-capri-cursor="windows"] [data-cursor="resize-horizontal"] { cursor: url("../../../assets/cursors/ani/horizontal.ani") 16 16, url("../../../assets/cursors/gif/horizontal.gif") 32 32, ew-resize; }
+html[data-capri-cursor="animated"] [data-cursor="resize-vertical"] { cursor: url("../../../assets/cursors/gif/vertical.gif") 4 4, ns-resize; }
+html[data-capri-cursor="windows"] [data-cursor="resize-vertical"] { cursor: url("../../../assets/cursors/ani/vertical.ani") 4 4, url("../../../assets/cursors/gif/vertical.gif") 4 4, ns-resize; }
+html[data-capri-cursor="animated"] [data-cursor="resize-diagonal-1"] { cursor: url("../../../assets/cursors/gif/diagonal%20resize1.gif") 4 4, nwse-resize; }
+html[data-capri-cursor="windows"] [data-cursor="resize-diagonal-1"] { cursor: url("../../../assets/cursors/ani/diagonal%20resize1.ani") 4 4, url("../../../assets/cursors/gif/diagonal%20resize1.gif") 4 4, nwse-resize; }
+html[data-capri-cursor="animated"] [data-cursor="resize-diagonal-2"] { cursor: url("../../../assets/cursors/gif/diagonal%20resize2.gif") 4 4, nesw-resize; }
+html[data-capri-cursor="windows"] [data-cursor="resize-diagonal-2"] { cursor: url("../../../assets/cursors/ani/diagonal%20resize2.ani") 4 4, url("../../../assets/cursors/gif/diagonal%20resize2.gif") 4 4, nesw-resize; }

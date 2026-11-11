@@ -923,6 +923,7 @@ const more = {
     const root = el('div');
     const size = SIZES.reduce((best, [id, scale]) => (Math.abs(scale - (cfg.scale ?? 0.8)) < Math.abs(best[1] - (cfg.scale ?? 0.8)) ? [id, scale] : best), SIZES[2])[0];
     root.append(row(m.size, seg(SIZES.map(([id, scale]) => ({ id, label: m[id], scale })), size, (id) => c.set({ scale: SIZES.find(([s]) => s === id)[1] }))));
+    root.append(toggle(m.capriCursor, cfg.capriCursor === true, (on) => c.set({ capriCursor: on })));
     root.append(row(m.rest, seg([{ id: 'corner', label: m.corner }, { id: 'taskbar', label: m.taskbar }], cfg.rest || 'corner', (id) => c.set({ rest: id }))));
     root.append(row(m.lang, null));
     root.append(seg(LANGS.map(([id, name]) => ({ id, label: name || m.auto })), cfg.langSetting ?? cfg.lang ?? 'auto', (id) => c.set({ lang: id })));

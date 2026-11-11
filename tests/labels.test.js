@@ -46,6 +46,18 @@ test('the preparation and the main menu are in the tray menu, in every language'
   for (const lang of LANGS) {
     assert.ok(TRAY[lang].prepare, `${lang}: prepare`);
     assert.ok(TRAY[lang].hub, `${lang}: hub`);
+    assert.ok(TRAY[lang].settings, `${lang}: settings`);
+    assert.ok(TRAY[lang].updates, `${lang}: updates`);
+  }
+});
+
+test('the Capri cursor setting is named in both menus in every language', async () => {
+  const path = require('node:path');
+  const { pathToFileURL } = require('node:url');
+  const { lifeLines } = await import(pathToFileURL(path.join(__dirname, '..', 'src', 'renderer', 'js', 'lines-life.js')).href);
+  for (const lang of LANGS) {
+    assert.ok(TRAY[lang].cursor, `${lang}: system menu`);
+    assert.ok(lifeLines(lang).ring.more.capriCursor, `${lang}: circular menu`);
   }
 });
 

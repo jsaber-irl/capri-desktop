@@ -64,6 +64,12 @@ async function boot() {
     document.fonts.load('400 11px "JetBrains Mono"'),
   ]);
   document.documentElement.lang = config.lang;
+  const applyCapriCursor = (enabled) => {
+    document.documentElement.dataset.capriCursor = enabled === true
+      ? (host.platform === 'win32' ? 'windows' : 'animated')
+      : 'off';
+  };
+  applyCapriCursor(config.capriCursor);
   // her animations: like Windows, full or reduced (her menu)
   const applyMotion = (setting) => {
     reducedMotion.setting = setting || 'auto';
@@ -253,7 +259,8 @@ async function boot() {
     const nr = noticeEl && !noticeEl.hidden ? noticeEl.getBoundingClientRect() : null;
     const onNotice = nr && mouse.x >= nr.left && mouse.x <= nr.right && mouse.y >= nr.top && mouse.y <= nr.bottom;
     const chipHit = onChip();
-    document.body.style.cursor = chipHit ? 'pointer' : '';
+    // Keep the biochip's link affordance in CSS so it can use the selected Capri cursor too.
+    document.body.dataset.capriCursorRole = chipHit ? 'link' : '';
     onHer = capri.hit(mouse.x, mouse.y);
     return setInteractive(Boolean(onPanel || onNotice || onHer || chipHit));
   };
@@ -789,6 +796,7 @@ async function boot() {
   });
 
   host.onConfig((cfg) => {
+    applyCapriCursor(cfg.capriCursor);
     askAiSoon(2500); // (a new AI is connected, or taken away; many changes at once ask once)
     voice.configure(cfg);
     heart.configure(cfg);

@@ -14,6 +14,7 @@ const DEFAULTS = {
   possess: true,     // now and then she dives into the window she sits on and takes it over
   possessMove: true, // ...and may shake it, carry it about the screen and bounce it (it goes back where it was)
   visible: true,
+  capriCursor: false, // use Capri's custom cursor assets in her overlay window
   welcomed: false,   // she has introduced herself (her welcome panel)
   assistant: 'auto', // the coding assistant she watches: 'claude' or 'codex' ('auto': whichever has her hooks)
   linked: false,     // a Claude Code event has reached her at least once

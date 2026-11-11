@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capri · Mise à jour</title>
+  <link rel="stylesheet" href="styles/version.css">
+  <script src="js/version.js" defer></script>
+</head>
+<body>
+  <main class="version">
+    <header class="version__header">
+      <span class="version__sigil" aria-hidden="true">C</span>
+      <div class="version__heading"><p class="eyebrow" id="eyebrow"></p><h1 id="title"></h1></div>
+      <button class="version__close" id="close" type="button" aria-label="Fermer">×</button>
+    </header>
+
+    <section class="version__comparison" aria-label="Comparaison des versions">
+      <div><span class="eyebrow" id="installed-label"></span><strong id="installed-version">—</strong></div>
+      <span class="version__arrow" aria-hidden="true">⇄</span>
+      <div><span class="eyebrow" id="github-label"></span><strong id="github-version">—</strong></div>
+    </section>
+
+    <section class="version__result" id="result" aria-live="polite" aria-atomic="true">
+      <span class="version__indicator" id="indicator" aria-hidden="true">◈</span>
+      <h2 id="result-title"></h2>
+      <p id="result-message"></p>
+    </section>
+
+    <footer class="version__footer">
+      <button id="repository" class="button button--main" type="button"></button>
+      <button id="check" class="button" type="button"></button>
+    </footer>
+  </main>
+</body>
+</html>

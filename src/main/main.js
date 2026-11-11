@@ -45,6 +45,7 @@ const { createIncomingCall } = require('./incoming-call');
 const { createChessWindow } = require('./chess-window');
 const { createMusicPlayer } = require('./music-player');
 const { createTranslationWindow } = require('./translation-window');
+const { createVersionWindow } = require('./version-window');
 const { createStructuredMemory } = require('./structured-memory');
 const { translateSource } = require('./translator');
 const { createTextDocument } = require('./documents');
@@ -356,6 +357,14 @@ const translationWindow = createTranslationWindow({
       return { ok: false, error: error.message };
     }
   },
+});
+const versionWindow = createVersionWindow({
+  BrowserWindow,
+  ipcMain,
+  shell,
+  preload: path.join(__dirname, '..', 'version-preload.js'),
+  protocolUrl: 'capri://app/src/renderer/version.html',
+  packageInfo,
 });
 let presenceTimer = null;
 let senseState = {};    // which senses are live right now (the overlay says): { eyes, ears, listening }
@@ -1150,6 +1159,10 @@ function buildTray() {
     { label: t.ring, click: () => sendCommand('ring') },
     { label: t.custom, click: () => sendCommand('customize') },
     { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
+    { label: t.settings, submenu: [
+      { label: t.cursor, type: 'checkbox', checked: cfg.capriCursor === true, click: (item) => updateConfig({ capriCursor: item.checked }) },
+      { label: t.updates, click: () => versionWindow.show() },
+    ] },
     { type: 'separator' },
     {
       label: t.discord,

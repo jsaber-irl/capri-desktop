@@ -475,6 +475,7 @@ export const LIFE_LINES = {
       },
       more: {
         size: 'Размер', small: 'Малая', medium: 'Средняя', large: 'Большая',
+        capriCursor: 'Использовать курсор Capri',
         rest: 'Когда отдыхает', corner: 'В углу', taskbar: 'На панели задач',
         lang: 'Язык', auto: 'Авто',
         theme: 'Стиль её окон', themeClassic: 'Классический', themeNightCity: 'Найт-Сити',
@@ -962,6 +963,7 @@ export const LIFE_LINES = {
       },
       more: {
         size: 'Size', small: 'Small', medium: 'Medium', large: 'Large',
+        capriCursor: 'Use Capri cursor',
         rest: 'When she rests', corner: 'In her corner', taskbar: 'On the taskbar',
         lang: 'Language', auto: 'Auto',
         theme: 'Her window style', themeClassic: 'Classic', themeNightCity: 'Night City',
@@ -2036,6 +2038,7 @@ fr: {
 
     more: {
       size: 'Taille',
+      capriCursor: 'Utiliser le curseur Capri',
       small: 'Petite',
       medium: 'Moyenne',
       large: 'Grande',

@@ -21,6 +21,10 @@ Module._load = function load(request, ...rest) {
 const config = require('../src/main/config.js');
 Module._load = realLoad;
 
+test('the Capri cursor is opt-in until the user enables it', () => {
+  assert.equal(config.DEFAULTS.capriCursor, false);
+});
+
 const onDisk = () => JSON.parse(fs.readFileSync(config.file(), 'utf8'));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 

@@ -1,4 +1,4 @@
-## **Project Capricorn (2.3.0)**
+## **Project Capricorn (2.3.1)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -71,7 +71,7 @@ Windows may display a SmartScreen warning because the installer is unsigned. Thi
 
 - **macOS:** releases contain a `.dmg` and `.zip`. A production release should be notarized and signed; an unsigned development build can trigger Gatekeeper warnings.
 - **Linux:** releases contain an `AppImage` and a Debian `.deb`. The Linux build is tested on Ubuntu in CI. The AppImage is portable; the `.deb` is intended for Debian/Ubuntu-family systems.
-- **Updates:** electron-builder publishes platform metadata (`latest.yml`, `latest-mac.yml`, and `latest-linux.yml`) when a release is published. Capri does not currently run an in-app updater, so updates are installed by downloading the new package. Windows NSIS updates preserve Capri data; the custom uninstaller prompt is not shown during an update.
+- **Updates:** the system menu's **Settings → Capri updates…** page compares the installed version with the version in the project's GitHub `package.json` and links to the official repository. It is an informational check; updates are installed by downloading a new package. Windows NSIS updates preserve Capri data; the custom uninstaller prompt is not shown during an update.
 
 Linux has no Windows window-possession adapter or macOS Apple Events integration. X11 window titles can be checked for jealousy when `wmctrl` is installed; Wayland may restrict access to other applications' titles. Chat, rendering, voice input/output, screen capture where supported by Electron, application launching, and MPRIS media control through `playerctl` are available subject to the desktop environment and installed tools.
 
