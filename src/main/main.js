@@ -69,6 +69,7 @@ const vision = require('./screen');
 const control = require('./control');
 const { startMediaWatch } = require('./media');
 const { createMusicController } = require('./music-control');
+const { createBrowserTabCloser } = require('./browser-tabs');
 const { createTerminal, safeOpenFile, safeOpenPath } = require('./terminal');
 const { ASSISTANTS, assistant } = require('./assistants');
 const { startDiscordPresence, stopDiscordPresence } = require('./discord-presence');
@@ -252,6 +253,7 @@ const chats = new Map(); // id -> AbortController of an answer being streamed
 let moodState = null;   // how she feels (the overlay says), for her menu's top line
 let mediaWatch = null;  // what's playing (media.js), while she's allowed to know
 const musicControl = createMusicController();
+const browserTabCloser = createBrowserTabCloser();
 async function confirmMediaAction(action, session = {}) {
   const label = session.title || session.url || 'cet onglet média';
   const detail = action === 'close'
@@ -317,7 +319,8 @@ async function mediaTabAction({ action, session } = {}) {
       return { ok: false, error: error.message || 'Adresse de navigation invalide.' };
     }
   }
-  return { ok: false, status: 'unsupported', error: 'Le système expose cet onglet mais ne permet pas de le fermer depuis Capri.' };
+  const result = await browserTabCloser.close({ browser: target.browserName || target.app, url: target.url });
+  return result.ok ? result : { ...result, error: result.reason };
 }
 const musicPlayer = createMusicPlayer({
   BrowserWindow,
@@ -1944,6 +1947,10 @@ function registerIpc() {
         !Array.isArray(lastWindows.ai) || !lastWindows.ai.includes(key) ||
         (!isPage && !isApplication && !isDownload)) {
       return { ok: false, reason: 'not-target' };
+    }
+    if (isPage || isDownload) {
+      const result = await browserTabCloser.close({ browser: lastWindows.browser, url: lastWindows.rivalUrl });
+      return { ok: result.ok, reason: result.reason || null, status: result.status || null };
     }
     const reason = await windowWatch.close(id, key);
     return { ok: !reason, reason: reason || null };

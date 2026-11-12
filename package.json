@@ -120,7 +120,8 @@
       "src/main/windows.ps1",
       "src/main/mover.ps1",
       "src/main/media.ps1",
-      "src/main/media-control.ps1"
+      "src/main/media-control.ps1",
+      "src/main/browser-tab-close.ps1"
     ],
     "win": {
       "target": "nsis",

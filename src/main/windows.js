@@ -46,6 +46,7 @@ function startWindowWatch({ overlay, onUpdate }) {
     onUpdate({
       fg: last.fg, taskbar: Boolean(last.taskbar), ai: Array.isArray(last.ai) ? last.ai : [],
       pages: Array.isArray(last.pages) ? last.pages : [], apps: Array.isArray(last.apps) ? last.apps : [], dl: Boolean(last.dl),
+      browser: typeof last.browser === 'string' ? last.browser : null,
       rivalTitle: typeof last.rivalTitle === 'string' ? last.rivalTitle : '',
       rivalUrl: typeof last.rivalUrl === 'string' ? last.rivalUrl : '',
       game: last.game || null, usb: Array.isArray(last.usb) ? last.usb : [], plug: last.plug || null, wins,

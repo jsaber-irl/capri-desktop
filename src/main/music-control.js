@@ -4,12 +4,13 @@
 // the operating system reports; browser tabs are never inspected through private page APIs.
 const path = require('node:path');
 const cp = require('node:child_process');
+const { browserCloseCapability, browserKey } = require('./browser-tabs');
 
 const ACTIONS = new Set(['status', 'current', 'play', 'pause', 'toggle', 'next', 'previous', 'volume', 'volup', 'voldown']);
 const SCRIPT = path.join(__dirname, 'media-control.ps1').replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
 
 function execFileAsync(execFile, file, args, options = {}) {
-  return new Promise((resolve, reject) => execFile(file, args, { timeout: 6000, maxBuffer: 1024 * 1024, ...options }, (err, stdout, stderr) => {
+  return new Promise((resolve, reject) => execFile(file, args, { timeout: 6000, maxBuffer: 3 * 1024 * 1024, ...options }, (err, stdout, stderr) => {
     if (err) { err.stderr = String(stderr || ''); reject(err); }
     else resolve(String(stdout || '').trim());
   }));
@@ -19,27 +20,41 @@ function serviceName(value) {
   const s = String(value || '').toLowerCase();
   if (/spotify/.test(s)) return 'spotify';
   if (/deezer/.test(s)) return 'deezer';
+  if (/youtube music|music\.youtube\.com|youtube-music/.test(s)) return 'youtube';
   return 'unknown';
 }
 
-function normalizeSession(raw, adapter) {
+function optionalText(value) {
+  const text = String(value ?? '').trim();
+  return text || null;
+}
+
+function optionalNumber(value) {
+  if (value == null || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+function normalizeSession(raw, adapter, platform = process.platform) {
   const service = raw.service || serviceName(`${raw.id || ''} ${raw.app || ''} ${raw.url || ''}`);
   const app = String(raw.app || raw.id || adapter);
+  const key = browserKey(app) || browserKey(raw.id);
+  const mode = raw.mode || (key ? 'web' : 'native');
+  const state = String(raw.status || (raw.playing === true ? 'playing' : '')).toLowerCase();
+  const capability = mode === 'web' ? browserCloseCapability(platform, key || app) : { available: false, reason: null, browser: null, mechanism: null };
+  const artwork = optionalText(raw.artwork || raw.artUrl);
+  const safeArtwork = artwork && (/^(https?:|file:|data:image\/)/i.test(artwork)) ? artwork : null;
   return {
-    id: String(raw.id || ''), adapter, service,
-    app, mode: raw.mode || (/browser|chrome|chromium|firefox|msedge|edge|brave|vivaldi|opera/i.test(app) ? 'web' : 'native'),
-    title: String(raw.title || ''), artist: String(raw.artist || ''), album: String(raw.album || ''),
-    playlist: String(raw.playlist || raw.collection || ''),
-    url: String(raw.url || ''),
-    artwork: String(raw.artwork || raw.artUrl || ''),
-    duration: Number.isFinite(Number(raw.duration)) ? Math.max(0, Number(raw.duration)) : null,
-    position: Number.isFinite(Number(raw.position)) ? Math.max(0, Number(raw.position)) : null,
-    browser: raw.mode === 'web' || /browser|chrome|chromium|firefox|edge|brave|vivaldi|opera/i.test(app),
-    canNavigate: Boolean(raw.url),
-    canClose: raw.canClose === true,
-    playing: raw.playing === true || /^playing$/i.test(String(raw.status || '')), status: raw.playing === true || /^playing$/i.test(String(raw.status || '')) ? 'playing' : 'paused',
-    volume: Number.isFinite(raw.volume) ? raw.volume : null,
-    canVolume: raw.canVolume === true,
+    id: String(raw.id || ''), adapter, service, app, mode,
+    title: optionalText(raw.title), artist: optionalText(raw.artist), album: optionalText(raw.album),
+    playlist: optionalText(raw.playlist || raw.collection), url: optionalText(raw.url), artwork: safeArtwork,
+    duration: optionalNumber(raw.duration), position: optionalNumber(raw.position),
+    browser: mode === 'web', browserName: key,
+    canNavigate: /^https?:\/\//i.test(String(raw.url || '')),
+    canClose: mode === 'web' && Boolean(raw.url) && capability.available,
+    closeCapability: capability,
+    playing: state === 'playing', status: ['playing', 'paused', 'stopped'].includes(state) ? state : 'stopped',
+    volume: optionalNumber(raw.volume), canVolume: raw.canVolume === true,
   };
 }
 
@@ -49,7 +64,7 @@ function createMusicController({ platform = process.platform, adapters = createP
 
   async function list() {
     const results = await Promise.all(adapters.map(async (adapter) => {
-      try { return (await adapter.list()).map((row) => normalizeSession(row, adapter.name)); }
+      try { return (await adapter.list()).map((row) => normalizeSession(row, adapter.name, platform)); }
       catch (error) { return { adapter: adapter.name, error: error.message }; }
     }));
     const sessions = results.flat().filter((s) => s && s.id && !s.error);
@@ -143,7 +158,8 @@ function createPlatformAdapters(platform, { execFile = cp.execFile } = {}) {
         const [state, title, artist, album, volume, duration, position] = metadata.split('¦');
         return /^(playing|paused)$/i.test(state) ? [{
           id: 'spotify-native', service: 'spotify', app: 'Spotify', mode: 'native', status: state,
-          title, artist, album, volume: Number(volume), duration: Number(duration), position: Number(position), canVolume: true,
+          title, artist, album, volume: optionalNumber(volume), duration: optionalNumber(duration) === null ? null : Number(duration) / 1000,
+          position: optionalNumber(position), canVolume: true,
         }] : [];
       },
       async control(_session, action, value) {
@@ -178,7 +194,7 @@ function createPlatformAdapters(platform, { execFile = cp.execFile } = {}) {
           metadata = await execFileAsync(execFile, 'osascript', ['-e', fallback]);
         }
         const [state, title, artist, album, playlist = '', duration, position] = metadata.split('¦');
-        return /^(playing|paused)$/i.test(state) ? [{ id: 'deezer-native', service: 'deezer', app: 'Deezer', mode: 'native', status: state, title, artist, album, playlist, duration: Number(duration), position: Number(position) }] : [];
+        return /^(playing|paused)$/i.test(state) ? [{ id: 'deezer-native', service: 'deezer', app: 'Deezer', mode: 'native', status: state, title, artist, album, playlist, duration: optionalNumber(duration), position: optionalNumber(position) }] : [];
       },
       async control(_session, action) {
         const verbs = { play: 'play', pause: 'pause', next: 'next track', previous: 'previous track' };
@@ -204,17 +220,17 @@ function createPlatformAdapters(platform, { execFile = cp.execFile } = {}) {
           const raw = await call([`--player=${id}`, 'metadata', '--format', '{{status}}|{{xesam:title}}|{{xesam:artist}}|{{xesam:album}}|{{xesam:url}}|{{mpris:length}}|{{mpris:artUrl}}|{{mpris:trackid}}|{{volume}}|{{position}}']).catch(() => '');
           const [status, title, artist, album, url, duration, artwork, _trackId, volume, position] = raw.split('|');
           const service = serviceName(`${id} ${url}`);
-          const durationValue = Number(duration);
-          const positionValue = Number(position);
-          const volumeValue = volume?.trim() ? Number(volume) : null;
+          const durationValue = optionalNumber(duration);
+          const positionValue = optionalNumber(position);
+          const volumeValue = optionalNumber(volume);
           return {
             id, app: id.split('.')[0], service,
             mode: /browser|chrome|chromium|firefox|edge/i.test(id) ? 'web' : 'native',
             status, title, artist, album, url, playlist: '',
-            duration: Number.isFinite(durationValue) ? Math.round(durationValue / 1000000) : null,
-            position: Number.isFinite(positionValue) ? Math.round(positionValue / 1000000) : null,
-            artwork, volume: Number.isFinite(volumeValue) ? Math.round(volumeValue * 100) : null,
-            canVolume: Number.isFinite(volumeValue),
+            duration: durationValue === null ? null : Math.round(durationValue / 1000000),
+            position: positionValue === null ? null : Math.round(positionValue / 1000000),
+            artwork, volume: volumeValue === null ? null : Math.round(volumeValue * 100),
+            canVolume: volumeValue !== null,
           };
         }));
         return rows.filter((row) => row.title && /^(playing|paused)$/i.test(row.status || ''));

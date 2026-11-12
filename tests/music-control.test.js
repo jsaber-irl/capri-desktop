@@ -2,9 +2,30 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createMusicController, createPlatformAdapters } = require('../src/main/music-control');
+const { createMusicController, createPlatformAdapters, normalizeSession, serviceName } = require('../src/main/music-control');
 
 const session = (id, service, playing, extra = {}) => ({ id, service, app: id, mode: id.includes('browser') ? 'web' : 'native', playing, title: 'Night Drive', artist: 'Capri', album: 'After Dark', ...extra });
+
+test('normalization preserves unavailable metadata as null and distinguishes stopped from paused', () => {
+  const stopped = normalizeSession({ id: 'native', status: 'Stopped', duration: null, position: '', artwork: 'javascript:alert(1)' }, 'adapter', 'darwin');
+  assert.equal(stopped.status, 'stopped');
+  assert.equal(stopped.playing, false);
+  assert.equal(stopped.duration, null);
+  assert.equal(stopped.position, null);
+  assert.equal(stopped.artwork, null);
+  assert.equal(stopped.artist, null);
+});
+
+test('identifies YouTube Music from an explicit service URL and derives per-platform browser close capability', () => {
+  assert.equal(serviceName('https://music.youtube.com/watch?v=1'), 'youtube');
+  const win = normalizeSession({ id: 'chrome', app: 'Google Chrome', mode: 'web', url: 'https://music.youtube.com/watch?v=1' }, 'mock', 'win32');
+  const macFirefox = normalizeSession({ id: 'Firefox', app: 'Firefox', mode: 'web', url: 'https://example.com' }, 'mock', 'darwin');
+  const linux = normalizeSession({ id: 'chromium.instance-1', app: 'Chromium', mode: 'web', url: 'https://example.com' }, 'mock', 'linux');
+  assert.equal(win.canClose, true);
+  assert.equal(win.browserName, 'chrome');
+  assert.equal(macFirefox.canClose, false);
+  assert.equal(linux.canClose, false);
+});
 
 test('selects a single active player and dispatches playback actions to that adapter', async () => {
   const calls = [];
@@ -127,6 +148,33 @@ test('Linux MPRIS adapter discovers a web session, classifies its service from i
   assert.equal(result.session.position, 42);
   assert.equal(result.session.artwork, 'https://cdn.example/art.jpg');
   assert.ok(calls.some(([file, args]) => file === 'playerctl' && args.includes('pause')));
+});
+
+test('Linux YouTube Music metadata refreshes after track and playback-state changes', async () => {
+  let raw = 'Playing|First Track|First Artist|First Album|https://music.youtube.com/watch?v=1|180000000|https://img.example/1.jpg|track-1|0.25|42000000';
+  const execFile = (_file, args, _options, callback) => {
+    if (args[0] === '--list-all') return callback(null, 'chromium.instance-1\n', '');
+    if (args.includes('metadata')) return callback(null, raw, '');
+    callback(null, '', '');
+  };
+  const controller = createMusicController({ platform: 'linux', adapters: createPlatformAdapters('linux', { execFile }) });
+  const first = (await controller.list()).sessions[0];
+  assert.equal(first.service, 'youtube');
+  assert.equal(first.title, 'First Track');
+  assert.equal(first.artist, 'First Artist');
+  assert.equal(first.album, 'First Album');
+  assert.equal(first.duration, 180);
+  assert.equal(first.position, 42);
+  assert.equal(first.artwork, 'https://img.example/1.jpg');
+  assert.equal(first.playing, true);
+
+  raw = 'Paused|Second Track|Second Artist|Second Album|https://music.youtube.com/watch?v=2|200000000||track-2|0.25|12000000';
+  const second = (await controller.list()).sessions[0];
+  assert.equal(second.title, 'Second Track');
+  assert.equal(second.position, 12);
+  assert.equal(second.artwork, null);
+  assert.equal(second.status, 'paused');
+  assert.equal(second.playing, false);
 });
 
 test('Windows GSMTC adapter scopes commands to the selected system session id', async () => {

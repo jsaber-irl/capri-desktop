@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' capri:; script-src 'self'; style-src 'self'; img-src 'self' capri: https: http: data: file:; media-src 'self' capri:; connect-src 'self' capri:">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Capri // Music</title>
   <link rel="stylesheet" href="music-player.css">
@@ -19,7 +20,7 @@
         <h1 id="title">Choisis un morceau</h1>
         <p id="artist">YouTube · Spotify · Deezer</p>
         <input id="progress" type="range" min="0" max="100" value="0" aria-label="Progression">
-        <div class="player__times"><span id="current">--:--</span><span>CAPRI RADIO</span><span id="duration">--:--</span></div>
+        <div class="player__times"><span id="current">--:--</span><span id="playback-state">ARRÊTÉ</span><span id="duration">--:--</span></div>
       </div>
     </section>
     <section class="player__controls">
@@ -34,7 +35,8 @@
       <button id="next" type="button" aria-label="Suivant">▶▶</button>
       <button id="heart" class="player__heart" type="button" aria-label="Favori">♥</button>
     </section>
-    <label class="player__playlist">PLAYLIST
+    <audio id="library-audio" preload="metadata"></audio>
+    <label class="player__playlist">BIBLIOTHÈQUE / RECHERCHE
       <select id="track"></select>
     </label>
     <section class="player__tabs" aria-labelledby="tabs-heading">
@@ -44,6 +46,7 @@
       </div>
     </section>
   </main>
+  <script src="music-library.js"></script>
   <script src="music-player.js"></script>
 </body>
 </html>

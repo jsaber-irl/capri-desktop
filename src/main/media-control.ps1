@@ -13,6 +13,28 @@ try {
     if (-not $task.Wait(5000)) { throw 'Windows media session timed out.' }
     return $task.Result
   }
+  function ReadArtwork($reference) {
+    if (-not $reference) { return $null }
+    $stream = $null
+    $reader = $null
+    try {
+      $streamType = [Windows.Storage.Streams.IRandomAccessStreamWithContentType]
+      $stream = Await ($reference.OpenReadAsync()) $streamType
+      if (-not $stream.Size -or $stream.Size -gt 786432) { return $null }
+      $reader = [Windows.Storage.Streams.DataReader]::new($stream)
+      $null = Await ($reader.LoadAsync([uint32]$stream.Size)) ([uint32])
+      $bytes = New-Object byte[] ([int]$stream.Size)
+      $reader.ReadBytes($bytes)
+      $contentType = [string]$stream.ContentType
+      if ($contentType -notmatch '^image/(png|jpeg|webp|gif)$') { return $null }
+      return "data:$contentType;base64,$([Convert]::ToBase64String($bytes))"
+    } catch {
+      return $null
+    } finally {
+      if ($reader) { $reader.Dispose() }
+      if ($stream) { $stream.Dispose() }
+    }
+  }
   $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
   $Manager = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]
   $Props = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties]
@@ -25,12 +47,14 @@ try {
       $timeline = $s.GetTimelineProperties()
       $state = [string]$s.GetPlaybackInfo().PlaybackStatus
       if (($state -eq 'Playing' -or $state -eq 'Paused') -and $p.Title) {
+        $artwork = ReadArtwork $p.Thumbnail
         $out += [pscustomobject]@{
           id = [string]$s.SourceAppUserModelId
           app = [string]$s.SourceAppUserModelId
           title = [string]$p.Title
           artist = [string]$p.Artist
           album = [string]$p.AlbumTitle
+          artwork = $artwork
           status = $state
           position = [math]::Max(0, $timeline.Position.TotalSeconds)
           duration = [math]::Max(0, $timeline.EndTime.TotalSeconds - $timeline.StartTime.TotalSeconds)

@@ -259,6 +259,7 @@ public static class CapriWindows {
     }
     aiSnapshot = "\"ai\":[" + keys.ToString() + "],\"pages\":[" + pages.ToString() +
       "],\"apps\":[" + apps.ToString() + "],\"dl\":" + (dl ? "true" : "false") +
+      ",\"browser\":" + (browser ? Json(proc) : "null") +
       ",\"rivalTitle\":" + (rivalTitle == "" ? "null" : Json(rivalTitle)) +
       ",\"rivalUrl\":" + (rivalUrl == "" ? "null" : Json(rivalUrl));
     return aiSnapshot;
