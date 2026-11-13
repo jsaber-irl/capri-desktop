@@ -22,6 +22,18 @@ A script injection in a trusted local page could invoke capabilities exposed by 
 sensitive handlers narrowly scoped, validate sender/frame and payload at the Main boundary, and
 avoid adding general command execution or raw Electron objects to the preload API.
 
+The data-management, drawing, and local-game windows use dedicated sandboxed preloads with
+context isolation and Node integration disabled. Their Main handlers check the calling window and
+main frame before accessing data. Data-folder access begins with an Electron directory picker;
+Markdown import is limited to selected files, avoids symlinks and paths escaping the selected
+folder, and enforces file-count and size limits. Import and export do not call an AI provider.
+Exports write into a new folder and use exclusive file creation rather than overwriting existing
+files.
+
+Drawing operations are restricted to a versioned, bounded stroke format. File selection and PNG
+export use native dialogs; autosaves stay in Capri's user-data directory. Local games use separate
+windows and an allowlist of game identifiers. Their preload exposes only a close request.
+
 ## Sensitive actions
 
 - Locking, sleeping, shutting down, and restarting require a confirmation action in chat. Delayed
@@ -57,6 +69,19 @@ relevant conversation history to the selected AI provider. Screen vision sends t
 the selected vision provider; cloud speech recognition and synthesis send the audio or text needed
 for that service. Local Ollama, Piper, and Chatterbox can keep those requests on the device after
 their components have been installed.
+
+The **Data and privacy** window can inventory local categories, import/export Markdown, delete
+individual entries or categories, configure retention for dated structured-memory entries, and
+request a full purge. A purge removes and verifies files under Capri's Electron `userData` directory;
+it does not inspect operating-system backups, external/synced copies, or locations outside that
+directory. Capri reports failures rather than claiming a verified purge when files remain or cannot
+be accessed. A successful purge restarts the application because its configuration and local state
+have been removed. Preferences exported to Markdown omit credential-like keys and selected private
+path fields; review exported files before sharing them.
+
+Gaming Mode is a manual preference. It reduces Capri's autonomous activity without scanning running
+processes, terminating applications, injecting code, or changing game settings. It does not provide
+a performance guarantee for every game or desktop environment.
 
 Desktop notifications can expose reminder text in the operating system's notification history or
 lock-screen preview, depending on system settings. Window-title checks for AI jealousy are local;

@@ -46,6 +46,8 @@ const DEFAULTS = {
   setups: {},        // your setups, by name: the apps you had open and where (setups.js)
   gameClose: [],     // the apps game mode closes, as you named them
   gameMode: null,    // game mode on: { plan, closed, since }, to put everything back after
+  gamingMode: false, // quiet presence: user-enabled, local and never detects or controls games
+  memoryRetentionDays: 0, // 0: keep personal memories until the user removes them
   // her character (mood.js, life.js, themes.js, speech.js)
   emotions: true,    // she has moods: she gets angry, laughs, sulks, gets flustered
   colourTheme: 'classic', // her colours: a key of themes.js THEMES, or 'mood'
@@ -167,4 +169,13 @@ function flush() {
   }
 }
 
-module.exports = { load, save, flush, file, DEFAULTS };
+function reset({ persist = true } = {}) {
+  clearTimeout(writeTimer);
+  writeTimer = 0;
+  cache = { ...DEFAULTS };
+  pending = Boolean(persist);
+  if (pending) flush();
+  return cache;
+}
+
+module.exports = { load, save, flush, reset, file, DEFAULTS };

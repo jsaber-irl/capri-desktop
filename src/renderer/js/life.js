@@ -39,6 +39,7 @@ export class Life {
     this.guide = null; // guide.js (is she showing you something?)
     this.ring = null;  // ring.js (her circular menu is open: she stays put)
     this.enabled = true; // her menu: her own activities
+    this.quietMode = false; // user enabled Gaming Mode: no autonomous interruptions or animation activities
     this.dj = true;      // her menu: DJ mode (she skips tracks herself)
     this.musicAware = true;
     this.run = null;     // the activity going on: { name, cancelled, cleanup }
@@ -62,6 +63,7 @@ export class Life {
 
   configure(cfg) {
     this.enabled = cfg.life !== false;
+    this.quietMode = cfg.gamingMode === true;
     this.dj = cfg.dj !== false;
     this.musicAware = cfg.musicAware !== false;
     if (!this.enabled && this.run) this.cancel();
@@ -87,6 +89,11 @@ export class Life {
 
   tick() {
     if (this.paused) return; // resting deeply (app.js): nothing to do until she's back
+    if (this.quietMode) {
+      if (this.run) this.cancel();
+      this.stopPhones();
+      return;
+    }
     const now = performance.now();
     if (this.run) {
       // something more important came up: she drops what she was doing

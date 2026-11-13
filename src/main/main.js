@@ -43,6 +43,10 @@ const { createHub } = require('./hub');
 const { createMacPermissionsWindow, macPermissionsMenuItem, listMacWindows } = require('./mac-permissions');
 const { createIncomingCall } = require('./incoming-call');
 const { createChessWindow } = require('./chess-window');
+const { createGamesWindow } = require('./games-window');
+const { createDrawWindow } = require('./draw-window');
+const { createDataWindow } = require('./data-window');
+const { createPrivacyTools } = require('./privacy-tools');
 const { createMusicPlayer } = require('./music-player');
 const { createTranslationWindow } = require('./translation-window');
 const { createVersionWindow } = require('./version-window');
@@ -152,6 +156,9 @@ const chessWindow = createChessWindow({
   lang: () => resolveLang(config.load().lang),
   getCommandWebContents: () => overlay?.webContents,
 });
+const gamesWindow = createGamesWindow({ BrowserWindow, ipcMain, preload: path.join(__dirname, '..', 'games-preload.js') });
+const drawWindow = createDrawWindow({ BrowserWindow, ipcMain, dialog, preload: path.join(__dirname, '..', 'draw-preload.js'), userData: app.getPath('userData') });
+let dataWindow = null;
 // the recording she was given as her voice, if any (voice-sample.js): in her own data folder
 const voiceSample = createSample({ dir: () => path.join(app.getPath('userData'), 'voices') });
 const chatterbox = new Chatterbox({ roots: placesNextToHer, voices: () => [voiceSample.dir()] });
@@ -417,6 +424,17 @@ function forgetChats() {
   saveMemory({ history: [], claude: null });
   sendCommand('forget');
 }
+const privacyTools = createPrivacyTools({
+  userData: app.getPath('userData'), structuredMemory, config, readMemory, readBond,
+  writeMemory: saveMemory,
+  clearConversations: forgetChats,
+  clearBond: () => { saveBond(null); sendCommand('reloadBond'); },
+  saveBond,
+  onConversationsChanged: () => sendCommand('reloadConversations'),
+  onBondChanged: () => sendCommand('reloadBond'),
+});
+dataWindow = createDataWindow({ BrowserWindow, ipcMain, dialog, preload: path.join(__dirname, '..', 'data-preload.js'), tools: privacyTools, app });
+privacyTools.applyRetention();
 
 // Sert uniquement les fichiers locaux du dépôt ou le dossier de sons utilisateur.
 // capri://app/...        -> files of this repo
@@ -1055,6 +1073,7 @@ function buildTray() {
     [key, typeof value === 'string' && watched.id !== 'claude' ? value.replaceAll('Claude Code', watched.name) : value]));
 
   const lang = resolveLang(cfg.lang);
+  const text3 = (fr, en, ru) => lang === 'en' ? en : lang === 'ru' ? ru : fr;
   const mJournalStartedAt = moodState?.moodStartedAt || Date.now();
   const mMoodName = (moodState && t.moods[moodState.mood]) || moodState?.mood || t.moods.calm;
   const mMoodLevel = moodState?.level ? ` (${Math.round(moodState.level * 100)}%)` : '';
@@ -1141,6 +1160,13 @@ function buildTray() {
     { label: t.satellite, click: () => sendCommand('satellite') },
     { label: t.demo, click: playDemo },
     { label: t.musicPlayer, click: () => musicPlayer.show() },
+    { label: text3('Jeux locaux','Local games','Локальные игры'), submenu: [
+      { label: text3('Échecs','Chess','Шахматы'), click: () => chessWindow.show() },
+      { label: text3('Morpion contre Capri','Tic-tac-toe vs Capri','Крестики-нолики с Capri'), click: () => gamesWindow.open('tic-tac-toe') },
+      { label: '2048', click: () => gamesWindow.open('2048') },
+    ] },
+    { label: text3('Tableau de dessin…','Drawing board…','Рисование…'), click: () => drawWindow.show() },
+    { label: text3('Données et coffre Markdown…','Data and Markdown vault…','Данные и Markdown-хранилище…'), click: () => dataWindow.show() },
     { label: t.translator, click: () => translationWindow.show() },
     { label: t.terminal, click: openTerminal },
     {
@@ -1164,6 +1190,9 @@ function buildTray() {
     { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     { label: t.settings, submenu: [
       { label: t.cursor, type: 'checkbox', checked: cfg.capriCursor === true, click: (item) => updateConfig({ capriCursor: item.checked }) },
+      { label: `${text3('Gaming Mode','Gaming Mode','Игровой режим')}${cfg.gamingMode ? text3(' — activé',' — on',' — включён') : ''}`, type: 'checkbox', checked: cfg.gamingMode === true, click: (item) => updateConfig({ gamingMode: item.checked }) },
+      { type: 'separator' },
+      { label: text3('Données et confidentialité…','Data and privacy…','Данные и конфиденциальность…'), click: () => dataWindow.show() },
       { label: t.updates, click: () => versionWindow.show() },
     ] },
     { type: 'separator' },
@@ -1840,6 +1869,10 @@ function createTray() {
 
 /** Relie les API preload aux opérations Main de configuration, conversation et système. */
 function registerIpc() {
+  const trustedOverlay = (event) => Boolean(overlay && !overlay.isDestroyed() && event.sender === overlay.webContents && event.senderFrame === overlay.webContents.mainFrame);
+  ipcMain.handle('tools:data-open', (event) => trustedOverlay(event) ? (dataWindow.show(), { ok: true }) : { ok: false, error: 'Accès refusé.' });
+  ipcMain.handle('tools:drawing-open', (event) => trustedOverlay(event) ? (drawWindow.show(), { ok: true }) : { ok: false, error: 'Accès refusé.' });
+  ipcMain.handle('tools:game-open', (event, id) => trustedOverlay(event) ? gamesWindow.open(String(id || '')) : { ok: false, error: 'Accès refusé.' });
   ipcMain.on('farewell:done', (event) => {
     if (event.sender === overlay?.webContents) farewell.finish();
   });

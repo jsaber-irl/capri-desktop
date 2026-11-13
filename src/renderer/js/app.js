@@ -64,6 +64,8 @@ async function boot() {
     document.fonts.load('400 11px "JetBrains Mono"'),
   ]);
   document.documentElement.lang = config.lang;
+  const gamingBadge = document.getElementById('gaming-badge');
+  if (gamingBadge) { gamingBadge.hidden = config.gamingMode !== true; gamingBadge.textContent = config.lang === 'en' ? 'GAMING MODE' : config.lang === 'ru' ? 'ИГРОВОЙ РЕЖИМ' : 'MODE GAMING'; }
   const applyCapriCursor = (enabled) => {
     document.documentElement.dataset.capriCursor = enabled === true
       ? (host.platform === 'win32' ? 'windows' : 'animated')
@@ -492,7 +494,7 @@ async function boot() {
     },
   });
   const chat = new Chat({ capri, panel, voice, host, brain, reminders, satelliteWait });
-  const pc = new Pc({ capri, panel, brain, host, voice, chat, guide, enabled: config.pcReact !== false });
+  const pc = new Pc({ capri, panel, brain, host, voice, chat, guide, enabled: config.pcReact !== false && config.gamingMode !== true });
   let wantsOut = config.visible !== false; // not put away in your settings (Ctrl+Alt+C, her menu)
   pc.wantsOut = () => wantsOut;
   // a quiet moment: nothing going on that a line from her would step on
@@ -500,7 +502,7 @@ async function boot() {
     && capri.mode !== 'alert' && !chat.open && !guide.running && !panel.visible && ['stand', 'sit'].includes(capri.stance);
   // two hours at your PC without a real break: she tells you to get up (breaks.js)
   const breaks = new Breaks({ host, panel, brain, capri, pc, quiet: isQuiet });
-  breaks.enabled = config.breaks !== false;
+  breaks.enabled = config.breaks !== false && config.gamingMode !== true;
   const satelliteTest = new CapriSatelliteTest({
     chat, panel, isAnimating: () => satelliteAnimationRunning,
     log: (message) => host.terminalDemoLog?.(message),
@@ -529,7 +531,7 @@ async function boot() {
   // Her senses and her hands, all off until you turn them on (each in her menu).
   // Eyes: she takes a look at your screen and reacts (eyes.js, screen.js).
   const eyes = new Eyes({ host, brain, heart, panel, capri, voice, life });
-  eyes.configure(config);
+  eyes.configure(config.gamingMode === true ? { ...config, vision: false } : config);
   chat.eyes = eyes;
   // Hands: windows and messages on your PC, only when you ask (hands.js, control.js).
   const hands = new Hands({ host, capri, panel, voice, brain });
@@ -541,7 +543,7 @@ async function boot() {
     capri.setDancing(playing); // she grooves whenever she's standing (capri.baseAct)
     life.setAudio(playing);    // headphones on while there's sound, even if no player reports a title
   };
-  rhythm.configure(config);
+  rhythm.configure(config.gamingMode === true ? { ...config, rhythm: false } : config);
   // Ears: you talk, she writes it down and answers (ears.js, stt.js); speech.js reads her answer out.
   const ears = new Ears({ host, capri, panel, voice, brain, speech });
   ears.configure(config);
@@ -796,6 +798,9 @@ async function boot() {
   });
 
   host.onConfig((cfg) => {
+    document.documentElement.classList.toggle('gaming-mode', cfg.gamingMode === true);
+    const gamingBadge = document.getElementById('gaming-badge');
+    if (gamingBadge) { gamingBadge.hidden = cfg.gamingMode !== true; gamingBadge.textContent = cfg.lang === 'en' ? 'GAMING MODE' : cfg.lang === 'ru' ? 'ИГРОВОЙ РЕЖИМ' : 'MODE GAMING'; }
     applyCapriCursor(cfg.capriCursor);
     askAiSoon(2500); // (a new AI is connected, or taken away; many changes at once ask once)
     voice.configure(cfg);
@@ -805,14 +810,14 @@ async function boot() {
     life.configure(cfg);
     meterOn = cfg.micMeter !== false;
     followOn = cfg.follow !== false;
-    breaks.enabled = cfg.breaks !== false;
+    breaks.enabled = cfg.breaks !== false && cfg.gamingMode !== true;
     wantsOut = cfg.visible !== false;
     speech.configure(cfg);
-    eyes.configure(cfg);
+    eyes.configure(cfg.gamingMode === true ? { ...cfg, vision: false } : cfg);
     hands.configure(cfg);
-    rhythm.configure(cfg).catch(() => {});
+    rhythm.configure(cfg.gamingMode === true ? { ...cfg, rhythm: false } : cfg).catch(() => {});
     ears.configure(cfg);
-    pc.configure(cfg);
+    pc.configure(cfg.gamingMode === true ? { ...cfg, pcReact: false } : cfg);
     reminders.sync(cfg.reminders);
     host.senseState({ eyes: eyes.enabled, ears: ears.enabled, listening: false });
     showSenses();
@@ -1047,6 +1052,16 @@ async function boot() {
         break;
       case 'forget': // "Forget our conversations" in her menu, maybe with her chat open
         chat.history = [];
+        break;
+      case 'reloadConversations':
+        host.chatMemory().then((history) => { chat.history = Array.isArray(history) ? history : []; }).catch(() => {});
+        break;
+      case 'forgetBond':
+        bond.clearInMemory();
+        ring?.refresh();
+        break;
+      case 'reloadBond':
+        bond.start().then(() => ring?.refresh()).catch(() => {});
         break;
       case 'calmMood':
         heart.calm();

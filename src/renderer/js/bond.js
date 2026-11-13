@@ -285,6 +285,12 @@ export class Bond {
     this.save(true);
   }
 
+  clearInMemory() {
+    this.data = EMPTY();
+    this.last = null;
+    if (this.heart) this.heart.mood.tolerance = 0;
+  }
+
   save(now = false) {
     clearTimeout(this.saveTimer);
     const write = () => {

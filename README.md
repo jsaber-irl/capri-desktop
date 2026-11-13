@@ -1,4 +1,4 @@
-## **Project Capricorn (2.3.2)**
+## **Project Capricorn (2.3.3)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -25,6 +25,11 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 - **Custom voice**: Chatterbox can use a voice sample lasting 5 to 30 seconds.
 - **Cleanup**: the menu shows how much space downloaded components occupy and lets you remove items that belong to Capri.
 - **Structured memory**: the bond panel can export and import local Markdown memory. Entries remain on this computer, can be removed selectively, and are not transmitted unless you explicitly send them to a provider.
+- **Local data and Obsidian tools**: inspect stored memories, conversations, bond notes, reminders, and preferences; choose Markdown files to import; export selected categories to an Obsidian vault or folder. Imports and exports are local and require a folder selection.
+- **Retention and deletion controls**: set an expiry policy for dated structured memories, delete individual entries or categories, or purge Capri's local user-data folder with a verification report.
+- **Local games**: play chess, tic-tac-toe against Capri, or 2048 in independent windows.
+- **Drawing board**: sketch with a mouse or trackpad, use colors, brush sizes, an eraser, undo/redo, local save/reopen, autosave, and PNG export.
+- **Gaming Mode**: manually reduce autonomous activity and interruptions while playing. It is optional, persistent, and does not detect or monitor running games.
 - **Native PC control from chat**: ask Capri to open system settings, report battery/disk/RAM/IP information, set or mute the volume, start a timer, capture a region, arrange or minimize windows, switch the system theme, or schedule a shutdown/restart. Lock, sleep, shutdown, and restart always require an explicit confirmation button.
 - **PC care and routines**: ask what is slowing the PC, inspect storage, manage startup apps and updates, check duplicate files, switch audio devices, mute the microphone, control Wi-Fi/Bluetooth, eject USB drives, adjust brightness, use Game Bar, recover off-screen windows, move apps to another display, or save and restore named work setups. These controls have their broadest support on Windows.
 - **Health breaks**: Capri can suggest a break after extended activity, waits for a quiet moment, avoids interrupting a game, and lets you pause or defer the reminder.
@@ -225,6 +230,8 @@ Right-click Capri to open the menu. The main sections are:
 - **AI**: provider, model, key, and server;
 - **More**: language, size, display, position, and hooks.
 
+The **More** tab also contains **Games**, **Drawing board**, **Data & Obsidian**, and a **Gaming Mode** toggle. The tray menu provides the same local tools. The system menu's **Settings → Data and privacy…** opens the data controls.
+
 The `Ctrl+Alt+C` shortcut hides Capri inside her chip. The same shortcut brings her back.
 
 The Character tab lets you turn jealousy off on every platform; closing rival pages remains a Windows-only option. Capri checks recognized browser tab titles (Safari and other supported browsers) and recognized AI desktop-app names, not arbitrary titles from other applications or page contents. On Windows, for a detected rival tab she shows its title and sanitized address (without query parameters) for 1.2 seconds; when page closing is enabled, she then closes rival AI and download tabs. She asks for confirmation before closing a native AI app. On macOS, title detection uses System Events; allow Capri to control System Events in macOS Automation settings. On Linux, title detection uses `wmctrl` on X11; install `wmctrl` to enable it. Wayland may not expose other applications’ window titles. Neither macOS nor Linux closes windows. Capri reacts with jealousy when a rival is detected; an apology in chat or voice, or a head/mane pet, clears that jealous anger. Clicking Capri or “Leave me alone for 10 minutes” pauses alerts for ten minutes.
@@ -291,6 +298,8 @@ Settings are stored in `config.json` in Capri's data directory. Important settin
 | `emotions`, `life`, `dj`, `musicAware`, `wander` | Autonomous activities |
 | `possess`, `possessMove` | Window possession and movement |
 | `mindTune` | Local model tuning results |
+| `gamingMode` | Manually enabled quiet behavior while gaming |
+| `memoryRetentionDays` | Expiry period for dated structured memories; `0` keeps them until manual deletion |
 | `muted`, `volume`, `visible`, `welcomed`, `linked` | Interface and session state |
 
 ## Detailed features
@@ -344,6 +353,20 @@ If another window comes to the foreground while she is typing, Capri stops to av
 Learning data is stored locally in `bond.json`. Capri remembers only general information that you have voluntarily provided: preferences, projects, conversation habits, and your name.
 
 Passwords, exact addresses, phone numbers, email addresses, banking details, health information, and documents are not retained.
+
+### Data controls and Obsidian
+
+Open **More → Data & Obsidian** or use the system menu's **Settings → Data and privacy…**. The inventory shows the local categories Capri can inspect and their storage locations. You can select Markdown files from a folder or Obsidian vault to import as structured memories, export selected categories, remove individual entries, clear categories, set structured-memory retention, or request a complete local purge.
+
+Imports do not call an AI provider. Export creates a new timestamped folder and does not overwrite existing files. Capri recognizes its own structured-memory Markdown export for structured import; other Capri export types are skipped on import. The full purge removes and verifies the contents of Capri's Electron `userData` folder, then restarts Capri. It cannot remove operating-system backups, external/synced copies, or data stored outside that folder. Structured-memory retention applies to dated entries; entries without dates and other categories remain until manually deleted.
+
+### Local games and drawing
+
+Open chess, tic-tac-toe, or 2048 from **More → Games**. Tic-tac-toe and 2048 run locally in separate windows and do not use a game server. The **Drawing board** opens another independent window. Drawings autosave locally, can be saved and reopened as Capri drawing files, and can be exported as PNG. Closing the board waits for a successful local autosave.
+
+### Gaming Mode
+
+Use the **Gaming Mode** toggle in **More** or the system menu. The mode is manual and remembered between launches. It pauses Capri's autonomous life activity, break prompts, visual observation, rhythm reactions, and PC reactions while active. Capri remains available for explicit requests. Gaming Mode does not inspect or alter game processes.
 
 ### Cleanup and uninstallation
 

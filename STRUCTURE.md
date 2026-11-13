@@ -34,6 +34,11 @@ capri-desktop/
 │   ├── main/               Electron Main process and platform/service adapters
 │   │   ├── main.js          Startup, windows, IPC registration, tray, lifecycle
 │   │   ├── config.js        Persistent user configuration
+│   │   ├── structured-memory.js  Structured local memory store
+│   │   ├── privacy-tools.js Local Markdown import/export, inventory, retention and purge
+│   │   ├── data-window.js  Data-management window, folder dialogs and guarded IPC
+│   │   ├── draw-window.js  Drawing window, validated local files and autosave
+│   │   ├── games-window.js Allowlisted independent local-game windows
 │   │   ├── setup.js         AI provider/key setup and encrypted credential handling
 │   │   ├── system.js        Allowlisted OS actions, including chat PC care
 │   │   ├── devices.js       Windows audio/radio/USB/brightness/Game Bar adapters
@@ -65,10 +70,13 @@ capri-desktop/
 │   │   ├── terminal.html    Command terminal
 │   │   └── call.html        Voice-call window
 │   ├── preload.js           Narrow API for the main overlay
+│   ├── data-preload.js      Data/Markdown window API
+│   ├── draw-preload.js      Drawing window API
+│   ├── games-preload.js     Local-game window API
 │   ├── hub-preload.js       Settings-window API
 │   ├── terminal-preload.js  Terminal-window API
 │   └── prepare-preload.js   Setup-window API
-├── tests/                   Node built-in test-runner tests and fixtures
+├── tests/                   Node built-in tests, including privacy, drawing and game logic/IPC
 ├── package.json             Scripts, dependencies, build targets, packaging
 └── README.md                Installation, usage, features, and developer guide
 ```
@@ -105,11 +113,43 @@ applications; `files.js` handles local file search; `mover.js`, `windows.js`, an
 window/display operations. Provider, media, voice, translation, and chess behavior also live in
 separate service modules.
 
+### Data tools and Markdown
+
+The More menu and system tray open `data-window.js`; the system Settings menu has a data/privacy
+entry as well. `data-preload.js` exposes only data-tool operations. `privacy-tools.js` reads existing
+configuration, conversation, bond, reminder, and structured-memory stores. It imports selected
+Markdown files into structured memory without an AI call, exports selected categories to a new
+folder without overwriting, supports individual/category deletion, applies retention to dated
+structured memories, and verifies the scope of a full `userData` purge. Native directory and
+confirmation dialogs are owned by the Main process.
+
+### Drawing and local games
+
+`draw-window.js` owns a dedicated drawing window and validates bounded normalized strokes before
+autosave, save, or open. `draw-preload.js` exposes only drawing operations; `renderer/draw.js` handles
+pointer input, Canvas rendering, undo/redo, and PNG export. Drawings autosave under Capri's
+user-data directory.
+
+`games-window.js` opens independent windows for allowlisted game IDs. `renderer/games/` contains the
+separate game logic for tic-tac-toe and 2048, while `renderer/game.js` renders the selected game.
+`games-preload.js` exposes only a close request. The existing chess window and chess service remain
+separate from these games.
+
+### Gaming Mode
+
+The `gamingMode` configuration value is toggled from the circular menu or system tray. The renderer
+shows an active status badge and gates autonomous activity, health-break prompts, visual
+observation, rhythm reactions, and PC reactions. It does not detect running processes or activate
+automatically.
+
 ### Tests and scripts
 
 Tests use Node's built-in `node:test` runner. Run all tests with `npm test`; focused scripts such as
 `npm run test:chat` and `npm run test:desktop-integration` are listed in `package.json`. Desktop
 integration tests may query real devices and sessions and have explicit opt-in environment flags.
+The privacy, drawing, and games tests cover local data operations, validation, game logic, and
+simulated Electron window/IPC lifecycles; they do not substitute for interactive cross-platform
+Electron testing.
 
 Useful commands:
 

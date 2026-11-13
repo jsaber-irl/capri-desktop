@@ -26,7 +26,8 @@ function createStructuredMemory({ file }) {
     const text = String(content || '').replace(/\s+/g, ' ').trim().slice(0, 500);
     if (!text || !CATEGORIES.has(category)) return { ok: false, error: 'Entrée mémoire invalide.' };
     const value = read();
-    const entry = { id: crypto.randomUUID(), category, content: text, source: String(source || 'user').slice(0, 40), createdAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    const entry = { id: crypto.randomUUID(), category, content: text, source: String(source || 'user').slice(0, 80), createdAt: now, updatedAt: now };
     value.entries.push(entry);
     write(value);
     return { ok: true, entry };
@@ -37,6 +38,11 @@ function createStructuredMemory({ file }) {
     if (entries.length === value.entries.length) return { ok: false, error: 'Entrée mémoire introuvable.' };
     write({ ...value, entries });
     return { ok: true };
+  };
+  const clear = () => {
+    const previous = read();
+    write({ ...previous, entries: [] });
+    return { ok: read().entries.length === 0, removed: previous.entries.length };
   };
   const exportMarkdown = (target) => {
     const entries = list();
@@ -55,7 +61,7 @@ function createStructuredMemory({ file }) {
     }
     return { ok: true, count };
   };
-  return { list, add, remove, exportMarkdown, importMarkdown };
+  return { list, add, remove, clear, exportMarkdown, importMarkdown };
 }
 
 module.exports = { CATEGORIES, createStructuredMemory };
