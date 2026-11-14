@@ -1,18 +1,26 @@
-# Выпуск релиза: проверяет код, собирает пакеты Windows (64-битный и 32-битный),
-# macOS и Linux, затем публикует релиз на GitHub.
-# Запуск вручную: вкладка Actions › Release › Run workflow. Тег по умолчанию — v и версия из package.json
-# (0.6.0 → v0.6.0). Описание релиза собирает scripts/release-notes.js, «Что нового» берётся из .github/RELEASE_NEWS.md.
+
+# Publication d'une release Capri :
+# Vérifie le code, construit les paquets Windows (64 bits et 32 bits),
+# macOS et Linux, puis publie la release sur GitHub.
+#
+# Lancement manuel : Actions → Release → Run workflow.
+# Le tag est automatiquement défini à partir de la version de package.json,
+# précédée de "v" (ex. : 0.6.0 → v0.6.0).
+#
+# Les notes de release sont générées par scripts/release-notes.js.
+# La section « Nouveautés » provient de .github/RELEASE_NEWS.md.
+
 name: Release
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Тег релиза должен быть v + версия из package.json (пусто: автоматически)'
+        description: 'Tag de la release : v + version de package.json (laisser vide pour une génération automatique)'
         required: false
         default: ''
       prerelease:
-        description: 'Отметить как пре-релиз'
+        description: 'Marquer cette release comme une préversion'
         type: boolean
         default: false
 
@@ -25,7 +33,7 @@ permissions:
 
 jobs:
   test:
-    name: Тесты
+    name: Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,19 +45,19 @@ jobs:
       - run: npm test
 
   build-windows:
-    name: Установщик Windows ${{ matrix.arch }}
+    name: Compilation Windows ${{ matrix.arch }}
     needs: test
     runs-on: windows-latest
     strategy:
       fail-fast: true
       matrix:
         include:
-          - arch: x64   # 64-битная Windows, Electron из package.json
+          - arch: x64   # Windows 64 bits : version d'Electron définie dans package.json
             script: dist
-          - arch: ia32  # 32-битная Windows: Electron 44+ её не выпускает, берётся 43.8.3 (см. dist:32)
+          - arch: ia32  # Windows 32 bits : Electron 44+ ne le prend plus en charge, utilisation de 43.8.3 (voir dist:32)
             script: dist:32
     env:
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false' # без подписи кода
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false' # Désactiver la détection automatique du certificat de signature
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -65,7 +73,7 @@ jobs:
           if-no-files-found: error
 
   build-linux:
-    name: Paquet Linux
+    name: Compilation Linux
     needs: test
     runs-on: ubuntu-latest
     steps:
@@ -83,8 +91,9 @@ jobs:
             dist/Capri-*.AppImage
             dist/Capri-*.deb
           if-no-files-found: error
+
   build-mac:
-    name: Paquets macOS ${{ matrix.arch }}
+    name: Compilation macOS ${{ matrix.arch }}
     needs: test
     runs-on: macos-latest
     strategy:
@@ -96,7 +105,7 @@ jobs:
           - arch: x64
             script: dist:mac:x64
     env:
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false' # fournir les secrets de signature pour une release de production
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false' # Prévoir les secrets de signature pour une release de production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -112,12 +121,12 @@ jobs:
           if-no-files-found: error
 
   release:
-    name: Релиз
+    name: Publication de la release
     if: github.ref == 'refs/heads/v2'
     needs: [build-windows, build-linux, build-mac]
     runs-on: ubuntu-latest
     permissions:
-      contents: write # создать тег и релиз
+      contents: write # Autoriser la création du tag et de la release
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -128,41 +137,52 @@ jobs:
           pattern: installer-*
           merge-multiple: true
           path: installers
-      - name: Тег и описание
+
+      - name: Préparer le tag et les notes de release
         env:
           TAG_INPUT: ${{ inputs.tag }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
           TAG="${TAG_INPUT:-v$VERSION}"
+
           if ! [[ "$TAG" =~ ^[A-Za-z0-9._-]+$ ]]; then
-            echo "Недопустимый тег: $TAG" >&2
+            echo "Tag invalide : $TAG" >&2
             exit 1
           fi
+
           if [ "$TAG" != "v$VERSION" ]; then
             echo "Le tag doit être v$VERSION pour correspondre au manifeste signé." >&2
             exit 1
           fi
+
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "TAG=$TAG" >> "$GITHUB_ENV"
+
           ls -l installers
           node scripts/release-notes.js installers > release-notes.md
+
       - name: Signer le manifeste de mise à jour
         env:
           CAPRI_UPDATE_PRIVATE_KEY: ${{ secrets.CAPRI_UPDATE_PRIVATE_KEY }}
           RELEASE_TAG: ${{ env.TAG }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/create-update-manifest.js installers
-      - name: Создать релиз
+
+      - name: Créer la release GitHub
         env:
           GH_TOKEN: ${{ github.token }}
           PRERELEASE: ${{ inputs.prerelease }}
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Релиз $TAG уже есть. Удали его (и тег) на GitHub или укажи другой тег." >&2
+            echo "La release $TAG existe déjà. Supprime-la (ainsi que son tag) sur GitHub ou utilise une autre version." >&2
             exit 1
           fi
+
           flags=()
-          if [ "$PRERELEASE" = "true" ]; then flags+=(--prerelease); fi
+          if [ "$PRERELEASE" = "true" ]; then
+            flags+=(--prerelease)
+          fi
+
           gh release create "$TAG" installers/* \
             --target "$GITHUB_SHA" \
             --title "Capri $VERSION" \

@@ -1,40 +1,39 @@
-name: Optional desktop integration
+# Publication d'une release Capri :
+# Vérifie le code, construit les paquets Windows (64 bits et 32 bits),
+# macOS et Linux, puis publie la release sur GitHub.
+#
+# Lancement manuel : Actions → Release → Run workflow.
+# Le tag est automatiquement défini à partir de la version de package.json,
+# précédée de "v" (ex. : 0.6.0 → v0.6.0).
+#
+# Les notes de release sont générées par scripts/release-notes.js.
+# La section « Nouveautés » provient de .github/RELEASE_NEWS.md.
+
+name: Release
 
 on:
   workflow_dispatch:
     inputs:
-      enable_desktop_tests:
-        description: Run read-only tests against the current desktop session
+      tag:
+        description: 'Tag de la release : v + version de package.json (laisser vide pour une génération automatique)'
+        required: false
+        default: ''
+      prerelease:
+        description: 'Marquer cette release comme une préversion'
         type: boolean
-        required: true
         default: false
-      allow_apple_events:
-        description: Allow the macOS test to query Spotify using Apple Events
-        type: boolean
-        required: true
-        default: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  desktop-integration:
-    if: inputs.enable_desktop_tests
-    name: Desktop tests (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: Windows
-            runner: windows-latest
-          - os: macOS
-            runner: macos-latest
-          - os: Linux
-            runner: ubuntu-latest
-    runs-on: ${{ matrix.runner }}
-    env:
-      CAPRI_DESKTOP_INTEGRATION: '1'
-      CAPRI_ALLOW_APPLE_EVENTS: ${{ inputs.allow_apple_events && '1' || '0' }}
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,4 +41,149 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run test:desktop-integration
+      - run: npm test
+
+  build-windows:
+    name: Compilation Windows ${{ matrix.arch }}
+    needs: test
+    runs-on: windows-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: x64   # Windows 64 bits : version d'Electron définie dans package.json
+            script: dist
+          - arch: ia32  # Windows 32 bits : Electron 44+ ne le prend plus en charge, utilisation de 43.8.3 (voir dist:32)
+            script: dist:32
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false' # Désactiver la détection automatique du certificat de signature
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run ${{ matrix.script }} -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.arch }}
+          path: dist/Capri-Setup-*-${{ matrix.arch }}.exe
+          if-no-files-found: error
+
+  build-linux:
+    name: Compilation Linux
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run dist:linux -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-linux
+          path: |
+            dist/Capri-*.AppImage
+            dist/Capri-*.deb
+          if-no-files-found: error
+
+  build-mac:
+    name: Compilation macOS ${{ matrix.arch }}
+    needs: test
+    runs-on: macos-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: arm64
+            script: dist:mac:arm64
+          - arch: x64
+            script: dist:mac:x64
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false' # Prévoir les secrets de signature pour une release de production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run ${{ matrix.script }} -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-mac-${{ matrix.arch }}
+          path: dist/Capri-*-${{ matrix.arch }}-mac.*
+          if-no-files-found: error
+
+  release:
+    name: Publication de la release
+    if: github.ref == 'refs/heads/v2'
+    needs: [build-windows, build-linux, build-mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Autoriser la création du tag et de la release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installer-*
+          merge-multiple: true
+          path: installers
+
+      - name: Préparer le tag et les notes de release
+        env:
+          TAG_INPUT: ${{ inputs.tag }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="${TAG_INPUT:-v$VERSION}"
+
+          if ! [[ "$TAG" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "Tag invalide : $TAG" >&2
+            exit 1
+          fi
+
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "Le tag doit être v$VERSION pour correspondre au manifeste signé." >&2
+            exit 1
+          fi
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+          ls -l installers
+          node scripts/release-notes.js installers > release-notes.md
+
+      - name: Signer le manifeste de mise à jour
+        env:
+          CAPRI_UPDATE_PRIVATE_KEY: ${{ secrets.CAPRI_UPDATE_PRIVATE_KEY }}
+          RELEASE_TAG: ${{ env.TAG }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/create-update-manifest.js installers
+
+      - name: Créer la release GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "La release $TAG existe déjà. Supprime-la (ainsi que son tag) sur GitHub ou utilise une autre version." >&2
+            exit 1
+          fi
+
+          flags=()
+          if [ "$PRERELEASE" = "true" ]; then
+            flags+=(--prerelease)
+          fi
+
+          gh release create "$TAG" installers/* \
+            --target "$GITHUB_SHA" \
+            --title "Capri $VERSION" \
+            --notes-file release-notes.md \
+            "${flags[@]}"
