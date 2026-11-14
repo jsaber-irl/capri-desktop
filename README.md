@@ -1,4 +1,4 @@
-## **Project Capricorn (2.3.3)**
+## **Project Capricorn (2.4.0)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -30,6 +30,7 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 - **Local games**: play chess, tic-tac-toe against Capri, or 2048 in independent windows.
 - **Drawing board**: sketch with a mouse or trackpad, use colors, brush sizes, an eraser, undo/redo, local save/reopen, autosave, and PNG export.
 - **Gaming Mode**: manually reduce autonomous activity and interruptions while playing. It is optional, persistent, and does not detect or monitor running games.
+- **Secure updates**: compare against signed GitHub Releases, download only the matching macOS ARM64/Intel ZIP or Windows x64 installer, verify an Ed25519 signature and SHA-512, and install only after confirmation.
 - **Native PC control from chat**: ask Capri to open system settings, report battery/disk/RAM/IP information, set or mute the volume, start a timer, capture a region, arrange or minimize windows, switch the system theme, or schedule a shutdown/restart. Lock, sleep, shutdown, and restart always require an explicit confirmation button.
 - **PC care and routines**: ask what is slowing the PC, inspect storage, manage startup apps and updates, check duplicate files, switch audio devices, mute the microphone, control Wi-Fi/Bluetooth, eject USB drives, adjust brightness, use Game Bar, recover off-screen windows, move apps to another display, or save and restore named work setups. These controls have their broadest support on Windows.
 - **Health breaks**: Capri can suggest a break after extended activity, waits for a quiet moment, avoids interrupting a game, and lets you pause or defer the reminder.
@@ -76,18 +77,18 @@ Windows may display a SmartScreen warning because the installer is unsigned. Thi
 
 - **macOS:** releases contain a `.dmg` and `.zip`. A production release should be notarized and signed; an unsigned development build can trigger Gatekeeper warnings.
 - **Linux:** releases contain an `AppImage` and a Debian `.deb`. The Linux build is tested on Ubuntu in CI. The AppImage is portable; the `.deb` is intended for Debian/Ubuntu-family systems.
-- **Updates:** the system menu's **Settings → Capri updates…** page compares the installed version with the version in the project's GitHub `package.json` and links to the official repository. It is an informational check; updates are installed by downloading a new package. Windows NSIS updates preserve Capri data; the custom uninstaller prompt is not shown during an update.
+- **Updates:** **Settings → Capri updates…** offers automatic, manual, or disabled modes. Automatic mode checks periodically and downloads verified updates; installation always waits for confirmation. Releases use a signed manifest from the official GitHub repository. macOS builds do not require an Apple Developer ID, but remain unsigned/not notarized and can trigger Gatekeeper warnings. Windows installers are also unsigned and can trigger SmartScreen. Capri never disables either protection.
 
 Linux has no Windows window-possession adapter or macOS Apple Events integration. X11 window titles can be checked for jealousy when `wmctrl` is installed; Wayland may restrict access to other applications' titles. Chat, rendering, voice input/output, screen capture where supported by Electron, application launching, and MPRIS media control through `playerctl` are available subject to the desktop environment and installed tools.
 
 ### Distribution verification
 
-Release automation runs the full Node test suite and builds Windows, macOS, and Linux artifacts on their native CI platforms. Before publishing a production build:
+Release automation runs the full Node test suite and builds Windows, macOS, and Linux artifacts on their native CI platforms. It also builds separate macOS ARM64 and Intel ZIPs. Signed automatic updates are published only from the `v2` branch after configuring the `CAPRI_UPDATE_PRIVATE_KEY` GitHub Actions secret; see [SECURITY_AUDIT.md](SECURITY_AUDIT.md) and [release instructions](docs/UPDATES.md). Before publishing a production build:
 
 1. **Windows:** set `CSC_LINK`/`CSC_KEY_PASSWORD` (or the electron-builder signing equivalent), then verify the installer with `Get-AuthenticodeSignature Capri-Setup-*.exe`. A release is not considered signed when `Status` is not `Valid`.
 2. **macOS:** set the Developer ID signing and notarization credentials supported by electron-builder, then verify with `codesign --verify --deep --strict --verbose=2 Capri.app` and `spctl --assess --type execute Capri.app`.
 3. **Permissions:** on macOS, verify Microphone, Screen Recording, Accessibility, and per-target Automation from Capri’s permissions panel. Apple Events are never assumed to be granted; each target is probed and reported separately.
-4. **Updates:** check that the release contains the platform artifact and its matching `latest*.yml` metadata, and compare the published SHA-256 values with the release notes. Do not describe a release as signed or auto-updating unless these checks pass.
+4. **Updates:** confirm the release contains `update-manifest.json` and `update-manifest.sig` together with `Capri-<version>-arm64-mac.zip`, `Capri-<version>-x64-mac.zip`, and `Capri-Setup-<version>-x64.exe`. The release workflow verifies the signing key against the embedded public key and signs the manifest. This Ed25519 signature authenticates Capri's update metadata; it is not an Apple Developer ID or Windows Authenticode signature.
 
 The current public workflow intentionally builds unsigned artifacts unless signing secrets are supplied. This keeps forks reproducible and makes the signing status explicit rather than presenting an unsigned package as trusted.
 
@@ -300,6 +301,7 @@ Settings are stored in `config.json` in Capri's data directory. Important settin
 | `mindTune` | Local model tuning results |
 | `gamingMode` | Manually enabled quiet behavior while gaming |
 | `memoryRetentionDays` | Expiry period for dated structured memories; `0` keeps them until manual deletion |
+| `updateMode` | `automatic`, `manual`, or `disabled`; controls checks and downloads from GitHub Releases |
 | `muted`, `volume`, `visible`, `welcomed`, `linked` | Interface and session state |
 
 ## Detailed features
@@ -368,6 +370,14 @@ Open chess, tic-tac-toe, or 2048 from **More → Games**. Tic-tac-toe and 2048 r
 
 Use the **Gaming Mode** toggle in **More** or the system menu. The mode is manual and remembered between launches. It pauses Capri's autonomous life activity, break prompts, visual observation, rhythm reactions, and PC reactions while active. Capri remains available for explicit requests. Gaming Mode does not inspect or alter game processes.
 
+### Updates
+
+The **Settings → Capri updates…** window compares Capri's installed version with the latest stable GitHub Release. It verifies the release manifest with the Ed25519 public key bundled in Capri, checks that the package URL and platform/architecture match the signed manifest, downloads over HTTPS, and verifies the package's SHA-512 before showing **Install and restart**. Release notes and publication time are covered by the manifest signature.
+
+Choose one of three persistent modes: **Automatic** checks periodically and downloads verified updates; **Manual** checks and downloads only when requested; **Disabled** makes no update-server requests. Every installation requires confirmation. Supported targets are macOS ARM64, macOS Intel, and Windows x64. The Windows per-user NSIS installer handles the application installation. On macOS, a separate helper stages and swaps the app bundle, restores the previous bundle if the new app cannot start, and leaves Gatekeeper quarantine in place.
+
+Capri's own Ed25519 signature authenticates project releases, but it is independent of operating-system code signing. Since macOS packages are not Developer ID signed/notarized, Gatekeeper can require the user to approve an app. The Windows installer is unsigned and may trigger SmartScreen. Updates never turn off, remove, or bypass those protections. A release cannot publish signed update metadata until the repository's `CAPRI_UPDATE_PRIVATE_KEY` Actions secret is set; key handling and release steps are in [SECURITY_AUDIT.md](SECURITY_AUDIT.md) and [docs/UPDATES.md](docs/UPDATES.md).
+
 ### Cleanup and uninstallation
 
 The **What's installed** menu shows the size of models and tools. Capri only removes items she installed or recorded in `installed.json`. She does not touch models or folders you installed manually.
@@ -400,6 +410,7 @@ permissions, and known limitations.
 - Actions that can affect another person or remove data use confirmation where the feature implements it. Application and website opening may execute immediately after an explicit user request.
 - Native power actions (lock, sleep, shutdown, and restart) require a confirmation button. Delayed shutdown/restart operations display a ticker countdown and can be cancelled before execution.
 - Native PC commands use a narrow IPC surface (`pc:do`) and platform adapters; unsupported operations return failure rather than a success-shaped fallback.
+- The updater accepts only signed metadata from the official GitHub repository and authenticates downloaded bytes before invoking a platform installer. Ed25519 project signing does not make an unsigned OS package appear signed.
 - Capri only removes her own installations and checks that each path is inside her data directory.
 - Windows are moved temporarily and then restored. Any manual user action interrupts the control.
 
@@ -412,6 +423,7 @@ The data involved depends on the features you enable:
 - Vision sends the screenshot to the selected model.
 - Transcription sends audio to the selected speech-recognition engine.
 - The microphone and vision only operate when enabled.
+- Automatic update mode contacts the official GitHub Releases API periodically and downloads a verified compatible package when one is available. Manual mode contacts GitHub only when you request a check or download; Disabled mode makes no updater requests.
 
 Read each cloud provider's privacy policy before using it.
 

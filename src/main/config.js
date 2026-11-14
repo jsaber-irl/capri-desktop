@@ -48,6 +48,8 @@ const DEFAULTS = {
   gameMode: null,    // game mode on: { plan, closed, since }, to put everything back after
   gamingMode: false, // quiet presence: user-enabled, local and never detects or controls games
   memoryRetentionDays: 0, // 0: keep personal memories until the user removes them
+  updateMode: 'automatic', // automatic checks/downloads, manual, or fully disabled
+  lastUpdateInstalled: '', // shown as a success state after the new app starts
   // her character (mood.js, life.js, themes.js, speech.js)
   emotions: true,    // she has moods: she gets angry, laughs, sulks, gets flustered
   colourTheme: 'classic', // her colours: a key of themes.js THEMES, or 'mood'

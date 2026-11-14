@@ -50,6 +50,8 @@ const { createPrivacyTools } = require('./privacy-tools');
 const { createMusicPlayer } = require('./music-player');
 const { createTranslationWindow } = require('./translation-window');
 const { createVersionWindow } = require('./version-window');
+const { createUpdateManager } = require('./update-manager');
+const { runUpdateHelper, recordFailure } = require('./update-helper');
 const { createStructuredMemory } = require('./structured-memory');
 const { translateSource } = require('./translator');
 const { createTextDocument } = require('./documents');
@@ -368,13 +370,17 @@ const translationWindow = createTranslationWindow({
     }
   },
 });
+const updateManager = createUpdateManager({ app, config, packageInfo });
 const versionWindow = createVersionWindow({
   BrowserWindow,
   ipcMain,
   shell,
+  dialog,
   preload: path.join(__dirname, '..', 'version-preload.js'),
   protocolUrl: 'capri://app/src/renderer/version.html',
   packageInfo,
+  updateManager,
+  config,
 });
 let presenceTimer = null;
 let senseState = {};    // which senses are live right now (the overlay says): { eyes, ears, listening }
@@ -2481,6 +2487,13 @@ function removeEverythingAndQuit() {
 }
 
 function main() {
+  if (process.argv.includes('--capri-update-helper')) {
+    runUpdateHelper({ app, args: process.argv }).catch((error) => {
+      recordFailure(app);
+      app.exit(1);
+    });
+    return;
+  }
   if (process.argv.includes('--remove-everything')) {
     removeEverythingAndQuit();
     return;
@@ -2598,6 +2611,8 @@ function main() {
     // after sleep or a locked screen, once Windows has settled
     powerMonitor.on('resume', () => setTimeout(rearmOverlay, 2000));
     powerMonitor.on('unlock-screen', () => setTimeout(rearmOverlay, 1000));
+    updateManager.confirmInstalled();
+    updateManager.start();
   });
 
   app.on('before-quit', () => {

@@ -9,7 +9,7 @@ import { SPRITE } from './sprite.js';
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const HIP_DROP = (scale) => (SPRITE.feet.y - SPRITE.hip) * scale; // from her hips to her feet
-const HANDSTAND_LIFT = -89;
+const HANDSTAND_LIFT = 70;
 
 // Where her feet go so that her hips rest on the window's top edge.
 export function seat(win, dx, scale) {
