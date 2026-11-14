@@ -71,10 +71,21 @@ test('the uninstaller asks whether what she downloaded goes too, and never on an
   assert.match(main, /'\/S', '--delete-app-data'/);
 });
 
-test('the distribution config exposes Linux packages and GitHub update metadata', () => {
+test('the distribution config exposes supported packages and signed update release targets', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   assert.deepEqual(pkg.build.linux.target, ['AppImage', 'deb']);
-  assert.equal(pkg.build.publish.provider, 'github');
-  assert.equal(pkg.build.publish.owner, 'jsaber-irl');
-  assert.equal(pkg.build.publish.repo, 'capri-desktop');
+  assert.equal(pkg.scripts['dist:mac:arm64'], 'electron-builder --mac --arm64');
+  assert.equal(pkg.scripts['dist:mac:x64'], 'electron-builder --mac --x64');
+  assert.equal(pkg.build.mac.artifactName, 'Capri-${version}-${arch}-mac.${ext}');
+  assert.equal(pkg.build.nsis.artifactName, 'Capri-Setup-${version}-${arch}.${ext}');
+  assert.equal(pkg.dependencies['electron-updater'], undefined, 'the custom signed updater does not depend on electron-updater');
+  const updater = fs.readFileSync(path.join(__dirname, '..', 'src/main/update-manager.js'), 'utf8');
+  assert.match(updater, /api\.github\.com\/repos\/jsaber-irl\/capri-desktop\/releases\/latest/);
+  assert.match(updater, /crypto\.verify\(null, raw, publicKey, signature\)/);
+  assert.match(updater, /createHash\('sha512'\)/);
+  const workflow = fs.readFileSync(path.join(__dirname, '..', '.github/workflows/release.yml'), 'utf8');
+  assert.match(workflow, /CAPRI_UPDATE_PRIVATE_KEY/);
+  assert.match(workflow, /dist:mac:arm64/);
+  assert.match(workflow, /dist:mac:x64/);
+  assert.match(workflow, /create-update-manifest\.js/);
 });

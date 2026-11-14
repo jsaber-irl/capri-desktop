@@ -210,7 +210,7 @@ test('everything is there already: nothing is shown, nothing is fetched, her cho
 });
 
 test('a fresh PC: she installs Ollama, starts it, fetches a model, makes the folder, the environment, the package and the voice, and says how far she is', async () => {
-  const { p, state, cfg } = world({ state: { ollamaFound: false, hasPackage: false, cbProgress: [0.2, 0.6, 1] } });
+  const { p, state, cfg } = world({ cfg: { ttsEngine: 'chatterbox' }, state: { ollamaFound: false, hasPackage: false, cbProgress: [0.2, 0.6, 1] } });
   const changes = [];
   p.on('change', (s) => changes.push(s));
   await p.run();
@@ -254,7 +254,7 @@ test('what she is not using she does not prepare: Claude for the mind, ElevenLab
 });
 
 test('a server of your own for the voice: nothing is installed', async () => {
-  const { p, cfg } = world({ cfg: { provider: 'anthropic', ttsEngine: 'system', chatterboxUrl: 'http://127.0.0.1:8004/v1' } });
+  const { p, cfg } = world({ cfg: { provider: 'anthropic', ttsEngine: 'chatterbox', chatterboxUrl: 'http://127.0.0.1:8004/v1' } });
   await p.run();
   assert.equal(p.ok, true);
   assert.deepEqual(['cb-find', 'cb-python', 'cb-package'].map((id) => p.step(id).state), ['skipped', 'skipped', 'skipped']);
@@ -305,19 +305,19 @@ test('an Ollama that will not start says why, and the model fetch that fails say
 
 test('the voice: no Python is installed with winget when it can; a wrong Python is said; pip failing is shown with its last lines; the voice failing too', async () => {
   // no Python at all: installed (the stand-in for winget), then the environment is made
-  const a = world({ cfg: { provider: 'anthropic' }, state: { hasPackage: false, systemPython: null } });
+  const a = world({ cfg: { provider: 'anthropic', ttsEngine: 'chatterbox' }, state: { hasPackage: false, systemPython: null } });
   await a.p.run();
   assert.deepEqual(a.state.installed, ['python']);
   assert.equal(a.p.ok, true, JSON.stringify(states(a.p)));
   // a Python that is too new, and nothing can install another
-  const b = world({ cfg: { provider: 'anthropic' }, state: { hasPackage: false, systemPython: { tooNew: '3.13.1' } }, deps: { installPython: null } });
+  const b = world({ cfg: { provider: 'anthropic', ttsEngine: 'chatterbox' }, state: { hasPackage: false, systemPython: { tooNew: '3.13.1' } }, deps: { installPython: null } });
   await b.p.run();
   const py = b.p.step('cb-python');
   assert.equal(py.state, 'failed');
   assert.match(py.error, /Python 3\.10–3\.12 is needed \(I found 3\.13\.1/);
   assert.ok(py.actions.includes('open-python-site'));
   // pip fails
-  const c = world({ cfg: { provider: 'anthropic' }, state: { hasPackage: false, pipFails: true } });
+  const c = world({ cfg: { provider: 'anthropic', ttsEngine: 'chatterbox' }, state: { hasPackage: false, pipFails: true } });
   await c.p.run();
   assert.equal(c.p.step('cb-package').state, 'failed');
   assert.match(c.p.step('cb-package').error, /Could not install Chatterbox: ERROR: no matching distribution/);

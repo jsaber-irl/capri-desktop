@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Тег релиза (пусто: v + версия из package.json)'
+        description: 'Тег релиза должен быть v + версия из package.json (пусто: автоматически)'
         required: false
         default: ''
       prerelease:
@@ -63,12 +63,6 @@ jobs:
           name: installer-${{ matrix.arch }}
           path: dist/Capri-Setup-*-${{ matrix.arch }}.exe
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: update-metadata-${{ matrix.arch }}
-          path: dist/latest.yml
-          if-no-files-found: error
-        if: matrix.arch == 'x64'
 
   build-linux:
     name: Paquet Linux
@@ -89,16 +83,18 @@ jobs:
             dist/Capri-*.AppImage
             dist/Capri-*.deb
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: update-metadata-linux
-          path: dist/latest-linux.yml
-          if-no-files-found: error
-
   build-mac:
-    name: Paquets macOS
+    name: Paquets macOS ${{ matrix.arch }}
     needs: test
     runs-on: macos-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: arm64
+            script: dist:mac:arm64
+          - arch: x64
+            script: dist:mac:x64
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false' # fournir les secrets de signature pour une release de production
     steps:
@@ -108,22 +104,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run dist:mac -- --publish never
+      - run: npm run ${{ matrix.script }} -- --publish never
       - uses: actions/upload-artifact@v4
         with:
-          name: installer-mac
-          path: |
-            dist/Capri-*.dmg
-            dist/Capri-*.zip
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: update-metadata-mac
-          path: dist/latest-mac.yml
+          name: installer-mac-${{ matrix.arch }}
+          path: dist/Capri-*-${{ matrix.arch }}-mac.*
           if-no-files-found: error
 
   release:
     name: Релиз
+    if: github.ref == 'refs/heads/v2'
     needs: [build-windows, build-linux, build-mac]
     runs-on: ubuntu-latest
     permissions:
@@ -148,10 +138,20 @@ jobs:
             echo "Недопустимый тег: $TAG" >&2
             exit 1
           fi
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "Le tag doit être v$VERSION pour correspondre au manifeste signé." >&2
+            exit 1
+          fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "TAG=$TAG" >> "$GITHUB_ENV"
           ls -l installers
           node scripts/release-notes.js installers > release-notes.md
+      - name: Signer le manifeste de mise à jour
+        env:
+          CAPRI_UPDATE_PRIVATE_KEY: ${{ secrets.CAPRI_UPDATE_PRIVATE_KEY }}
+          RELEASE_TAG: ${{ env.TAG }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/create-update-manifest.js installers
       - name: Создать релиз
         env:
           GH_TOKEN: ${{ github.token }}

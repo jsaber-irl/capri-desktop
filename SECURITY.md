@@ -34,6 +34,23 @@ Drawing operations are restricted to a versioned, bounded stroke format. File se
 export use native dialogs; autosaves stay in Capri's user-data directory. Local games use separate
 windows and an allowlist of game identifiers. Their preload exposes only a close request.
 
+The update window also has a dedicated preload and validates its IPC sender/frame. The renderer
+cannot supply a URL or installation path. The Main-process update manager accepts only HTTPS assets
+from the official GitHub release paths, verifies the embedded Ed25519 public-key signature before
+trusting the manifest, checks the platform/architecture and signed SHA-512/size, and rechecks the
+package immediately before installation. It stages partial downloads privately and removes them on
+failure. Automatic mode checks and downloads; installation still needs a separate confirmation.
+Manual mode makes requests only when asked; Disabled mode makes no updater requests.
+
+Windows updates launch the expected per-user NSIS installer after Capri closes. macOS updates use a
+fixed helper and quarantine the new bundle so Gatekeeper still applies. The helper does not remove
+quarantine or alter Gatekeeper/SIP settings and attempts to restore the previous bundle if the new
+app does not initialize. These project signatures do not constitute Apple Developer ID notarization
+or Windows Authenticode signing; Gatekeeper and SmartScreen warnings remain possible. Windows NSIS
+does not have a custom rollback for an interrupted installation. See [SECURITY_AUDIT.md](SECURITY_AUDIT.md)
+for the updater threat model and known limits, and [docs/UPDATES.md](docs/UPDATES.md) for private-key
+handling and the release procedure.
+
 ## Sensitive actions
 
 - Locking, sleeping, shutting down, and restarting require a confirmation action in chat. Delayed

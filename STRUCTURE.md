@@ -27,9 +27,12 @@ selected feature. See [SECURITY.md](SECURITY.md) for the data boundaries and kno
 capri-desktop/
 ├── assets/                 Character art, fonts, icons, sounds, bundled voice assets
 ├── build/                  Installer customization
+│   └── mac-update-helper.sh Fixed macOS bundle staging and rollback helper
 ├── docs/                   Screenshots and feature illustrations
 ├── hooks/                  Claude Code, Codex, and Antigravity event hooks
 ├── scripts/                Development, setup, demo, release, and hook-install scripts
+│   ├── create-update-manifest.js  Asset hashing and Ed25519 manifest signing in CI
+│   └── generate-update-key.js      Offline Ed25519 key-pair generator
 ├── src/
 │   ├── main/               Electron Main process and platform/service adapters
 │   │   ├── main.js          Startup, windows, IPC registration, tray, lifecycle
@@ -39,6 +42,10 @@ capri-desktop/
 │   │   ├── data-window.js  Data-management window, folder dialogs and guarded IPC
 │   │   ├── draw-window.js  Drawing window, validated local files and autosave
 │   │   ├── games-window.js Allowlisted independent local-game windows
+│   │   ├── version-window.js Update window and confirmed install IPC
+│   │   ├── update-manager.js HTTPS release lookup, signature/hash validation and download
+│   │   ├── update-helper.js Revalidates the handoff and starts platform installation
+│   │   ├── update-public-key.pem Embedded Ed25519 release-verification key
 │   │   ├── setup.js         AI provider/key setup and encrypted credential handling
 │   │   ├── system.js        Allowlisted OS actions, including chat PC care
 │   │   ├── devices.js       Windows audio/radio/USB/brightness/Game Bar adapters
@@ -68,16 +75,19 @@ capri-desktop/
 │   │   ├── index.html       Main overlay document
 │   │   ├── hub.html         Main settings window
 │   │   ├── terminal.html    Command terminal
-│   │   └── call.html        Voice-call window
+│   │   ├── call.html        Voice-call window
+│   │   └── version.html     Signed update status and controls
 │   ├── preload.js           Narrow API for the main overlay
 │   ├── data-preload.js      Data/Markdown window API
 │   ├── draw-preload.js      Drawing window API
 │   ├── games-preload.js     Local-game window API
+│   ├── version-preload.js   Narrow update-window API
 │   ├── hub-preload.js       Settings-window API
 │   ├── terminal-preload.js  Terminal-window API
 │   └── prepare-preload.js   Setup-window API
 ├── tests/                   Node built-in tests, including privacy, drawing and game logic/IPC
 ├── package.json             Scripts, dependencies, build targets, packaging
+├── SECURITY_AUDIT.md        Update-channel threats, protections and limits
 └── README.md                Installation, usage, features, and developer guide
 ```
 
@@ -135,6 +145,27 @@ separate game logic for tic-tac-toe and 2048, while `renderer/game.js` renders t
 `games-preload.js` exposes only a close request. The existing chess window and chess service remain
 separate from these games.
 
+### Updates
+
+`version-window.js` hosts the update interface and validates its IPC sender/frame. `version-preload.js`
+exposes only state, check, download, mode, install, repository, and subscription operations.
+`update-manager.js` calls the fixed GitHub Releases API, validates the signed manifest and
+platform-specific asset, downloads to Capri's user-data folder, and verifies SHA-512. The embedded
+public key is in `update-public-key.pem`; the private signing key is supplied to GitHub Actions as
+`CAPRI_UPDATE_PRIVATE_KEY` and never enters the app package.
+
+`update-helper.js` verifies the signed handoff and file a second time. Windows launches the
+per-user NSIS installer after Capri exits. macOS validates archive paths, then starts the fixed
+`build/mac-update-helper.sh` from application resources; the helper stages beside the app, preserves
+Gatekeeper quarantine, swaps the bundle, and restores the previous bundle if startup cannot be
+confirmed. Update modes are persisted in `config.js`: Automatic checks and downloads, Manual waits
+for the user, and Disabled prevents updater requests.
+
+`scripts/create-update-manifest.js` creates and signs release metadata after build artifacts exist.
+`.github/workflows/release.yml` runs tests, builds platform packages, and signs/publishes only from
+the `v2` branch. See [docs/UPDATES.md](docs/UPDATES.md) and [SECURITY_AUDIT.md](SECURITY_AUDIT.md)
+for key setup, release steps, and known limits.
+
 ### Gaming Mode
 
 The `gamingMode` configuration value is toggled from the circular menu or system tray. The renderer
@@ -147,9 +178,9 @@ automatically.
 Tests use Node's built-in `node:test` runner. Run all tests with `npm test`; focused scripts such as
 `npm run test:chat` and `npm run test:desktop-integration` are listed in `package.json`. Desktop
 integration tests may query real devices and sessions and have explicit opt-in environment flags.
-The privacy, drawing, and games tests cover local data operations, validation, game logic, and
-simulated Electron window/IPC lifecycles; they do not substitute for interactive cross-platform
-Electron testing.
+The privacy, drawing, games, and update tests cover local data operations, validation, game logic,
+Ed25519 manifests, SHA-512 downloads, and simulated Electron window/IPC lifecycles; they do not
+substitute for interactive cross-platform Electron testing.
 
 Useful commands:
 

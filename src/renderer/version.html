@@ -26,11 +26,30 @@
       <span class="version__indicator" id="indicator" aria-hidden="true">◈</span>
       <h2 id="result-title"></h2>
       <p id="result-message"></p>
+      <progress id="progress" max="1" value="0" hidden></progress>
+    </section>
+
+    <section class="version__settings">
+      <label for="mode" id="mode-label"></label>
+      <select id="mode">
+        <option value="automatic" id="mode-automatic"></option>
+        <option value="manual" id="mode-manual"></option>
+        <option value="disabled" id="mode-disabled"></option>
+      </select>
+      <p id="last-check"></p>
+    </section>
+
+    <section class="version__notes" id="notes-panel" hidden>
+      <h2 id="notes-title"></h2>
+      <p id="release-date"></p>
+      <pre id="release-notes"></pre>
     </section>
 
     <footer class="version__footer">
       <button id="repository" class="button button--main" type="button"></button>
       <button id="check" class="button" type="button"></button>
+      <button id="download" class="button" type="button" hidden></button>
+      <button id="install" class="button button--install" type="button" hidden></button>
     </footer>
   </main>
 </body>
