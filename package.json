@@ -153,6 +153,7 @@
         "deb"
       ],
       "category": "Utility",
+      "icon": "assets/icons/capri-app.png",
       "artifactName": "Capri-${version}-${arch}.${ext}"
     },
     "nsis": {
