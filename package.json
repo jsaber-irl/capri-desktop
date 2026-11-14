@@ -133,7 +133,7 @@
         "dmg",
         "zip"
       ],
-      "icon": "assets/icons/capri.png",
+      "icon": "assets/icons/capri-app.icns",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Capri uses the microphone only when you start a voice feature, such as push-to-talk or a voice conversation.",
         "NSAppleEventsUsageDescription": "Capri sends Apple Events only when you request supported application and window controls.",
