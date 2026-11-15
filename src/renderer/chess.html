@@ -33,12 +33,14 @@
       <!-- ÉCHIQUIER -->
       <section class="chess__board-area">
         <div>
+          <div class="chess__board-tools"><button id="flip" type="button">PIVOTER</button><div class="chess__history-tools"><button id="first" type="button" aria-label="Début">|◀</button><button id="back" type="button" aria-label="Précédent">◀</button><button id="forward" type="button" aria-label="Suivant">▶</button><button id="latest" type="button" aria-label="Position actuelle">▶|</button></div></div>
           <div
             class="board"
             id="board"
             role="grid"
             aria-label="Échiquier">
           </div>
+          <ol id="move-list" class="chess__move-list" aria-label="Historique des coups"></ol>
           <div
             id="promotion"
             class="promotion"
@@ -68,6 +70,8 @@
           aria-live="polite">
           Chargement…
         </div>
+        <div class="chess__history-tools"><button id="flip" type="button">PIVOTER</button><button id="first" type="button">|◀</button><button id="back" type="button">◀</button><button id="forward" type="button">▶</button><button id="latest" type="button">▶|</button></div>
+        <ol id="move-list" class="chess__move-list" aria-label="Historique des coups"></ol>
         <!-- Actions -->
         <div class="chess__actions">
           <button id="new">

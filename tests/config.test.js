@@ -23,6 +23,15 @@ Module._load = realLoad;
 
 test('the Capri cursor is opt-in until the user enables it', () => {
   assert.equal(config.DEFAULTS.capriCursor, false);
+  assert.equal(config.DEFAULTS.discordPresence, false);
+});
+
+test('saved cursor and Discord choices override new-install defaults', () => {
+  fs.writeFileSync(config.file(), JSON.stringify({ capriCursor: true, discordPresence: true }));
+  assert.equal(config.load(true).capriCursor, true);
+  assert.equal(config.load().discordPresence, true);
+  fs.rmSync(config.file(), { force: true });
+  config.load(true);
 });
 
 const onDisk = () => JSON.parse(fs.readFileSync(config.file(), 'utf8'));

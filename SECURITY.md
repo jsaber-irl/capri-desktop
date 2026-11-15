@@ -33,6 +33,9 @@ files.
 Drawing operations are restricted to a versioned, bounded stroke format. File selection and PNG
 export use native dialogs; autosaves stay in Capri's user-data directory. Local games use separate
 windows and an allowlist of game identifiers. Their preload exposes only a close request.
+Chess history is held in the in-memory game service and sent to the trusted chess renderer; browsing
+old positions is read-only and does not issue a move command. Tic-tac-toe and 2048 logic runs locally
+in their own renderer, without monitoring other applications or contacting a game service.
 
 The update window also has a dedicated preload and validates its IPC sender/frame. The renderer
 cannot supply a URL or installation path. The Main-process update manager accepts only HTTPS assets
@@ -50,6 +53,10 @@ or Windows Authenticode signing; Gatekeeper and SmartScreen warnings remain poss
 does not have a custom rollback for an interrupted installation. See [SECURITY_AUDIT.md](SECURITY_AUDIT.md)
 for the updater threat model and known limits, and [docs/UPDATES.md](docs/UPDATES.md) for private-key
 handling and the release procedure.
+
+Capri Cursor is disabled for new configurations, and Discord Rich Presence is opt-in. Main-process
+Discord startup checks the saved preference before connecting; saved values override defaults so an
+upgrade does not silently change an existing user's choice.
 
 ## Sensitive actions
 

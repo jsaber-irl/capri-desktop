@@ -150,6 +150,27 @@ button,
   padding: 30px 3.5% 10px;
 }
 
+@media (max-width: 850px) {
+  .chess__layout { grid-template-columns: minmax(0, 1.1fr) minmax(240px, .9fr); gap:18px; padding-inline:1%; }
+  .chess__board-area { padding:4px; }
+}
+@media (max-width: 650px) {
+  .chess__layout { grid-template-columns:1fr; padding:16px 0; }
+  .chess__board-area { padding:0; }
+  .board { width:min(100%, 580px); }
+}
+
+.chess__history-tools { display:flex; gap:6px; margin:8px 0; }
+.chess__history-tools button, .chess__move-list button { color:var(--white); background:var(--panel-light); border:1px solid #7b3dff66; padding:7px 9px; cursor:pointer; }
+.chess__history-tools button:disabled, .chess__move-list button:disabled { opacity:.4; cursor:default; }
+.chess__move-list { max-height:180px; overflow:auto; list-style:none; padding:4px; margin:8px 0; background:#0b0810; border:1px solid #ffffff18; }
+.chess__move-row { display:grid; grid-template-columns:32px 1fr 1fr; gap:6px; align-items:center; min-height:34px; }
+.chess__move-row > span { color:var(--muted); text-align:center; }
+.chess__move-list button { text-align:left; }
+.chess__move-list button.is-current { color:#101118; background:var(--green); }
+.chess__avatar.is-thinking { animation:thinking-pulse .55s ease-in-out infinite alternate; }
+@keyframes thinking-pulse { to { box-shadow:0 0 20px #36ff7a99; transform:scale(1.04); } }
+
 /* =========================================
    ÉCHIQUIER
 ========================================= */

@@ -52,3 +52,27 @@ test('online play uses a legal move from the free Lichess cloud evaluation when 
   assert.equal(result.ok, true);
   assert.equal(result.botMove, 'e7e5');
 });
+
+test('records SAN and immutable position snapshots for game navigation', () => {
+  const game = new ChessGame({ random: () => 0.5, fetchEval: async () => ({ ok: false }) });
+  const result = game.play('e2e4');
+  assert.equal(result.userMove.san, 'e4');
+  assert.equal(game.state().positions.length, game.state().moveHistory.length + 1);
+  assert.equal(game.state().positions[0].turn, 'w');
+  assert.equal(game.state().moveHistory[0], 'e4');
+  assert.notEqual(game.state().positions[1].fen, game.state().positions[0].fen);
+});
+
+test('asynchronous opponent locks the game while thinking and publishes intermediate state', async () => {
+  let finish;
+  const game = new ChessGame({ fetchEval: () => new Promise((resolve) => { finish = resolve; }) });
+  let intermediate;
+  const pending = game.playAsync('e2e4', { onUserMove: (state) => { intermediate = state; } });
+  assert.equal(intermediate.turn, 'b');
+  assert.equal(intermediate.thinking, true);
+  assert.equal(game.play('d2d4').ok, false);
+  finish({ ok: false });
+  const result = await pending;
+  assert.equal(result.ok, true);
+  assert.equal(game.state().thinking, false);
+});

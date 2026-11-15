@@ -1,4 +1,4 @@
-## **Project Capricorn (2.4.0)**
+## **Project Capricorn (2.4.1)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -13,7 +13,7 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 ## Main features
 
 - **Coding AI monitoring** (Claude Code, Codex, Antigravity): Capri comments on actions, asks for your permission when needed, and reacts when the task is finished.
-- **AI conversation**: local Ollama, Claude, Gemini, GPT, Groq, and other providers. While an answer loads, localized cyberpunk-style commands type out in the chat; simple thanks and apologies receive an immediate reply without waiting for the AI. Capri can speak using Piper, Chatterbox, the system voice, or a cloud service.
+- **AI conversation**: local Ollama, Claude, Gemini, GPT, Groq, and other providers. While an answer loads, localized cyberpunk-style commands type out in the chat; simple thanks and apologies receive an immediate reply without waiting for the AI. App-opening confirmations stay brief and are shown only after a successful launch. Capri can speak using Piper, Chatterbox, the system voice, or a cloud service.
 - **AI jealousy**: when enabled, Capri recognizes supported AI names in browser-tab titles and AI desktop-app windows. Detection is available on Windows, macOS, and Linux; closing rival pages remains Windows-only.
 - **Reminders**: create one-time or recurring reminders in the circular menu, with an in-app alert and a desktop notification when they are due.
 - **Voice input**: speak to Capri using Groq (Whisper), OpenAI Whisper, or an OpenAI-compatible transcription server, including local Whisper servers.
@@ -27,7 +27,7 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 - **Structured memory**: the bond panel can export and import local Markdown memory. Entries remain on this computer, can be removed selectively, and are not transmitted unless you explicitly send them to a provider.
 - **Local data and Obsidian tools**: inspect stored memories, conversations, bond notes, reminders, and preferences; choose Markdown files to import; export selected categories to an Obsidian vault or folder. Imports and exports are local and require a folder selection.
 - **Retention and deletion controls**: set an expiry policy for dated structured memories, delete individual entries or categories, or purge Capri's local user-data folder with a verification report.
-- **Local games**: play chess, tic-tac-toe against Capri, or 2048 in independent windows.
+- **Local games**: play chess, tic-tac-toe against Capri, or 2048 in independent windows. Chess records SAN moves and lets you browse earlier positions or flip the board; tic-tac-toe gives Capri a brief thinking pause; 2048 reports its first 2048 tile and true no-moves game over.
 - **Drawing board**: sketch with a mouse or trackpad, use colors, brush sizes, an eraser, undo/redo, local save/reopen, autosave, and PNG export.
 - **Gaming Mode**: manually reduce autonomous activity and interruptions while playing. It is optional, persistent, and does not detect or monitor running games.
 - **Secure updates**: compare against signed GitHub Releases, download only the matching macOS ARM64/Intel ZIP or Windows x64 installer, verify an Ed25519 signature and SHA-512, and install only after confirmation.
@@ -365,6 +365,10 @@ Imports do not call an AI provider. Export creates a new timestamped folder and 
 ### Local games and drawing
 
 Open chess, tic-tac-toe, or 2048 from **More → Games**. Tic-tac-toe and 2048 run locally in separate windows and do not use a game server. The **Drawing board** opens another independent window. Drawings autosave locally, can be saved and reopened as Capri drawing files, and can be exported as PNG. Closing the board waits for a successful local autosave.
+
+Chess shows a SAN move list and lets you inspect recorded positions without changing the live game; use the orientation button to flip the board. Tic-tac-toe locks input while Capri considers her reply. In 2048, reaching 2048 is announced once and play can continue; a loss is shown only when no adjacent equal tiles and no empty cells remain.
+
+New installations leave **Use Capri Cursor** and **Discord Rich Presence** off. Existing saved values take precedence over defaults, so updating Capri preserves each user's selections.
 
 ### Gaming Mode
 

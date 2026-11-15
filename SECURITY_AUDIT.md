@@ -45,3 +45,20 @@ Project signature verification does not sign the macOS app bundle or the Windows
 - The automated updater tests use generated signing keys, temporary files, and a simulated HTTPS transport. They validate cryptographic and state logic, not live GitHub release operations or full installer execution on every OS/architecture.
 
 See [docs/UPDATES.md](docs/UPDATES.md) for the secret setup and release procedure.
+
+## Other changes reviewed in the current source
+
+Local game enhancements keep game state within Capri's game service or dedicated renderer. Chess
+history snapshots and SAN are produced locally; the renderer can select a historical snapshot or
+flip its display without mutating the current position. Existing chess move IPC remains sender
+checked. Tic-tac-toe delays only its local opponent move, while 2048 win/loss detection is local.
+No new dependency, file-system permission, process control, or game-window IPC capability was added.
+
+New-install defaults for Capri Cursor and Discord Rich Presence are disabled. Config loading merges
+saved user values over defaults, preserving existing opt-ins. Discord startup remains gated by the
+saved setting. A missing optional animation cut-in now falls back to another bundled image and emits
+a development diagnostic; the required main sprite still prevents startup if it cannot load.
+
+This source review does not constitute a Windows runtime animation test or a real cross-platform
+visual test. Asset path checks and automated game tests can establish repository integrity and logic,
+but do not prove GPU, display-scaling, or Electron behavior on Windows/macOS/Linux hardware.

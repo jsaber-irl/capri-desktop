@@ -62,6 +62,7 @@
       help: 'AIDE',
       close: 'Fermer',
       board: 'Échiquier',
+      flip: 'PIVOTER', history: 'Historique des coups', current: 'Position actuelle',
 
       loading: 'Chargement…',
       illegal: 'Coup impossible.',
@@ -90,6 +91,7 @@
       help: 'HELP',
       close: 'Close',
       board: 'Chessboard',
+      flip: 'FLIP BOARD', history: 'Move history', current: 'Current position',
 
       loading: 'Loading…',
       illegal: 'Invalid move.',
@@ -118,6 +120,7 @@
       help: 'ПОМОЩЬ',
       close: 'Закрыть',
       board: 'Шахматная доска',
+      flip: 'ПОВЕРНУТЬ', history: 'История ходов', current: 'Текущая позиция',
 
       loading: 'Загрузка…',
       illegal: 'Недопустимый ход.',
@@ -140,6 +143,8 @@
 
   let pendingPromotion = null;
   let busy = false;
+  let flipped = false;
+  let viewPly = null;
 
   const tr = () => TXT[lang] || TXT.fr;
 
@@ -152,7 +157,9 @@
 
     if (!gameState?.fen) return Array(64).fill('');
 
-    const [placement] = gameState.fen.split(' ');
+    const positions = gameState.positions || [];
+    const fen = viewPly !== null && positions[viewPly] ? positions[viewPly].fen : gameState.fen;
+    const [placement] = fen.split(' ');
 
     return placement.split('/').flatMap((row) =>
       [...row].flatMap((c) =>
@@ -182,6 +189,8 @@
     if (!gameState) return;
 
     const pieces = matrix();
+    const shownPosition = viewPly !== null ? gameState.positions?.[viewPly] : null;
+    const shownLastMove = shownPosition ? shownPosition.lastMove : gameState.lastMove;
 
     const turnText =
       gameState.turn === 'w'
@@ -252,6 +261,12 @@
     $('new').textContent = tr().new;
     $('resign').textContent = tr().resign;
     $('help').textContent = tr().help;
+    $('flip').textContent = tr().flip;
+    $('move-list').setAttribute('aria-label', tr().history);
+    $('first').setAttribute('aria-label', tr().history + ': 0');
+    $('back').setAttribute('aria-label', lang === 'ru' ? 'Предыдущий ход' : lang === 'en' ? 'Previous move' : 'Coup précédent');
+    $('forward').setAttribute('aria-label', lang === 'ru' ? 'Следующий ход' : lang === 'en' ? 'Next move' : 'Coup suivant');
+    $('latest').setAttribute('aria-label', tr().current);
 
     $('close').setAttribute('aria-label', tr().close);
 
@@ -268,12 +283,17 @@
 
     board.replaceChildren(
 
-      ...pieces.map((piece, i) => {
+      ...Array.from({ length: 64 }, (_, displayIndex) => {
+        const i = flipped ? 63 - displayIndex : displayIndex;
+        const piece = pieces[i];
 
         const from = coords(i);
 
         const row = Math.floor(i / 8);
         const col = i % 8;
+        const displayRow = Math.floor(displayIndex / 8);
+        const displayCol = displayIndex % 8;
+        const historical = viewPly !== null && viewPly < (gameState.positions?.length || 1) - 1;
 
         const button = document.createElement('button');
 
@@ -303,7 +323,7 @@
 
         // Case sélectionnée
 
-        if (selected === from) {
+        if (!historical && selected === from) {
 
           button.classList.add('is-selected');
 
@@ -313,7 +333,7 @@
         // Coups possibles
 
         const targetMoves = moves.filter(
-          (m) => m.from === selected && m.to === from
+          (m) => !historical && m.from === selected && m.to === from
         );
 
         if (targetMoves.length) {
@@ -332,10 +352,10 @@
         // Dernier déplacement
 
         if (
-          gameState.lastMove &&
+          shownLastMove &&
           (
-            gameState.lastMove.from === from ||
-            gameState.lastMove.to === from
+            shownLastMove.from === from ||
+            shownLastMove.to === from
           )
         ) {
 
@@ -346,12 +366,12 @@
 
         // Coordonnées verticales
 
-        if (col === 0) {
+        if (displayCol === 0) {
 
           const rank = document.createElement('span');
 
           rank.className = 'square__coord square__coord--rank';
-          rank.textContent = 8 - row;
+          rank.textContent = flipped ? displayRow + 1 : 8 - displayRow;
 
           button.append(rank);
 
@@ -360,12 +380,12 @@
 
         // Coordonnées horizontales
 
-        if (row === 7) {
+        if (displayRow === 7) {
 
           const file = document.createElement('span');
 
           file.className = 'square__coord square__coord--file';
-          file.textContent = 'abcdefgh'[col];
+          file.textContent = flipped ? 'hgfedcba'[displayCol] : 'abcdefgh'[displayCol];
 
           button.append(file);
 
@@ -386,7 +406,7 @@
 
         button.addEventListener('click', () => {
 
-          choose(from, piece);
+          if (!historical) choose(from, piece);
 
         });
 
@@ -405,6 +425,26 @@
 
     $('resign').disabled = ended;
 
+    $('avatar')?.classList.toggle('is-thinking', Boolean(gameState.thinking));
+    if (gameState.thinking) quoteEl.textContent = tr().bot;
+    const historyMoves = gameState.moveHistory || [];
+    const list = $('move-list');
+    list.replaceChildren(...Array.from({ length: Math.ceil(historyMoves.length / 2) }, (_, row) => {
+      const item = document.createElement('li');
+      const label = document.createElement('span'); label.textContent = `${row + 1}.`; item.append(label);
+      for (let side = 0; side < 2; side++) {
+        const ply = row * 2 + side + 1; const button = document.createElement('button');
+        button.type = 'button'; button.textContent = historyMoves[ply - 1] || '·'; button.disabled = !historyMoves[ply - 1];
+        button.classList.toggle('is-current', (viewPly === null ? historyMoves.length : viewPly) === ply);
+        button.addEventListener('click', () => { viewPly = ply; selected = ''; render(); }); item.append(button);
+      }
+      return item;
+    }));
+    $('back').disabled = (viewPly ?? historyMoves.length) <= 0;
+    $('forward').disabled = (viewPly ?? historyMoves.length) >= historyMoves.length;
+    $('first').disabled = historyMoves.length === 0 || viewPly === 0;
+    $('latest').disabled = viewPly === null;
+
   }
 
 
@@ -417,7 +457,7 @@
     if (
       busy ||
       gameState?.status !== 'playing' ||
-      gameState.turn !== 'w'
+      gameState.turn !== 'w' || gameState.thinking || (viewPly !== null && viewPly < (gameState.positions?.length || 1) - 1)
     ) return;
 
 
@@ -579,6 +619,20 @@
       } else {
 
         gameState = result.state;
+        const reaction = result.state.status === 'white-won'
+          ? (lang === 'ru' ? 'Ладно, ты победил! Реванш?' : lang === 'en' ? 'All right, you win! Rematch?' : 'Bien joué, tu as gagné ! Une revanche ?')
+          : result.state.status === 'black-won'
+            ? (lang === 'ru' ? 'Хи-хи, на этот раз я выиграла!' : lang === 'en' ? 'Hehe, I got you this time!' : 'Hihi, cette fois, c’est moi qui gagne !')
+            : result.state.status === 'draw' || result.state.status === 'stalemate'
+              ? (lang === 'ru' ? 'Какая напряжённая партия!' : lang === 'en' ? 'What a close game!' : 'Quelle partie serrée !')
+              : result.userMove?.capture
+                ? (lang === 'ru' ? 'Ого, хорошее взятие!' : lang === 'en' ? 'Oh, nice capture!' : 'Oh, belle prise !')
+                : result.userMove?.check
+                  ? (lang === 'ru' ? 'Шах? Хороший ход!' : lang === 'en' ? 'Check? Nicely played!' : 'Échec ? Bien joué !')
+                  : result.botCapture
+                    ? (lang === 'ru' ? 'Ой, я забрала фигуру.' : lang === 'en' ? 'Oops, I got one of your pieces.' : 'Oups, j’ai pris une de tes pièces.')
+                    : '';
+        if (reaction) quoteEl.textContent = reaction;
 
       }
 
@@ -607,6 +661,7 @@
     if (busy) return;
 
     busy = true;
+    if (action === 'new') viewPly = null;
 
     messageEl.textContent = '';
 
@@ -666,6 +721,11 @@
     void command('new');
 
   });
+  $('flip').addEventListener('click', () => { flipped = !flipped; render(); });
+  $('first').addEventListener('click', () => { viewPly = 0; selected = ''; render(); });
+  $('back').addEventListener('click', () => { viewPly = Math.max(0, (viewPly ?? (gameState?.moveHistory?.length || 0)) - 1); selected = ''; render(); });
+  $('forward').addEventListener('click', () => { viewPly = Math.min(gameState?.moveHistory?.length || 0, (viewPly ?? (gameState?.moveHistory?.length || 0)) + 1); selected = ''; render(); });
+  $('latest').addEventListener('click', () => { viewPly = null; selected = ''; render(); });
 
 
   $('resign').addEventListener('click', () => {
@@ -696,6 +756,7 @@
   window.host.onChessState((state) => {
 
     gameState = state;
+    if (state.thinking || viewPly === null) viewPly = null;
 
     selected = '';
     pendingPromotion = null;

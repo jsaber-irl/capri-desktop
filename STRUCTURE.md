@@ -140,10 +140,12 @@ autosave, save, or open. `draw-preload.js` exposes only drawing operations; `ren
 pointer input, Canvas rendering, undo/redo, and PNG export. Drawings autosave under Capri's
 user-data directory.
 
-`games-window.js` opens independent windows for allowlisted game IDs. `renderer/games/` contains the
-separate game logic for tic-tac-toe and 2048, while `renderer/game.js` renders the selected game.
-`games-preload.js` exposes only a close request. The existing chess window and chess service remain
-separate from these games.
+`games-window.js` opens independent, work-area-bounded windows for allowlisted game IDs.
+`renderer/games/` contains standalone logic for tic-tac-toe and 2048; `renderer/game.js` provides
+their localized UI, delayed tic-tac-toe response, and win/loss reporting. `games-preload.js` exposes
+only a close request. The separate chess service records SAN and position snapshots; `chess-ui.js`
+renders the move list, read-only position navigation, and visual board rotation without changing
+the live game position. The chess preload and sender checks remain the only route to game commands.
 
 ### Updates
 

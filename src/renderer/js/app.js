@@ -38,7 +38,7 @@ function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.onerror = () => reject(new Error(`Animation image failed to load: ${src}`));
     img.src = src;
   });
 }
@@ -59,7 +59,10 @@ async function boot() {
       // decoded now, not the first time each one shows up (a hitch right on "hi", on the wave)
       .then((cels) => Promise.all(cels.map((cel) => cel && createImageBitmap(cel))))
       .then((cels) => (cels[0] ? Object.fromEntries(GRAB_FRAMES.map((name, i) => [name, cels[i]])) : null)),
-    ...CUTINS.map((name) => loadImage(`../../assets/capri/cutin-${name}.png`)),
+    ...CUTINS.map((name) => loadImage(`../../assets/capri/cutin-${name}.png`).catch((error) => {
+      devLog('animation asset unavailable', { src: `../../assets/capri/cutin-${name}.png`, error: String(error) });
+      return null;
+    })),
     document.fonts.load('600 16px "Chakra Petch"'),
     document.fonts.load('400 11px "JetBrains Mono"'),
   ]);
@@ -81,7 +84,7 @@ async function boot() {
   reducedMotion.onSystemChange(() => applyMotion(reducedMotion.setting));
 
   const fx = new FxLayer(document.getElementById('fx'), {
-    cutins: Object.fromEntries(CUTINS.map((name, i) => [name, cutins[i]])),
+    cutins: Object.fromEntries(CUTINS.map((name, i) => [name, cutins[i] || cutins[0] || image])),
     intro,
   });
   fx.resize(innerWidth, innerHeight);

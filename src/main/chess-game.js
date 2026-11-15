@@ -142,6 +142,30 @@ function parseUserMove(p, value) {
 }
 
 function key(p) { const fen = toFen(p).split(' '); return fen.slice(0,4).join(' '); }
+function sanFor(p, move) {
+  const piece = p.board[move.from];
+  const type = piece.toLowerCase();
+  const capture = Boolean(p.board[move.to] || move.ep);
+  let san;
+  if (move.castle === 'k') san = 'O-O';
+  else if (move.castle === 'q') san = 'O-O-O';
+  else {
+    let prefix = type === 'p' ? '' : piece.toUpperCase();
+    if (type === 'p' && capture) prefix = FILES[move.from % 8];
+    if (type !== 'p') {
+      const rivals = legalMoves(p).filter((candidate) => candidate.from !== move.from && candidate.to === move.to && p.board[candidate.from]?.toLowerCase() === type);
+      if (rivals.length) {
+        const sameFile = rivals.some((candidate) => candidate.from % 8 === move.from % 8);
+        const sameRank = rivals.some((candidate) => Math.floor(candidate.from / 8) === Math.floor(move.from / 8));
+        prefix += !sameFile ? FILES[move.from % 8] : !sameRank ? String(8 - Math.floor(move.from / 8)) : `${FILES[move.from % 8]}${8 - Math.floor(move.from / 8)}`;
+      }
+    }
+    san = `${prefix}${capture ? 'x' : ''}${square(move.to)}${move.promotion ? `=${move.promotion.toUpperCase()}` : ''}`;
+  }
+  const next = applyMove(p, move);
+  if (inCheck(next)) san += legalMoves(next).length ? '+' : '#';
+  return san;
+}
 function insufficient(p) {
   const minors = p.board.map((v,i) => ({v,i})).filter(({v}) => v && !'PKpk'.includes(v));
   if (!minors.length) return true;
@@ -181,30 +205,57 @@ class ChessGame {
     this.fetchEval = fetchEval;
     this.newGame();
   }
-  newGame() { this.position = parseFen(); this.history = [key(this.position)]; this.resigned = false; return this.state(); }
+  newGame() {
+    this.position = parseFen();
+    this.history = [key(this.position)];
+    this.moveHistory = [];
+    this.positionHistory = [{ fen: toFen(this.position), turn: this.position.turn, lastMove: null }];
+    this.resigned = false;
+    this.thinking = false;
+    return this.state();
+  }
+  applyRecordedMove(move) {
+    const capture = Boolean(this.position.board[move.to] || move.ep);
+    const metadata = { san: sanFor(this.position, move), capture, captured: move.ep ? 'p' : (this.position.board[move.to] || ''), piece: this.position.board[move.from], promotion: move.promotion || '' };
+    this.position = applyMove(this.position, move);
+    this.history.push(key(this.position));
+    this.moveHistory.push(metadata.san);
+    this.positionHistory.push({ fen: toFen(this.position), turn: this.position.turn, lastMove: this.position.lastMove || null });
+    metadata.check = inCheck(this.position);
+    return metadata;
+  }
   play(value) {
+    if (this.thinking) return { ok: false, error: 'Capri réfléchit à son coup.' };
     if (this.resigned || this.outcome()) return { ok: false, error: 'La partie est terminée.' };
     if (this.position.turn !== 'w') return { ok: false, error: 'Capri réfléchit à son coup.' };
     const move = parseUserMove(this.position, value);
     if (!move) return { ok: false, error: 'Coup illégal ou notation non reconnue.' };
-    this.position = applyMove(this.position, move); this.history.push(key(this.position));
+    const userMove = this.applyRecordedMove(move);
     const userState = this.state();
     if (userState.status !== 'playing') return { ok: true, userState, state: userState };
     const reply = this.chooseBotMove();
-    if (reply) { this.position = applyMove(this.position, reply); this.history.push(key(this.position)); }
-    return { ok: true, userState, state: this.state(), botMove: reply ? `${square(reply.from)}${square(reply.to)}${reply.promotion || ''}` : '' };
+    const botMove = reply ? this.applyRecordedMove(reply) : null;
+    return { ok: true, userState, state: this.state(), botMove: reply ? `${square(reply.from)}${square(reply.to)}${reply.promotion || ''}` : '', userMove, botCapture: Boolean(botMove?.capture), botCheck: Boolean(botMove?.check) };
   }
-  async playAsync(value) {
+  async playAsync(value, { onUserMove = () => {} } = {}) {
+    if (this.thinking) return { ok: false, error: 'Capri réfléchit à son coup.' };
     if (this.resigned || this.outcome()) return { ok: false, error: 'La partie est terminée.' };
     if (this.position.turn !== 'w') return { ok: false, error: 'Capri réfléchit à son coup.' };
     const move = parseUserMove(this.position, value);
     if (!move) return { ok: false, error: 'Coup illégal ou notation non reconnue.' };
-    this.position = applyMove(this.position, move); this.history.push(key(this.position));
+    const userMove = this.applyRecordedMove(move);
     const userState = this.state();
     if (userState.status !== 'playing') return { ok: true, userState, state: userState };
-    const reply = await this.chooseBotMoveOnline();
-    if (reply) { this.position = applyMove(this.position, reply); this.history.push(key(this.position)); }
-    return { ok: true, userState, state: this.state(), botMove: reply ? `${square(reply.from)}${square(reply.to)}${reply.promotion || ''}` : '' };
+    this.thinking = true;
+    try {
+      onUserMove(this.state(), userMove);
+      const started = Date.now();
+      const reply = await this.chooseBotMoveOnline();
+      const remaining = 360 - (Date.now() - started);
+      if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+      const botMove = reply ? this.applyRecordedMove(reply) : null;
+      return { ok: true, userState, state: this.state(), botMove: reply ? `${square(reply.from)}${square(reply.to)}${reply.promotion || ''}` : '', userMove, botCapture: Boolean(botMove?.capture), botCheck: Boolean(botMove?.check) };
+    } finally { this.thinking = false; }
   }
   async chooseBotMoveOnline() {
     const remote = await this.remoteMove();
@@ -245,7 +296,7 @@ class ChessGame {
     const pool = ranked.slice(0, Math.min(3, ranked.length));
     return pool[Math.floor(this.random() * pool.length)].move;
   }
-  resign() { if (this.outcome()) return this.state(); this.resigned = true; return this.state(); }
+  resign() { if (this.thinking || this.outcome()) return this.state(); this.resigned = true; return this.state(); }
   outcome() { return this.state().status !== 'playing'; }
   state() {
     const moves = legalMoves(this.position), checked = inCheck(this.position), draws = this.history.filter((k) => k === key(this.position)).length >= 3 || this.position.halfmove >= 100 || insufficient(this.position);
@@ -253,8 +304,8 @@ class ChessGame {
     if (this.resigned) status = 'resigned';
     else if (!moves.length) status = checked ? (this.position.turn === 'w' ? 'black-won' : 'white-won') : 'stalemate';
     else if (draws) status = 'draw';
-    return { fen: toFen(this.position), turn: this.position.turn, status, inCheck: checked, legalMoves: moves.map((m) => ({ from: square(m.from), to: square(m.to), promotion: m.promotion || '' })), lastMove: this.position.lastMove || null, winner: this.resigned ? 'black' : status === 'white-won' ? 'white' : status === 'black-won' ? 'black' : null };
+    return { fen: toFen(this.position), turn: this.position.turn, status, thinking: this.thinking === true, legalMoves: moves.map((m) => ({ from: square(m.from), to: square(m.to), promotion: m.promotion || '' })), lastMove: this.position.lastMove || null, winner: this.resigned ? 'black' : status === 'white-won' ? 'white' : status === 'black-won' ? 'black' : null, moveHistory: [...(this.moveHistory || [])], positions: (this.positionHistory || []).map((position) => ({ ...position })) };
   }
 }
 
-module.exports = { ChessGame, parseFen, toFen, legalMoves, parseUserMove, applyMove, index, square, inCheck, START };
+module.exports = { ChessGame, parseFen, toFen, legalMoves, parseUserMove, applyMove, sanFor, index, square, inCheck, START };

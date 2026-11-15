@@ -155,10 +155,11 @@ const chessWindow = createChessWindow({
   BrowserWindow,
   ipcMain,
   preload: path.join(__dirname, '..', 'preload.js'),
+  screen,
   lang: () => resolveLang(config.load().lang),
   getCommandWebContents: () => overlay?.webContents,
 });
-const gamesWindow = createGamesWindow({ BrowserWindow, ipcMain, preload: path.join(__dirname, '..', 'games-preload.js') });
+const gamesWindow = createGamesWindow({ BrowserWindow, ipcMain, screen, lang: () => resolveLang(config.load().lang), preload: path.join(__dirname, '..', 'games-preload.js') });
 const drawWindow = createDrawWindow({ BrowserWindow, ipcMain, dialog, preload: path.join(__dirname, '..', 'draw-preload.js'), userData: app.getPath('userData') });
 let dataWindow = null;
 // the recording she was given as her voice, if any (voice-sample.js): in her own data folder

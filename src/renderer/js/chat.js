@@ -1326,7 +1326,15 @@ export class Chat {
     this.panel.setActions([]);
     this.zap();
     const res = await this.host.launch(item);
-    this.addLine(answer, res.ok ? fmt(t.opened, { app: item.name }) : `${t.failed} ${res.error}`, res.ok ? 'laugh' : 'aside');
+    if (res.ok) {
+      const line = fmt(t.opened, { app: item.name });
+      this.shown = line;
+      this.panel.stream(line, { done: true });
+      this.panel.setFace('laugh');
+      this.onSpokenText?.(line);
+    } else {
+      this.addLine(answer, `${t.failed} ${res.error}`, 'aside');
+    }
   }
 
   // The media keys: pause, next, louder…
