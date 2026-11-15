@@ -31,7 +31,7 @@ test('the release contains the English description, news and checksums', () => {
       news: '- First change\n- Second change\n'
     });
 
-    assert.match(text, /^## Capri 1\.2\.3/);
+    assert.match(text, /^# Capri 1\.2\.3/);
 
     assert.ok(text.includes(
       'Capri is a living desktop companion that watches Claude Code, Codex, and Antigravity, chats through any AI model, gets angry, laughs, sees your screen, listens, and remembers you.'
@@ -43,7 +43,7 @@ test('the release contains the English description, news and checksums', () => {
 
     assert.ok(text.includes('SmartScreen'));
 
-    assert.match(text, /### What's new\n\n- First change\n- Second change/);
+    assert.match(text, /# NEW :\n\n- First change\n- Second change/);
     assert.match(text, /### SHA-256 checksums/);
 
     assert.ok(text.includes(`${sha('sixty-four')}  Capri-Setup-1.2.3-x64.exe`));
