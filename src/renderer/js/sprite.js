@@ -355,6 +355,7 @@ const UNIFORMS = [
 
 export const SPRITE = {
   width: 240, height: 420, pad: 56,
+  handstandClipY: 245,
   head: { x: 116, y: 132 },
   feet: { x: 128, y: 418 },
   hip: 232, // where she sits
@@ -369,6 +370,16 @@ export const SPRITE = {
     return y >= top && y <= bot;
   },
 };
+
+// Keep the full source silhouette in view when a display/work area is unusually short.
+// The preferred scale remains in configuration; only the rendered scale is fitted.
+export function fitSpriteScale(preferred, floor, margin = 6) {
+  const requested = Number.isFinite(preferred) && preferred > 0 ? preferred : 0.6;
+  const height = Number.isFinite(Number(floor)) ? Math.max(1, Number(floor)) : SPRITE.height;
+  const safeMargin = Number.isFinite(margin) && margin >= 0 ? margin : 6;
+  const available = Math.max(1, height - safeMargin * 2);
+  return Math.min(requested, available / SPRITE.height);
+}
 
 export class SpriteRenderer {
   constructor(canvas, image) {

@@ -238,6 +238,35 @@ async function boot() {
   panel.onLine = (msg) => {
     if (speech.wants('line') && msg.kind !== 'chat') speech.say(msg.line, { mood: heart.state.mood, kind: 'line' });
   };
+  let lastGameRemarkAt = 0;
+  host.onGameReaction?.(({ game, reaction } = {}) => {
+    const key = `${game}:${reaction}`;
+    const lines = {
+      'tic-tac-toe:blocked': { face: 'curious', fr: 'Oh, bien joué, tu as bloqué mon alignement !', en: 'Nice move, you blocked my line!', ru: 'Хорошо! Ты заблокировал мою линию!' },
+      'tic-tac-toe:threat': { face: 'smug', fr: 'Oh, tu prépares quelque chose… je vois ça !', en: 'Oh, you’re setting something up… I see you!', ru: 'О, ты что-то задумал… я вижу!' },
+      'tic-tac-toe:user-win': { face: 'happy', fr: 'Bien joué ! Tu as gagné. Je veux ma revanche !', en: 'Well played! You won. I want a rematch!', ru: 'Отличная игра! Ты победил. Хочу реванш!' },
+      'tic-tac-toe:capri-win': { face: 'giggle', fr: 'Hihi, cette fois, c’est moi qui gagne !', en: 'Hehe, I won this time!', ru: 'Хи-хи, в этот раз победила я!' },
+      'tic-tac-toe:draw': { face: 'curious', fr: 'Quelle partie serrée ! On en refait une ?', en: 'That was close! Another round?', ru: 'Вот это партия! Ещё раз?' },
+      '2048:win': { face: 'happy', fr: 'Incroyable, tu as atteint 2048 !', en: 'Amazing, you reached 2048!', ru: 'Невероятно, ты достиг 2048!' },
+      '2048:game-over': { face: 'shy', fr: 'La grille est bloquée… belle tentative !', en: 'No moves left… nice try!', ru: 'Ходов больше нет… хорошая попытка!' },
+      '2048:big-merge': { face: 'happy', fr: 'Oh ! Quelle belle combinaison !', en: 'Whoa! What a great combo!', ru: 'Ого! Какая отличная комбинация!' },
+      '2048:high-tile': { face: 'curious', fr: 'Tu te rapproches du but !', en: 'You’re getting closer to the goal!', ru: 'Ты всё ближе к цели!' },
+      'chess:user-win': { face: 'happy', fr: 'Bien joué, tu m’as battue ! Une revanche ?', en: 'Well played, you beat me! Rematch?', ru: 'Отличная игра, ты меня победил! Реванш?' },
+      'chess:capri-win': { face: 'giggle', fr: 'Hihi, échec et mat ! Je suis un peu fière de moi.', en: 'Checkmate! I’m a little proud of that one.', ru: 'Мат! Немного горжусь собой.' },
+      'chess:draw': { face: 'curious', fr: 'On n’a pas réussi à se départager !', en: 'We couldn’t get the better of each other!', ru: 'Мы не смогли определить победителя!' },
+      'chess:check': { face: 'smug', fr: 'Oh, joli échec !', en: 'Oh, nice check!', ru: 'О, хороший шах!' },
+      'chess:capture': { face: 'curious', fr: 'Belle prise, je vais devoir faire attention.', en: 'Nice capture. I’ll have to watch out.', ru: 'Хорошее взятие. Надо быть осторожнее.' },
+      'chess:bot-check': { face: 'smug', fr: 'Échec ! À toi de trouver la parade.', en: 'Check! Let’s see you find a way out.', ru: 'Шах! Посмотрим, как ты ответишь.' },
+      'chess:bot-capture': { face: 'curious', fr: 'Oups, j’ai pris une de tes pièces.', en: 'Oops, I captured one of your pieces.', ru: 'Ой, я взяла твою фигуру.' },
+    };
+    const line = lines[key];
+    if (!line) return;
+    const terminal = /:((user-win)|(capri-win)|(draw)|(game-over))$/.test(key);
+    if (!terminal && Date.now() - lastGameRemarkAt < 3500) return;
+    lastGameRemarkAt = Date.now();
+    capri.react(line.face).catch(() => {});
+    panel.say({ kind: 'info', face: line.face, line: line[brain.lang] || line.en, hold: 3200 });
+  });
 
   // Click-through everywhere except on her body, the panel and her biochip.
   let interactive = false;
@@ -782,7 +811,7 @@ async function boot() {
     capri.setView(width, height, height - gap);
     if (window.devicePixelRatio !== dpr) {
       dpr = window.devicePixelRatio;
-      capri.setScale(capri.scale); // her drawing redone at the new screen's pixels
+      capri.setScale(capri.preferredScale); // her drawing redone at the new screen's pixels
     }
   });
   let screenTransition = null;

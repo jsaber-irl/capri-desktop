@@ -1,4 +1,4 @@
-## **Project Capricorn (2.4.1)**
+## **Project Capricorn (2.4.2)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -364,9 +364,11 @@ Imports do not call an AI provider. Export creates a new timestamped folder and 
 
 ### Local games and drawing
 
-Open chess, tic-tac-toe, or 2048 from **More → Games**. Tic-tac-toe and 2048 run locally in separate windows and do not use a game server. The **Drawing board** opens another independent window. Drawings autosave locally, can be saved and reopened as Capri drawing files, and can be exported as PNG. Closing the board waits for a successful local autosave.
+Open chess, tic-tac-toe, or 2048 from **More → Games**. Game windows open larger by default and shrink to fit the primary display work area; the tic-tac-toe window reserves space for its restart control. Chess lets you choose White or Black, records SAN moves, and lets you inspect earlier positions without changing the live game. Capri reacts to notable moves through her main presence rather than inserting dialogue into the game window. These games run locally in separate windows and do not use a game server. The **Drawing board** opens another independent window. Drawings autosave locally, can be saved and reopened as Capri drawing files, and can be exported as PNG. Closing the board waits for a successful local autosave.
 
-Chess shows a SAN move list and lets you inspect recorded positions without changing the live game; use the orientation button to flip the board. Tic-tac-toe locks input while Capri considers her reply. In 2048, reaching 2048 is announced once and play can continue; a loss is shown only when no adjacent equal tiles and no empty cells remain.
+Use the **Play** control next to the mini-player's library selector to start any bundled song. Track selection can also start local playback. The bundled library includes I Really Want to Stay at Your House, Who's Ready for Tomorrow, This Fffire, In Love with Myself, and High Forever.
+
+The chess opponent may request a move suggestion from Lichess Cloud Eval over HTTPS, sending the current FEN position; Capri falls back to her local search when that service is unavailable. Tic-tac-toe locks input while Capri considers her reply. In 2048, reaching 2048 is announced once and play can continue; a loss is shown only when no adjacent equal tiles and no empty cells remain.
 
 New installations leave **Use Capri Cursor** and **Discord Rich Presence** off. Existing saved values take precedence over defaults, so updating Capri preserves each user's selections.
 
@@ -494,6 +496,7 @@ The rendering aims to make Capri look as if she has stepped straight out of an a
 - effects and interfaces drawn with Canvas and Web Audio.
 
 Graphics assets are available in [assets/](assets/) and demo images in [docs/](docs/).
+Missing optional close-up frames fall back to the main sprite; missing required sprite assets report their path in the renderer console. This resource check is automated, but Windows animation rendering still needs runtime verification on Windows hardware.
 
 ## Developers
 
@@ -629,7 +632,7 @@ The following are present in the current source tree. Capabilities that depend o
 - **Video search:** a latest-video request opens YouTube search results ordered by date. Capri does not verify which result is genuinely newest or automatically select a video; inspect the results page yourself.
 - **Music:** terminal, chat and voice requests use the shared media controller and available platform adapters. Say **« ouvre le mini-lecteur de musique »** in the chat or run `/music player`. On macOS, the mini-player can detect an open Deezer desktop session, its current track and playlist metadata when Deezer exposes it through Apple Events; browser tabs remain limited by the operating system. Track metadata, volume control, native apps and browser sessions vary by operating system and reader.
 - **Translation:** open **Translate a page or file** from Capri's menu, or ask in chat to translate a file or web page. The window can be closed with its × button and accepts an HTTP(S) page, a text/Markdown/HTML file, or pasted text. MyMemory is used free of charge by default; DeepL, Google Cloud Translation and LibreTranslate can be selected with their API key or endpoint. API keys are stored with the system's encrypted storage.
-- **Chess:** the chat can open a local interactive chess window and the terminal supports /chess, /chess new, /chess help, /chess resign and /chess move <move>. The self-contained opponent is a casual, shallow-search bot; its strength has not been rated or calibrated to 1000 Elo.
+- **Chess:** chat can open the local board; the terminal supports `/chess`, `/chess new`, `/chess help`, `/chess resign` and `/chess move <move>`. The casual opponent tries Lichess Cloud Eval over HTTPS and falls back to its shallow local search; its strength has not been rated or calibrated to 1000 Elo.
 - **Terminal additions:** /document create <name> "<text>", /search videos <channel> [in Safari], and /music <action> provide explicit entry points to those shared services. /open app/<name> resolves and launches an installed application.
 - **Languages:** the primary menus and dialogue dictionaries include French, English and Russian. Some dedicated windows retain their own translation dictionaries, so not every external model response or every legacy string is guaranteed to be translated.
 

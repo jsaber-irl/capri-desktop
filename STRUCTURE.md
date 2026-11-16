@@ -25,7 +25,7 @@ selected feature. See [SECURITY.md](SECURITY.md) for the data boundaries and kno
 
 ```text
 capri-desktop/
-├── assets/                 Character art, fonts, icons, sounds, bundled voice assets
+├── assets/                 Character art, fonts, icons, sounds, voices, and bundled music tracks
 ├── build/                  Installer customization
 │   └── mac-update-helper.sh Fixed macOS bundle staging and rollback helper
 ├── docs/                   Screenshots and feature illustrations
@@ -36,6 +36,9 @@ capri-desktop/
 ├── src/
 │   ├── main/               Electron Main process and platform/service adapters
 │   │   ├── main.js          Startup, windows, IPC registration, tray, lifecycle
+│   │   ├── chess-game.js    Chess rules, SAN and in-memory position snapshots
+│   │   ├── chess-window.js  Chess window, guarded commands and state publication
+│   │   ├── music-player.js Mini-player window and validated playback IPC
 │   │   ├── config.js        Persistent user configuration
 │   │   ├── structured-memory.js  Structured local memory store
 │   │   ├── privacy-tools.js Local Markdown import/export, inventory, retention and purge
@@ -72,7 +75,12 @@ capri-desktop/
 │   │   │   ├── ring*.js     Circular menu and its UI
 │   │   │   └── panel.js     Chat, status, and notification panel
 │   │   ├── styles/          Overlay, menu, and dedicated-window styles
+│   │   ├── games/           Standalone tic-tac-toe and 2048 game logic
 │   │   ├── index.html       Main overlay document
+│   │   ├── chess.html / chess-ui.js / chess.css  Chess board, history navigation and orientation
+│   │   ├── game.html / game.js / game.css        Tic-tac-toe and 2048 game windows
+│   │   ├── music-player.html / music-player.js / music-player.css  Local and system media controls
+│   │   ├── music-library.js Bundled MP3 catalog and local asset URLs
 │   │   ├── hub.html         Main settings window
 │   │   ├── terminal.html    Command terminal
 │   │   ├── call.html        Voice-call window
@@ -142,10 +150,17 @@ user-data directory.
 
 `games-window.js` opens independent, work-area-bounded windows for allowlisted game IDs.
 `renderer/games/` contains standalone logic for tic-tac-toe and 2048; `renderer/game.js` provides
-their localized UI, delayed tic-tac-toe response, and win/loss reporting. `games-preload.js` exposes
-only a close request. The separate chess service records SAN and position snapshots; `chess-ui.js`
-renders the move list, read-only position navigation, and visual board rotation without changing
-the live game position. The chess preload and sender checks remain the only route to game commands.
+their localized UI, delayed tic-tac-toe response, cancels its timer on reset/page close, and reports
+2048's target and no-moves outcomes. `games-preload.js` exposes a close request and allowlisted
+reaction requests that Main forwards to the overlay. The separate chess service records SAN and
+position snapshots; it also supports either player color and a local opening move when Capri plays
+White. `chess-ui.js` renders the move list, read-only position navigation, and visual board rotation
+without changing the live game position. Chess reactions are derived from validated game results.
+
+`renderer/js/app.js` loads the required main sprite and optional animation frames. `renderer/js/sprite.js`
+fits the rendered character scale to unusually short work areas while retaining the configured
+preferred scale. Optional close-up
+assets fall back to available images; image-load errors include the failing asset path for diagnosis.
 
 ### Updates
 

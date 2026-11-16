@@ -9,19 +9,19 @@ import { SPRITE } from './sprite.js';
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const HIP_DROP = (scale) => (SPRITE.feet.y - SPRITE.hip) * scale; // from her hips to her feet
-const HANDSTAND_LIFT = 70;
 
 // Where her feet go so that her hips rest on the window's top edge.
 export function seat(win, dx, scale) {
   return { x: win.x + dx, y: win.y + 3 + HIP_DROP(scale) };
 }
 
-// `pos` is always Capri's feet, including in a handstand. Keep her head on the
-// window edge, while leaving enough room above it for the rotated body.
+// `pos` is always Capri's feet, including in a handstand. Lower the upside-down
+// sprite so the part retained below the window edge includes her face and torso.
 export function handstandSeat(win, dx, scale = 0.6) {
   const clearance = (SPRITE.feet.y - SPRITE.head.y) * scale;
   const supportY = win.y + 2;
-  return { x: win.x + dx, y: supportY + clearance - HANDSTAND_LIFT };
+  const visibleBody = (SPRITE.handstandClipY - SPRITE.head.y) * scale;
+  return { x: win.x + dx, y: supportY + clearance + visibleBody };
 }
 
 export function followHandstand(perch, wins, view, scale = 0.6) {

@@ -203,9 +203,11 @@ class ChessGame {
   constructor({ random = Math.random, fetchEval = globalThis.fetch } = {}) {
     this.random = random;
     this.fetchEval = fetchEval;
+    this.playerColor = 'w';
     this.newGame();
   }
-  newGame() {
+  newGame(playerColor = this.playerColor) {
+    this.playerColor = playerColor === 'b' ? 'b' : 'w';
     this.position = parseFen();
     this.history = [key(this.position)];
     this.moveHistory = [];
@@ -227,7 +229,7 @@ class ChessGame {
   play(value) {
     if (this.thinking) return { ok: false, error: 'Capri réfléchit à son coup.' };
     if (this.resigned || this.outcome()) return { ok: false, error: 'La partie est terminée.' };
-    if (this.position.turn !== 'w') return { ok: false, error: 'Capri réfléchit à son coup.' };
+    if (this.position.turn !== this.playerColor) return { ok: false, error: 'Capri réfléchit à son coup.' };
     const move = parseUserMove(this.position, value);
     if (!move) return { ok: false, error: 'Coup illégal ou notation non reconnue.' };
     const userMove = this.applyRecordedMove(move);
@@ -240,7 +242,7 @@ class ChessGame {
   async playAsync(value, { onUserMove = () => {} } = {}) {
     if (this.thinking) return { ok: false, error: 'Capri réfléchit à son coup.' };
     if (this.resigned || this.outcome()) return { ok: false, error: 'La partie est terminée.' };
-    if (this.position.turn !== 'w') return { ok: false, error: 'Capri réfléchit à son coup.' };
+    if (this.position.turn !== this.playerColor) return { ok: false, error: 'Capri réfléchit à son coup.' };
     const move = parseUserMove(this.position, value);
     if (!move) return { ok: false, error: 'Coup illégal ou notation non reconnue.' };
     const userMove = this.applyRecordedMove(move);
@@ -256,6 +258,16 @@ class ChessGame {
       const botMove = reply ? this.applyRecordedMove(reply) : null;
       return { ok: true, userState, state: this.state(), botMove: reply ? `${square(reply.from)}${square(reply.to)}${reply.promotion || ''}` : '', userMove, botCapture: Boolean(botMove?.capture), botCheck: Boolean(botMove?.check) };
     } finally { this.thinking = false; }
+  }
+  async playComputerOpening({ onState = () => {} } = {}) {
+    if (this.playerColor !== 'b' || this.position.turn !== 'w' || this.outcome()) return this.state();
+    this.thinking = true;
+    onState(this.state());
+    await new Promise((resolve) => setTimeout(resolve, 360));
+    const move = this.chooseBotMove();
+    if (move) this.applyRecordedMove(move);
+    this.thinking = false;
+    return this.state();
   }
   async chooseBotMoveOnline() {
     const remote = await this.remoteMove();
@@ -304,7 +316,7 @@ class ChessGame {
     if (this.resigned) status = 'resigned';
     else if (!moves.length) status = checked ? (this.position.turn === 'w' ? 'black-won' : 'white-won') : 'stalemate';
     else if (draws) status = 'draw';
-    return { fen: toFen(this.position), turn: this.position.turn, status, thinking: this.thinking === true, legalMoves: moves.map((m) => ({ from: square(m.from), to: square(m.to), promotion: m.promotion || '' })), lastMove: this.position.lastMove || null, winner: this.resigned ? 'black' : status === 'white-won' ? 'white' : status === 'black-won' ? 'black' : null, moveHistory: [...(this.moveHistory || [])], positions: (this.positionHistory || []).map((position) => ({ ...position })) };
+    return { fen: toFen(this.position), turn: this.position.turn, playerColor: this.playerColor, status, thinking: this.thinking === true, legalMoves: moves.map((m) => ({ from: square(m.from), to: square(m.to), promotion: m.promotion || '' })), lastMove: this.position.lastMove || null, winner: this.resigned ? (this.playerColor === 'w' ? 'black' : 'white') : status === 'white-won' ? 'white' : status === 'black-won' ? 'black' : null, moveHistory: [...(this.moveHistory || [])], positions: (this.positionHistory || []).map((position) => ({ ...position })) };
   }
 }
 

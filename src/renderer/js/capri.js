@@ -5,7 +5,7 @@
 // Stances: floating ("stand"), perched on a window ("sit"), peeking in from a screen edge
 // ("peek"), and falling ("fall") when the window under her goes away or you drop her.
 
-import { SpriteRenderer, SPRITE } from './sprite.js';
+import { SpriteRenderer, SPRITE, fitSpriteScale } from './sprite.js';
 import { ACTS, FIDGETS, NEUTRAL, Player } from './acting.js';
 import { sleep, rand, pick, clamp, lerp, ease, tween, reducedMotion, today } from './util.js';
 import * as marks from './fx-life.js';
@@ -98,6 +98,7 @@ export class Capri {
     this.onAnimation = onAnimation;
 
     this.scale = 0.6;
+    this.preferredScale = 0.6;
     this.view = { w: innerWidth, h: innerHeight, floor: innerHeight }; // floor: the top of the taskbar
     this.pos = { x: innerWidth - 200, y: innerHeight - 6 }; // her feet
     this.facing = 1; // 1: as drawn (reaching left), -1: mirrored
@@ -230,8 +231,9 @@ export class Capri {
   }
 
   setScale(scale) {
-    this.scale = scale;
-    this.sprite.resize(scale);
+    this.preferredScale = Number.isFinite(scale) && scale > 0 ? scale : 0.6;
+    this.scale = fitSpriteScale(this.preferredScale, this.view.floor);
+    this.sprite.resize(this.scale);
     this.pivot();
     this.place();
   }
@@ -296,10 +298,18 @@ export class Capri {
   }
 
   setView(w, h, floor = h) {
+    const wasRestingAtFloor = this.stance === 'stand' && Math.abs(this.pos.y - (this.view.floor - 6)) <= 8;
     this.view = { w, h, floor };
+    const fittedScale = fitSpriteScale(this.preferredScale, floor);
+    if (fittedScale !== this.scale) {
+      this.scale = fittedScale;
+      this.sprite.resize(this.scale);
+      this.pivot();
+    }
     if (this.stance === 'stand') {
       this.pos.x = clamp(this.pos.x, 60, w - 60);
-      this.pos.y = clamp(this.pos.y, SPRITE.height * this.scale, floor - 4);
+      const footY = floor - 2; // Capri reste tout juste au-dessus du bord inférieur.
+      this.pos.y = wasRestingAtFloor ? footY : clamp(this.pos.y, SPRITE.height * this.scale + 6, footY);
     }
     this.place();
   }
@@ -562,7 +572,7 @@ export class Capri {
     // sprite is then rotated around the head, so the rest stays hidden behind
     // the window edge instead of showing through it.
     p.clipEnabled = this.stance === 'handstand';
-    p.clipY = 245;
+    p.clipY = SPRITE.handstandClipY;
     p.seed = Math.random() * 100; // a fresh drawing, so the line boils
 
     const under = this.base.sample(now);

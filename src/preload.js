@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('host', {
   onResize: on('overlay:resize'),
   onScreenTransition: on('overlay:screen-transition'),
   onWindows: on('windows:update'),
+  onGameReaction: on('games:reaction'),
   setInteractive: (on) => ipcRenderer.send('overlay:interactive', Boolean(on)),
   rearm: () => ipcRenderer.send('overlay:rearm'),
   cursor: () => ipcRenderer.invoke('overlay:cursor'),

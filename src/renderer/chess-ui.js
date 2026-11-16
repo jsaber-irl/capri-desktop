@@ -57,17 +57,19 @@
 
       title: 'Échecs avec Capri',
       quote: 'Les blancs sont à toi. Voyons ce dont tu es capable.',
+      chooseColor: 'JOUER AVEC', white: 'BLANCS', black: 'NOIRS', opponent: 'Capri joue avec les blancs.',
       new: 'NOUVELLE PARTIE',
       resign: 'ABANDONNER',
       help: 'AIDE',
       close: 'Fermer',
       board: 'Échiquier',
-      flip: 'PIVOTER', history: 'Historique des coups', current: 'Position actuelle',
+      flip: 'PIVOTER', history: 'Historique des coups', current: 'Position actuelle', review: 'CONSULTATION',
 
       loading: 'Chargement…',
       illegal: 'Coup impossible.',
 
-      helpText: 'Sélectionne une pièce blanche puis une case pour la déplacer.'
+      helpText: 'Sélectionne une pièce blanche puis une case pour la déplacer.',
+      helpBlackText: 'Sélectionne une pièce noire puis une case pour la déplacer.'
     },
 
     en: {
@@ -86,17 +88,19 @@
 
       title: 'Chess with Capri',
       quote: 'The white pieces are yours. Let’s see what you can do.',
+      chooseColor: 'PLAY AS', white: 'WHITE', black: 'BLACK', opponent: 'Capri plays White.',
       new: 'NEW GAME',
       resign: 'RESIGN',
       help: 'HELP',
       close: 'Close',
       board: 'Chessboard',
-      flip: 'FLIP BOARD', history: 'Move history', current: 'Current position',
+      flip: 'FLIP BOARD', history: 'Move history', current: 'Current position', review: 'REVIEWING',
 
       loading: 'Loading…',
       illegal: 'Invalid move.',
 
-      helpText: 'Select a white piece, then select a square to move it.'
+      helpText: 'Select a white piece, then select a square to move it.',
+      helpBlackText: 'Select a black piece, then select a square to move it.'
     },
 
     ru: {
@@ -115,17 +119,19 @@
 
       title: 'Шахматы с Capri',
       quote: 'Белые твои. Посмотрим, на что ты способен.',
+      chooseColor: 'ИГРАТЬ ЗА', white: 'БЕЛЫХ', black: 'ЧЁРНЫХ', opponent: 'Capri играет белыми.',
       new: 'НОВАЯ ПАРТИЯ',
       resign: 'СДАТЬСЯ',
       help: 'ПОМОЩЬ',
       close: 'Закрыть',
       board: 'Шахматная доска',
-      flip: 'ПОВЕРНУТЬ', history: 'История ходов', current: 'Текущая позиция',
+      flip: 'ПОВЕРНУТЬ', history: 'История ходов', current: 'Текущая позиция', review: 'ПРОСМОТР',
 
       loading: 'Загрузка…',
       illegal: 'Недопустимый ход.',
 
-      helpText: 'Выбери белую фигуру, затем клетку для перемещения.'
+      helpText: 'Выбери белую фигуру, затем клетку для перемещения.',
+      helpBlackText: 'Выбери чёрную фигуру, затем клетку для перемещения.'
     }
 
   };
@@ -194,11 +200,11 @@
 
     const turnText =
       gameState.turn === 'w'
-        ? (userName || (
+        ? (gameState.playerColor === 'w' ? (userName || (
             lang === 'ru' ? 'ТЫ' :
             lang === 'en' ? 'YOU' : 'TOI'
-          ))
-        : 'CAPRI';
+          )) : 'CAPRI')
+        : (gameState.playerColor === 'b' ? (userName || (lang === 'ru' ? 'ТЫ' : lang === 'en' ? 'YOU' : 'TOI')) : 'CAPRI');
 
 
     // -----------------------------------------
@@ -219,13 +225,9 @@
 
       status = tr().draw;
 
-    } else if (gameState.status === 'white-won') {
+    } else if (gameState.status === 'white-won' || gameState.status === 'black-won') {
 
-      status = tr().whitewon;
-
-    } else if (gameState.status === 'black-won') {
-
-      status = tr().blackwon;
+      status = gameState.winner === gameState.playerColor ? tr().whitewon : tr().blackwon;
 
     } else if (gameState.inCheck) {
 
@@ -237,7 +239,8 @@
 
     }
 
-    statusEl.textContent = status;
+    const viewingPast = viewPly !== null && viewPly < (gameState.positions?.length || 1) - 1;
+    statusEl.textContent = viewingPast ? `${tr().review} · ${viewPly ? gameState.moveHistory?.[viewPly - 1] || '' : '0'}` : status;
 
 
     // -----------------------------------------
@@ -246,12 +249,7 @@
 
     document.title = tr().title;
 
-    quoteEl.textContent =
-      gameState.status === 'white-won'
-        ? tr().whitewon
-        : gameState.status === 'black-won'
-          ? tr().blackwon
-          : tr().quote;
+    quoteEl.textContent = gameState.playerColor === 'b' ? tr().opponent : tr().quote;
 
 
     // -----------------------------------------
@@ -262,6 +260,9 @@
     $('resign').textContent = tr().resign;
     $('help').textContent = tr().help;
     $('flip').textContent = tr().flip;
+    $('color-label').textContent = tr().chooseColor;
+    $('player-color').options[0].textContent = tr().white;
+    $('player-color').options[1].textContent = tr().black;
     $('move-list').setAttribute('aria-label', tr().history);
     $('first').setAttribute('aria-label', tr().history + ': 0');
     $('back').setAttribute('aria-label', lang === 'ru' ? 'Предыдущий ход' : lang === 'en' ? 'Previous move' : 'Coup précédent');
@@ -423,7 +424,8 @@
 
     const ended = gameState.status !== 'playing';
 
-    $('resign').disabled = ended;
+    $('resign').disabled = ended || gameState.thinking;
+    $('new').disabled = Boolean(gameState.thinking);
 
     $('avatar')?.classList.toggle('is-thinking', Boolean(gameState.thinking));
     if (gameState.thinking) quoteEl.textContent = tr().bot;
@@ -457,7 +459,7 @@
     if (
       busy ||
       gameState?.status !== 'playing' ||
-      gameState.turn !== 'w' || gameState.thinking || (viewPly !== null && viewPly < (gameState.positions?.length || 1) - 1)
+      gameState.turn !== (gameState.playerColor || 'w') || gameState.thinking || (viewPly !== null && viewPly < (gameState.positions?.length || 1) - 1)
     ) return;
 
 
@@ -512,9 +514,9 @@
     }
 
 
-    // Sélection d'une pièce blanche
-
-    if (piece && piece === piece.toUpperCase()) {
+    // Sélection des pièces de la couleur choisie.
+    const isPlayerPiece = piece && (gameState.playerColor === 'b' ? piece === piece.toLowerCase() : piece === piece.toUpperCase());
+    if (isPlayerPiece) {
 
       selected = to;
 
@@ -539,12 +541,9 @@
 
     promotion.hidden = false;
 
-    const names = {
-      q: '♕',
-      r: '♖',
-      b: '♗',
-      n: '♘'
-    };
+    const names = gameState.playerColor === 'b'
+      ? { q: '♛', r: '♜', b: '♝', n: '♞' }
+      : { q: '♕', r: '♖', b: '♗', n: '♘' };
 
 
     promotion.replaceChildren(
@@ -619,20 +618,7 @@
       } else {
 
         gameState = result.state;
-        const reaction = result.state.status === 'white-won'
-          ? (lang === 'ru' ? 'Ладно, ты победил! Реванш?' : lang === 'en' ? 'All right, you win! Rematch?' : 'Bien joué, tu as gagné ! Une revanche ?')
-          : result.state.status === 'black-won'
-            ? (lang === 'ru' ? 'Хи-хи, на этот раз я выиграла!' : lang === 'en' ? 'Hehe, I got you this time!' : 'Hihi, cette fois, c’est moi qui gagne !')
-            : result.state.status === 'draw' || result.state.status === 'stalemate'
-              ? (lang === 'ru' ? 'Какая напряжённая партия!' : lang === 'en' ? 'What a close game!' : 'Quelle partie serrée !')
-              : result.userMove?.capture
-                ? (lang === 'ru' ? 'Ого, хорошее взятие!' : lang === 'en' ? 'Oh, nice capture!' : 'Oh, belle prise !')
-                : result.userMove?.check
-                  ? (lang === 'ru' ? 'Шах? Хороший ход!' : lang === 'en' ? 'Check? Nicely played!' : 'Échec ? Bien joué !')
-                  : result.botCapture
-                    ? (lang === 'ru' ? 'Ой, я забрала фигуру.' : lang === 'en' ? 'Oops, I got one of your pieces.' : 'Oups, j’ai pris une de tes pièces.')
-                    : '';
-        if (reaction) quoteEl.textContent = reaction;
+        quoteEl.textContent = gameState.playerColor === 'b' ? tr().opponent : tr().quote;
 
       }
 
@@ -668,13 +654,15 @@
     try {
 
       const result = await window.host.chessCommand({
-        action
+        action,
+        playerColor: action === 'new' ? $('player-color').value : undefined,
       });
 
 
       if (result?.state) {
 
         gameState = result.state;
+        if (action === 'new') $('player-color').value = gameState.playerColor || 'w';
 
       }
 
@@ -718,6 +706,8 @@
 
   $('new').addEventListener('click', () => {
 
+    flipped = $('player-color').value === 'b';
+
     void command('new');
 
   });
@@ -737,7 +727,7 @@
 
   $('help').addEventListener('click', () => {
 
-    messageEl.textContent = tr().helpText;
+    messageEl.textContent = gameState?.playerColor === 'b' ? tr().helpBlackText : tr().helpText;
 
   });
 
@@ -756,6 +746,7 @@
   window.host.onChessState((state) => {
 
     gameState = state;
+    if (state.playerColor && !busy) $('player-color').value = state.playerColor;
     if (state.thinking || viewPly === null) viewPly = null;
 
     selected = '';
@@ -819,6 +810,7 @@
       }
 
       gameState = result.state;
+      $('player-color').value = result.state.playerColor || 'w';
 
       render();
 

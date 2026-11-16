@@ -184,7 +184,7 @@ button,
 }
 
 .board {
-  width: min(100%, 720px);
+  width: min(100%, 720px, calc(100vh - 220px));
   aspect-ratio: 1;
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
@@ -314,7 +314,11 @@ button,
   flex-direction: column;
   gap: 19px;
   padding-top: 5px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
 }
+
+.chess__board-tools { display:flex; justify-content:flex-end; margin:0 0 10px; }
 
 .chess__profile {
   display: grid;
@@ -378,6 +382,9 @@ button,
   align-items: center;
   gap: 12px;
 }
+
+.chess__color-choice { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:10px; font-weight:700; }
+.chess__color-choice select { padding:8px 10px; color:var(--green); background:var(--panel); border:1px solid #36ff7a55; font:700 10px 'JetBrains Mono',monospace; }
 
 button {
   color: var(--white);
@@ -511,7 +518,7 @@ button:disabled {
   }
 
   .board {
-    width: min(100%, 650px);
+    width: min(100%, 650px, calc(100vh - 220px));
   }
 
   .chess__side {

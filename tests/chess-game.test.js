@@ -76,3 +76,20 @@ test('asynchronous opponent locks the game while thinking and publishes intermed
   assert.equal(result.ok, true);
   assert.equal(game.state().thinking, false);
 });
+
+test('a black-side player gets a Capri opening move and may move black pieces', async () => {
+  const game = new ChessGame({ random: () => 0.5, fetchEval: async () => ({ ok: false }) });
+  game.newGame('b');
+  assert.equal(game.state().playerColor, 'b');
+  assert.equal(game.play('e7e5').ok, false, 'Capri must move first as White');
+  let thinkingState;
+  const opened = await game.playComputerOpening({ onState: (state) => { thinkingState = state; } });
+  assert.equal(thinkingState.thinking, true);
+  assert.equal(opened.turn, 'b');
+  assert.equal(opened.playerColor, 'b');
+  const move = opened.legalMoves[0];
+  const result = await game.playAsync(`${move.from}${move.to}${move.promotion || ''}`);
+  assert.equal(result.ok, true);
+  assert.equal(result.state.turn, 'b', 'Capri replies with White after the human Black move');
+  assert.equal(result.state.playerColor, 'b');
+});

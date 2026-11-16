@@ -15,6 +15,7 @@ import { parseReminder, parseCancel, parseWhen, clock } from './reminders.mjs';
 
 const REMEMBER = 20; // messages she has in mind when answering
 const KEEP = 60;     // messages she remembers across restarts (memory.json)
+const compactLaunchError = (error) => String(error || '').split(/\r?\n/, 1)[0].replace(/\s+/g, ' ').trim().slice(0, 120);
 // her language, where small models need it: how she says "we" (else it's in English), and the last line
 // of her prompt, in that language (they drift into the English of everything above it)
 const IN_LANGUAGE = {
@@ -666,7 +667,7 @@ export class Chat {
     if (!expr && felt.tags.includes('jokeAsk')) this.capri.react('laugh'); // her own joke cracks her up
     // The call window mirrors every answer, including answers attached to an automatic action.
     // Normal chat still only speaks ordinary model answers.
-    this.onSpokenText?.(answer);
+    if (!actionOnly) this.onSpokenText?.(answer);
     if (!actionOnly) {
       this.speech?.say(answer, { mood: expr || this.heart?.mood.mood || 'calm', kind: 'chat' });
     }
@@ -1206,7 +1207,7 @@ export class Chat {
     if (!item) return { line: resolution.status === 'error' ? `${t.failed} ${resolution.error}` : this.launchResolutionLine(resolution, asked.text), face: 'aside' };
     this.zap();
     const res = await this.host.launch(item);
-    return { line: res.ok ? fmt(t.opened, { app: item.name }) : `${t.failed} ${res.error}`, face: res.ok ? 'laugh' : 'aside' };
+    return { line: res.ok ? fmt(t.opened, { app: item.name }) : `${t.failed} ${compactLaunchError(res.error)}`, face: res.ok ? 'laugh' : 'aside' };
   }
 
   startPcCountdown(at, verb) {
@@ -1333,7 +1334,7 @@ export class Chat {
       this.panel.setFace('laugh');
       this.onSpokenText?.(line);
     } else {
-      this.addLine(answer, `${t.failed} ${res.error}`, 'aside');
+      this.addLine(answer, `${t.failed} ${compactLaunchError(res.error)}`, 'aside');
     }
   }
 

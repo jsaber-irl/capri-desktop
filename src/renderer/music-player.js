@@ -192,6 +192,11 @@ async function openSelected() {
   else artist.textContent = result?.error || 'La recherche musicale n’a pas pu être ouverte.';
 }
 track.addEventListener('change', () => { index = availableSongs.indexOf(track.value); render(); openSelected(); });
+document.getElementById('play-selected').addEventListener('click', () => {
+  index = availableSongs.indexOf(track.value);
+  if (index < 0) return;
+  void openSelected();
+});
 service.addEventListener('change', render);
 document.getElementById('toggle').addEventListener('click', async () => {
   if (localPlayback) {

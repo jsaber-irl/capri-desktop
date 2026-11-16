@@ -52,7 +52,13 @@ Local game enhancements keep game state within Capri's game service or dedicated
 history snapshots and SAN are produced locally; the renderer can select a historical snapshot or
 flip its display without mutating the current position. Existing chess move IPC remains sender
 checked. Tic-tac-toe delays only its local opponent move, while 2048 win/loss detection is local.
-No new dependency, file-system permission, process control, or game-window IPC capability was added.
+The existing chess opponent can send a FEN position to the HTTPS Lichess Cloud Eval endpoint for a
+suggested move; it falls back to local search if the request fails. The local game preload now
+allows only bounded reaction identifiers; Main verifies the originating game window and event
+allowlist before forwarding them to the overlay. The chess Main service emits its own reactions
+from the validated move result. No free-form message or privileged game action is exposed. No new
+dependency, file-system permission, or process control was added. This is a source-level review;
+the Electron UI and audio playback have not been manually exercised on all platforms.
 
 New-install defaults for Capri Cursor and Discord Rich Presence are disabled. Config loading merges
 saved user values over defaults, preserving existing opt-ins. Discord startup remains gated by the

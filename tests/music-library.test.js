@@ -4,6 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'music-player.html'), 'utf8');
+const playerScript = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'music-player.js'), 'utf8');
 const library = require('../src/renderer/music-library');
 
 const songsDirectory = path.join(__dirname, '..', 'assets', 'songs');
@@ -27,4 +29,10 @@ test('bundled music library lists each requested track once with an existing loc
     assert.equal(song.album, null);
     assert.equal(song.artwork, null);
   }
+});
+
+test('mini-player exposes an explicit play control for the currently selected bundled track', () => {
+  assert.match(html, /id="play-selected"/);
+  assert.match(playerScript, /getElementById\('play-selected'\)[\s\S]{0,160}openSelected\(\)/);
+  assert.match(html, /<audio id="library-audio"/);
 });

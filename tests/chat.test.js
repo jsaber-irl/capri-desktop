@@ -220,6 +220,23 @@ test('app launch commands are not mistaken for YouTube searches', async () => {
   assert.deepEqual(chat.asked('Mets Bohemian Rhapsody sur YouTube'), { kind: 'youtube', song: 'Bohemian Rhapsody' });
 });
 
+test('successful app launch produces only a concise spoken confirmation; failures do not claim success', async () => {
+  const { Chat } = await load('chat.js');
+  const shown = [];
+  const spoken = [];
+  const chat = Object.assign(Object.create(Chat.prototype), {
+    open: true, turn: 0, brain: { t: { chat: { opened: 'Done!', failed: 'Could not open:' } } },
+    panel: { setActions() {}, stream: (text) => shown.push(text), setFace() {} },
+    host: { launch: async () => ({ ok: true }) }, zap() {}, onSpokenText: (text) => spoken.push(text),
+  });
+  await chat.launch({ name: 'Calendar' }, 'A long model answer that should be replaced.', { now: true });
+  assert.deepEqual(shown, ['Done!']);
+  assert.deepEqual(spoken, ['Done!']);
+  chat.host.launch = async () => ({ ok: false, error: 'Permission denied.' });
+  await chat.launch({ name: 'Calendar' }, 'A long model answer.', { now: true });
+  assert.equal(shown.at(-1), 'A long model answer.\nCould not open: Permission denied.');
+});
+
 test('website commands can target a named browser', async () => {
   const { Chat } = await load('chat.js');
   const chat = Object.assign(Object.create(Chat.prototype), {
