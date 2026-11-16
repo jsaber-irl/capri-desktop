@@ -51,7 +51,7 @@ function notes(dir, { version, repo, news }) {
         : null;
 
     const infoLink = repository
-        ? `[INFO.md](${repository}/blob/main/INFO.md)`
+        ? `[INFO.md](${repository}/blob/v2/INFO.md)`
         : 'INFO.md';
 
     const out = [
