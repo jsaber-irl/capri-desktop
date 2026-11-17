@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { spawn } = require('node:child_process');
 const { once } = require('node:events');
 const { createBridge } = require('../src/main/bridge');
@@ -25,11 +26,24 @@ function invoke(script, input, port) {
   });
 }
 
-// Load the unchanged browser modules in Node without changing package module type.
+// Load the unchanged browser module tree through file URLs so every relative import,
+// including side-effect and transitive imports, resolves using Node's native loader.
+// A temporary package scope enables ESM only for this copied test tree; the project
+// package type and source modules (including the CommonJS-compatible music catalog)
+// remain untouched.
+const rendererRoot = path.resolve(__dirname, '../src/renderer');
+const testModuleRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'capri-hooks-modules-'));
+const testRendererRoot = path.join(testModuleRoot, 'renderer');
+fs.cpSync(rendererRoot, testRendererRoot, { recursive: true });
+fs.writeFileSync(path.join(testModuleRoot, 'package.json'), JSON.stringify({ type: 'module' }));
+test.after(() => fs.rmSync(testModuleRoot, { recursive: true, force: true }));
+
 function moduleUrl(file) {
-  const source = fs.readFileSync(file, 'utf8').replace(/from '(\.\/[^']+)'/g,
-    (_, relative) => `from '${moduleUrl(path.resolve(path.dirname(file), relative))}'`);
-  return `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
+  const relative = path.relative(rendererRoot, file);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(`Test module is outside src/renderer: ${file}`);
+  }
+  return pathToFileURL(path.join(testRendererRoot, relative)).href;
 }
 
 test('Codex activity, approval, completion travel through the real bridge and Brain; Claude still works', async (t) => {
@@ -106,7 +120,9 @@ test('hook exits silently when Capri is unavailable', async () => {
   await invoke('capri-codex-hook.js', JSON.stringify({ hook_event_name: 'Stop' }), port);
 });
 
-test('Codex onboarding, guide, and chat use Codex in every language; Claude text is preserved', async () => {
+test('Codex onboarding, guide, and chat use Codex in every language; Claude text is preserved', async (t) => {
+  globalThis.matchMedia = () => ({ matches: false, addEventListener() {} });
+  t.after(() => { delete globalThis.matchMedia; });
   const { LINES, linesFor } = await import(moduleUrl(path.join(__dirname, '../src/renderer/js/lines.js')));
   const { Guide } = await import(moduleUrl(path.join(__dirname, '../src/renderer/js/guide.js')));
   const { Chat } = await import(moduleUrl(path.join(__dirname, '../src/renderer/js/chat.js')));
