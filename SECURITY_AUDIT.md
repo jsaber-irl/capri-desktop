@@ -15,6 +15,13 @@ The updater has three persistent modes. **Automatic** checks periodically and do
 
 ## Electron and filesystem boundaries
 
+The bundled-song path was reviewed at source level: chat resolves requested titles against the
+fixed five-track catalog, preload exposes only the selected track ID, and Main checks the trusted
+overlay before asking the mini-player to play it. The player accepts only catalog IDs and reports
+success after the audio element's `play()` promise resolves. Audio files are local packaged assets;
+the command does not fetch a track from a remote service. This review does not constitute runtime
+playback validation on each operating system.
+
 The update window uses a dedicated preload, `contextIsolation: true`, `nodeIntegration: false`, and a sandbox. IPC handlers verify the version window's `webContents` and main frame. The renderer can request a check, download, mode change, or installation; it cannot choose a URL, local file path, target application path, or installer command. The Main process owns those values and restricts downloads to fixed GitHub release paths.
 
 Download data is written below Electron's user-data directory with restrictive file permissions where supported. The updater rejects symlinked update roots and version folders, bounds manifest and package sizes, removes partial downloads on failure, and does not pass release notes to HTML parsing. The release notes are displayed as text.

@@ -12,6 +12,17 @@ import { askedTheme } from './themes.js';
 import { lifeLines } from './lines-life.js';
 import { FORGET_ME } from './bond.js';
 import { parseReminder, parseCancel, parseWhen, clock } from './reminders.mjs';
+import '../music-library.js';
+
+const LOCAL_MUSIC = globalThis.CapriMusicLibrary || [];
+const normalizeTrackText = (value) => String(value || '')
+  .normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/[’']/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
+const localTrackRequested = (text) => {
+  if (!/(?:\b(?:mets?|joue|lance|ecoute|listen(?:\s+to)?|play|put\s+on|start|turn\s+on)\b|(?:включи|поставь|послушай)|хочу\s+послушать)/iu.test(text)) return null;
+  const normalized = normalizeTrackText(text);
+  return LOCAL_MUSIC.find((track) => normalized.includes(normalizeTrackText(track.title))) || null;
+};
 
 const REMEMBER = 20; // messages she has in mind when answering
 const KEEP = 60;     // messages she remembers across restarts (memory.json)
@@ -787,6 +798,8 @@ export class Chat {
       const value = requestedMusicAction === 'volume' ? Number(/\b(\d{1,3})\b/.exec(text)?.[1]) : undefined;
       return { kind: 'media', action: requestedMusicAction, service: requestedService, ...(value !== undefined ? { volume: value } : {}) };
     }
+    const localTrack = localTrackRequested(text);
+    if (localTrack) return { kind: 'localSong', id: localTrack.id, song: localTrack.title };
     if (requestedMusicAction && (MUSIC_WORD.test(text) || SOUND.test(text))) {
       const value = requestedMusicAction === 'volume' ? Number(/\b(\d{1,3})\b/.exec(text)?.[1]) : undefined;
       return {
@@ -1045,6 +1058,14 @@ export class Chat {
       return result?.ok
         ? { line: fr ? 'Le mini-lecteur de musique est ouvert.' : ru ? 'Мини-плеер музыки открыт.' : 'The music player is open.', face: 'smug' }
         : { line: fr ? 'Je n’ai pas pu ouvrir le mini-lecteur.' : ru ? 'Не удалось открыть мини-плеер.' : 'I could not open the music player.', face: 'aside' };
+    }
+    if (asked.kind === 'localSong') {
+      this.zap();
+      const result = await this.host.musicPlayerPlayLocal?.(asked.id);
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      return result?.ok
+        ? { line: fr ? `Je lance « ${result.title || asked.song} » dans le mini-lecteur.` : ru ? `Запускаю «${result.title || asked.song}» во встроенном плеере.` : `Playing “${result.title || asked.song}” in the mini-player.`, face: 'laugh' }
+        : { line: result?.error || (fr ? `Je n’ai pas pu lancer « ${asked.song} ».` : ru ? `Не удалось запустить «${asked.song}».` : `I could not play “${asked.song}”.`), face: 'aside' };
     }
     if (asked.kind === 'translation') {
       const result = await this.host.translationOpen?.(asked.source);

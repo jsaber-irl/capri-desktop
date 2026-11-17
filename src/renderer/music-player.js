@@ -172,11 +172,13 @@ async function openSelected() {
       playing = true;
       playbackState.textContent = 'LECTURE';
       render();
+      return true;
     } catch (error) {
       playing = false;
       playbackState.textContent = 'PRÊT';
       artist.textContent = `Lecture impossible : ${error.message}`;
       render();
+      return false;
     }
     return;
   }
@@ -190,12 +192,24 @@ async function openSelected() {
     artist.textContent = `Recherche ouverte sur ${String(result.service || service.value).toUpperCase()} · lance le morceau dans le navigateur ou l’application.`;
   }
   else artist.textContent = result?.error || 'La recherche musicale n’a pas pu être ouverte.';
+  return Boolean(result?.ok);
 }
 track.addEventListener('change', () => { index = availableSongs.indexOf(track.value); render(); openSelected(); });
 document.getElementById('play-selected').addEventListener('click', () => {
   index = availableSongs.indexOf(track.value);
   if (index < 0) return;
   void openSelected();
+});
+host.onMusicPlayerPlayLocal?.(async ({ id, requestId } = {}) => {
+  const local = library.find((song) => song.id === id);
+  if (!local) {
+    await host.musicPlayerLocalResult?.({ id, requestId, ok: false, error: 'Morceau Capri introuvable.' });
+    return;
+  }
+  index = songs.indexOf(local.title);
+  track.value = local.title;
+  const ok = await openSelected();
+  await host.musicPlayerLocalResult?.({ id, requestId, ok, error: ok ? '' : 'Le navigateur n’a pas pu démarrer la lecture audio.' });
 });
 service.addEventListener('change', render);
 document.getElementById('toggle').addEventListener('click', async () => {

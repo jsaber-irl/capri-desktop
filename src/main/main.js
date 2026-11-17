@@ -2142,6 +2142,9 @@ function registerIpc() {
   ipcMain.handle('apps:resolveLaunch', (_e, text) => launch.resolve(String(text || '')).catch((err) => ({ status: 'error', error: err.message })));
   ipcMain.handle('apps:launch', (_e, item) => launch.launch(item).then(() => ({ ok: true }), (err) => ({ ok: false, error: err.message })));
   ipcMain.handle('apps:media', async (_e, action) => (await musicControl.command({ action })).ok);
+  ipcMain.handle('apps:musicLocal', (event, id) => trustedOverlay(event)
+    ? musicPlayer.playLocal(String(id || ''))
+    : { ok: false, error: 'Accès refusé.' });
   ipcMain.handle('music:command', (_e, request) => musicControl.command(request || {}));
   ipcMain.handle('translation:open', (_e, source) => {
     translationWindow.show(source || null);

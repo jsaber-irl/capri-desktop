@@ -13,4 +13,4 @@ const musicLibrary = Object.freeze([
 })));
 
 if (typeof module !== 'undefined' && module.exports) module.exports = musicLibrary;
-if (typeof window !== 'undefined') window.CapriMusicLibrary = musicLibrary;
+if (typeof globalThis !== 'undefined') globalThis.CapriMusicLibrary = musicLibrary;

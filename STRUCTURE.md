@@ -38,7 +38,7 @@ capri-desktop/
 │   │   ├── main.js          Startup, windows, IPC registration, tray, lifecycle
 │   │   ├── chess-game.js    Chess rules, SAN and in-memory position snapshots
 │   │   ├── chess-window.js  Chess window, guarded commands and state publication
-│   │   ├── music-player.js Mini-player window and validated playback IPC
+│   │   ├── music-player.js Mini-player window, local-track requests and playback IPC
 │   │   ├── config.js        Persistent user configuration
 │   │   ├── structured-memory.js  Structured local memory store
 │   │   ├── privacy-tools.js Local Markdown import/export, inventory, retention and purge
@@ -80,7 +80,7 @@ capri-desktop/
 │   │   ├── chess.html / chess-ui.js / chess.css  Chess board, history navigation and orientation
 │   │   ├── game.html / game.js / game.css        Tic-tac-toe and 2048 game windows
 │   │   ├── music-player.html / music-player.js / music-player.css  Local and system media controls
-│   │   ├── music-library.js Bundled MP3 catalog and local asset URLs
+│   │   ├── music-library.js Shared bundled MP3 catalog and local asset URLs
 │   │   ├── hub.html         Main settings window
 │   │   ├── terminal.html    Command terminal
 │   │   ├── call.html        Voice-call window
@@ -122,6 +122,16 @@ Chat parses explicit requests in `chat.js` and `care.js`. It performs low-risk a
 preload capabilities and presents buttons for actions requiring review. `preload.js` forwards
 those requests to named Main handlers, which delegate to service modules such as `system.js`,
 `devices.js`, `setups.js`, and `unkeep.js`.
+
+### Music player and bundled tracks
+
+`src/renderer/music-library.js` is the single allowlisted catalog for the five bundled songs in
+`assets/songs/`. The mini-player loads these assets through Capri's local application protocol and
+handles browser audio playback and its controls in `music-player.js`. Chat recognizes explicit
+play requests by matching a bundled title, then calls a narrow preload capability; during a voice
+call the existing transcript-to-chat flow uses the same route. Main validates the overlay sender
+and catalog ID, opens the mini-player, and reports success only after its renderer confirms that
+`audio.play()` started. This keeps arbitrary paths and remote URLs out of the playback request.
 
 ### Platform services
 

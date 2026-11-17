@@ -42,6 +42,11 @@ the current FEN position to Lichess Cloud Eval over HTTPS for a move suggestion,
 search when the service is unavailable. Tic-tac-toe and 2048 logic runs locally in their own
 renderer, without monitoring other applications or contacting a game service.
 
+Bundled music is served from Capri's local application assets. Chat and voice-call song requests
+match titles from the fixed `music-library.js` catalog and send only a catalog ID through preload.
+Main accepts the request only from the trusted overlay; the mini-player confirms whether local
+audio playback actually started. No renderer-supplied path or URL is accepted for these tracks.
+
 The update window also has a dedicated preload and validates its IPC sender/frame. The renderer
 cannot supply a URL or installation path. The Main-process update manager accepts only HTTPS assets
 from the official GitHub release paths, verifies the embedded Ed25519 public-key signature before

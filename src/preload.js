@@ -131,6 +131,7 @@ contextBridge.exposeInMainWorld('host', {
   media: (action) => ipcRenderer.invoke('apps:media', action),
   musicControl: (request) => ipcRenderer.invoke('music:command', request),
   musicPlayerPlay: (request) => ipcRenderer.invoke('music-player:play', request || {}),
+  musicPlayerPlayLocal: (id) => ipcRenderer.invoke('apps:musicLocal', String(id || '')),
   musicPlayerMedia: (action) => ipcRenderer.invoke('music-player:media', String(action || 'toggle')),
   musicPlayerSessions: () => ipcRenderer.invoke('music-player:sessions'),
   musicPlayerTab: (request) => ipcRenderer.invoke('music-player:tab', request || {}),
@@ -146,6 +147,8 @@ contextBridge.exposeInMainWorld('host', {
       throw error;
     }
   },
+  onMusicPlayerPlayLocal: on('music-player:play-local'),
+  musicPlayerLocalResult: (result) => ipcRenderer.invoke('music-player:play-local-result', result || {}),
   translationSettings: () => ipcRenderer.invoke('translation:settings'),
   translationOpen: (source) => ipcRenderer.invoke('translation:open', source || null),
   translationSetSettings: (settings) => ipcRenderer.invoke('translation:setSettings', settings || {}),
