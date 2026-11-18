@@ -17,10 +17,17 @@ The updater has three persistent modes. **Automatic** checks periodically and do
 
 The bundled-song path was reviewed at source level: chat resolves requested titles against the
 fixed five-track catalog, preload exposes only the selected track ID, and Main checks the trusted
-overlay before asking the mini-player to play it. The player accepts only catalog IDs and reports
-success after the audio element's `play()` promise resolves. Audio files are local packaged assets;
-the command does not fetch a track from a remote service. This review does not constitute runtime
-playback validation on each operating system.
+overlay before asking the mini-player to play it. The mini-player's catalog fallback is available
+only to its own validated WebContents. Main triggers a fixed DOM event with Electron's user-gesture
+flag, containing a catalog ID and generated request token; the player accepts only catalog IDs and
+reports success after the audio element's `play()` promise resolves. Audio files are local packaged
+assets; the command does not fetch a track from a remote service. This source review does not
+constitute runtime playback validation on each operating system.
+
+The short-answer search path uses a fixed language-specific Wikipedia HTTPS endpoint and bounds the
+query and returned extract. Main validates the calling overlay before issuing the request, and the
+Renderer cannot supply a host. The user's question is sent to Wikimedia when this explicit question
+feature is used. Network behavior and Wikimedia availability have not been runtime-tested here.
 
 The update window uses a dedicated preload, `contextIsolation: true`, `nodeIntegration: false`, and a sandbox. IPC handlers verify the version window's `webContents` and main frame. The renderer can request a check, download, mode change, or installation; it cannot choose a URL, local file path, target application path, or installer command. The Main process owns those values and restricts downloads to fixed GitHub release paths.
 

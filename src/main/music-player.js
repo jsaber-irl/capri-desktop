@@ -7,6 +7,7 @@ const tracks = require('../renderer/music-library.js');
 function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang = () => 'fr', playTrack, media, listMedia, tabAction = async () => ({ ok: false, error: 'Action indisponible.' }) }) {
   let win = null;
   const pendingLocal = new Map();
+  let rendererReady = false;
   const owns = (event) => Boolean(
     win && !win.isDestroyed()
       && event.sender === win.webContents
@@ -27,6 +28,7 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
       autoHideMenuBar: true,
       webPreferences: { preload, contextIsolation: true, nodeIntegration: false, sandbox: true },
     });
+    rendererReady = false;
     devLog(`[music-player:close] main: fenêtre créée id=${win.id}`);
     win.removeMenu?.();
     win.once('ready-to-show', () => {
@@ -54,8 +56,8 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
     });
     win.webContents.once('did-finish-load', () => {
       devLog('[music-player:close] main: page du lecteur chargée');
-      for (const [requestId, request] of pendingLocal) {
-        win?.webContents.send('music-player:play-local', { requestId, id: request.id });
+      if (rendererReady) {
+        for (const [requestId, request] of pendingLocal) dispatchLocal(requestId, request.id);
       }
     });
     win.loadURL(protocolUrl);
@@ -68,20 +70,58 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
     pending.resolve(result);
     return true;
   };
+  const dispatchLocal = (requestId, id) => {
+    if (!rendererReady || !win || win.isDestroyed() || win.webContents.isLoading?.()) {
+      devLog('[music-player:local] dispatch différé', { rendererReady, open: Boolean(win && !win.isDestroyed()), loading: Boolean(win && !win.isDestroyed() && win.webContents.isLoading?.()) });
+      return false;
+    }
+    const detail = JSON.stringify({ requestId, id });
+    // Audio playback is subject to Chromium's user-activation policy. Electron's
+    // documented userGesture flag is applied only to this fixed event dispatch;
+    // the payload contains a Main-validated catalog ID and an internally made UUID.
+    devLog('[music-player:local] dispatch vers le lecteur', { id, requestId });
+    win.webContents.executeJavaScript(
+      `window.dispatchEvent(new CustomEvent('capri:music-local-play', { detail: ${detail} }));`,
+      true,
+    ).then(() => devLog('[music-player:local] événement reçu par le document', { id, requestId }))
+      .catch((error) => {
+        devLog('[music-player:local] exécution refusée', String(error?.message || error));
+        finishLocal(requestId, { ok: false, error: `Le lecteur n’a pas pu lancer le morceau : ${String(error?.message || error).slice(0, 140)}` });
+      });
+    return true;
+  };
   const playLocal = (rawId) => {
     const id = String(rawId || '');
     const track = tracks.find((item) => item.id === id);
     if (!track) return Promise.resolve({ ok: false, error: 'Morceau Capri introuvable.' });
+    devLog('[music-player:local] requête de lecture validée', { id, title: track.title });
     show();
     const requestId = randomUUID();
     return new Promise((resolve) => {
       const timer = setTimeout(() => finishLocal(requestId, { ok: false, error: 'Le mini-lecteur n’a pas confirmé la lecture.' }), 12000);
       pendingLocal.set(requestId, { id, timer, resolve });
-      if (win && !win.isDestroyed() && !win.webContents.isLoading?.()) {
-        win.webContents.send('music-player:play-local', { requestId, id });
-      }
+      dispatchLocal(requestId, id);
     });
   };
+  ipcMain.handle('music-player:library', (event) => {
+    const owned = owns(event);
+    devLog('[music-player:catalog] demande du lecteur', { owned, count: tracks.length });
+    return owned
+      ? { ok: true, tracks: tracks.map(({ id, title, file, src, artist, album, artwork }) => ({ id, title, file, src, artist, album, artwork })) }
+      : { ok: false, error: 'Accès refusé.' };
+  });
+  ipcMain.handle('music-player:ready', (event, result = {}) => {
+    if (!owns(event)) return { ok: false, error: 'Accès refusé.' };
+    if (result.ok !== true) {
+      const error = String(result.error || 'La bibliothèque musicale est indisponible.').slice(0, 180);
+      for (const requestId of pendingLocal.keys()) finishLocal(requestId, { ok: false, error });
+      return { ok: false, error };
+    }
+    rendererReady = true;
+    devLog('[music-player:catalog] lecteur prêt', { count: tracks.length, waiting: pendingLocal.size });
+    for (const [requestId, request] of pendingLocal) dispatchLocal(requestId, request.id);
+    return { ok: true };
+  });
   ipcMain.handle('music-player:play-local-result', (event, result = {}) => {
     if (!owns(event)) return { ok: false, error: 'Accès refusé.' };
     const requestId = String(result.requestId || '');

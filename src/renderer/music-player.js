@@ -1,10 +1,14 @@
 'use strict';
 
-const library = window.CapriMusicLibrary || [];
-const songs = library.map((song) => song.title);
+const bundledLibrary = Array.isArray(window.CapriMusicLibrary) ? window.CapriMusicLibrary : [];
+let library = [];
+let songs = [];
+let availableSongs = [];
 const host = window.host;
 const devLog = (...args) => { if (host?.isDev) console.log(...args); };
 const track = document.getElementById('track');
+const localTrackGroup = document.getElementById('local-tracks');
+const detectedTrackGroup = document.getElementById('detected-tracks');
 const service = document.getElementById('service');
 const title = document.getElementById('title');
 const artist = document.getElementById('artist');
@@ -20,8 +24,42 @@ let playing = false;
 let localPlayback = false;
 let activeSession = null;
 let progressTimer = 0;
-const availableSongs = [...songs];
 const DEFAULT_ART = '../../assets/capri/capri-face.png';
+
+function installLibrary(items) {
+  const safeItems = Array.isArray(items) ? items.filter((song) => song
+    && typeof song.id === 'string' && typeof song.title === 'string'
+    && typeof song.src === 'string' && /^capri:\/\/app\/assets\/songs\/[^/]+\.mp3$/iu.test(song.src)) : [];
+  if (!safeItems.length) return false;
+  library = safeItems;
+  songs = library.map((song) => song.title);
+  availableSongs = [...songs];
+  localTrackGroup?.replaceChildren();
+  for (const song of songs) {
+    const option = document.createElement('option');
+    option.value = song;
+    option.textContent = song;
+    localTrackGroup?.append(option);
+  }
+  devLog(`[music-player] catalogue local chargé (${songs.length} titres)`);
+  return true;
+}
+installLibrary(bundledLibrary);
+
+async function initializeLibrary() {
+  devLog('[music-player] initialisation du catalogue', { bundled: bundledLibrary.length, hostAvailable: Boolean(host), groupAvailable: Boolean(localTrackGroup) });
+  if (!library.length) {
+    const result = await host.musicPlayerLibrary?.();
+    devLog('[music-player] résultat du catalogue Main', { ok: result?.ok, count: result?.tracks?.length, error: result?.error });
+    if (result?.ok) installLibrary(result.tracks);
+  }
+  const result = await host.musicPlayerReady?.({ ok: library.length > 0, error: 'La bibliothèque des morceaux intégrés est indisponible.' });
+  devLog('[music-player] accusé prêt', { count: library.length, ok: result?.ok });
+  if (!library.length || !result?.ok) {
+    artist.textContent = 'La bibliothèque des morceaux intégrés est indisponible.';
+    devLog('[music-player] catalogue local indisponible');
+  }
+}
 
 function addTrack(song) {
   if (availableSongs.includes(song)) return;
@@ -29,15 +67,8 @@ function addTrack(song) {
   const option = document.createElement('option');
   option.value = song;
   option.textContent = song;
-  track.append(option);
+  detectedTrackGroup.append(option);
 }
-for (const song of songs) {
-  const option = document.createElement('option');
-  option.value = song;
-  option.textContent = song;
-  track.append(option);
-}
-
 async function detectSessions() {
   const result = await host.musicPlayerSessions?.();
   if (!result?.ok) { if (!localPlayback) renderSession(null); return; }
@@ -154,9 +185,7 @@ function startProgressPolling() {
 async function openSelected() {
   const local = library.find((song) => song.title === selected());
   if (local) {
-    if (!localPlayback && activeSession?.playing && typeof host.musicPlayerMedia === 'function') {
-      await host.musicPlayerMedia('pause').catch(() => {});
-    }
+    const pauseExternal = !localPlayback && activeSession?.playing && typeof host.musicPlayerMedia === 'function';
     localPlayback = true;
     activeSession = null;
     audio.src = local.src;
@@ -168,12 +197,19 @@ async function openSelected() {
     current.textContent = '--:--';
     duration.textContent = '--:--';
     try {
-      await audio.play();
+      // Start synchronously in the current user-activation task. A chat request
+      // arrives through an Electron userGesture dispatch, which is lost by awaiting
+      // an unrelated IPC before calling HTMLMediaElement.play().
+      const playback = audio.play();
+      if (pauseExternal) await host.musicPlayerMedia('pause').catch(() => {});
+      await playback;
+      devLog('[music-player] lecture locale démarrée', { title: local.title, currentSrc: audio.currentSrc });
       playing = true;
       playbackState.textContent = 'LECTURE';
       render();
       return true;
     } catch (error) {
+      devLog('[music-player] échec de lecture locale', { title: local.title, src: audio.src, name: error?.name, error: error?.message });
       playing = false;
       playbackState.textContent = 'PRÊT';
       artist.textContent = `Lecture impossible : ${error.message}`;
@@ -200,8 +236,10 @@ document.getElementById('play-selected').addEventListener('click', () => {
   if (index < 0) return;
   void openSelected();
 });
-host.onMusicPlayerPlayLocal?.(async ({ id, requestId } = {}) => {
+window.addEventListener('capri:music-local-play', async (event) => {
+  const { id, requestId } = event.detail || {};
   const local = library.find((song) => song.id === id);
+  devLog('[music-player] demande locale reçue', { id, requestId, found: Boolean(local), source: local?.src });
   if (!local) {
     await host.musicPlayerLocalResult?.({ id, requestId, ok: false, error: 'Morceau Capri introuvable.' });
     return;
@@ -293,5 +331,9 @@ const closeButton = document.getElementById('close');
 // Keep click for keyboard activation; closeRequested prevents the pointer click firing twice.
 closeButton.addEventListener('click', closePlayer);
 render();
+initializeLibrary().catch((error) => {
+  devLog('[music-player] initialisation de la bibliothèque échouée', error);
+  host.musicPlayerReady?.({ ok: false, error: 'La bibliothèque des morceaux intégrés n’a pas pu être chargée.' });
+});
 detectSessions().catch((error) => console.error('Unable to detect music sessions:', error));
 startProgressPolling();

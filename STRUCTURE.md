@@ -58,6 +58,7 @@ capri-desktop/
 │   │   ├── files.js         Local file search and opening
 │   │   ├── documents.js     Safe text-document creation
 │   │   ├── llm.js           AI provider requests
+│   │   ├── web-search.js    Browser searches and short Wikipedia answers
 │   │   ├── stt.js / tts.js  Speech recognition and synthesis
 │   │   ├── screen.js        Screen capture and display support
 │   │   └── bridge.js        Loopback coding-assistant hook bridge
@@ -132,6 +133,13 @@ play requests by matching a bundled title, then calls a narrow preload capabilit
 call the existing transcript-to-chat flow uses the same route. Main validates the overlay sender
 and catalog ID, opens the mini-player, and reports success only after its renderer confirms that
 `audio.play()` started. This keeps arbitrary paths and remote URLs out of the playback request.
+If the browser script has no catalog at startup, the mini-player requests the fixed catalog through
+its sender-validated preload IPC, then signals readiness before Main dispatches queued playback.
+
+Factual questions recognized by `chat.js` use `webAnswer` through preload and a sender-validated
+Main IPC handler. `web-search.js` queries the fixed Wikipedia Action API in the selected language,
+returns a bounded plaintext extract with its article URL, and leaves explicit general web searches
+on the existing browser-opening path.
 
 ### Platform services
 

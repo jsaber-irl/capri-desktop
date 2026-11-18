@@ -132,6 +132,8 @@ contextBridge.exposeInMainWorld('host', {
   musicControl: (request) => ipcRenderer.invoke('music:command', request),
   musicPlayerPlay: (request) => ipcRenderer.invoke('music-player:play', request || {}),
   musicPlayerPlayLocal: (id) => ipcRenderer.invoke('apps:musicLocal', String(id || '')),
+  musicPlayerLibrary: () => ipcRenderer.invoke('music-player:library'),
+  musicPlayerReady: (result) => ipcRenderer.invoke('music-player:ready', result || {}),
   musicPlayerMedia: (action) => ipcRenderer.invoke('music-player:media', String(action || 'toggle')),
   musicPlayerSessions: () => ipcRenderer.invoke('music-player:sessions'),
   musicPlayerTab: (request) => ipcRenderer.invoke('music-player:tab', request || {}),
@@ -147,7 +149,6 @@ contextBridge.exposeInMainWorld('host', {
       throw error;
     }
   },
-  onMusicPlayerPlayLocal: on('music-player:play-local'),
   musicPlayerLocalResult: (result) => ipcRenderer.invoke('music-player:play-local-result', result || {}),
   translationSettings: () => ipcRenderer.invoke('translation:settings'),
   translationOpen: (source) => ipcRenderer.invoke('translation:open', source || null),
@@ -169,6 +170,7 @@ contextBridge.exposeInMainWorld('host', {
   openKnown: (id) => ipcRenderer.invoke('apps:openKnown', String(id || '')),
   videoSearch: (request) => ipcRenderer.invoke('apps:videoSearch', request || {}),
   webSearch: (request) => ipcRenderer.invoke('apps:webSearch', request || {}),
+  webAnswer: (request) => ipcRenderer.invoke('apps:webAnswer', request || {}),
   focusOverlay: (on) => ipcRenderer.send('overlay:focus', Boolean(on)),
   // her character: her voice, what's playing, whether you're there, how she feels
   ttsSpeak: (request) => ipcRenderer.invoke('tts:speak', request),

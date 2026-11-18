@@ -795,6 +795,9 @@ html[data-motion='reduced'] .panel__bar {
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--violet) transparent;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
 }
 
 .panel.is-chat .panel__line.is-thinking {

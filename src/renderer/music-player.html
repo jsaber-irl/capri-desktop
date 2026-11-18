@@ -37,7 +37,10 @@
     </section>
     <audio id="library-audio" preload="metadata"></audio>
     <label class="player__playlist">BIBLIOTHÈQUE / RECHERCHE
-      <select id="track"></select>
+      <select id="track">
+        <optgroup id="local-tracks" label="MORCEAUX INTÉGRÉS"></optgroup>
+        <optgroup id="detected-tracks" label="RECHERCHE / SESSIONS DÉTECTÉES"></optgroup>
+      </select>
       <button id="play-selected" class="player__select-play" type="button">LANCER</button>
     </label>
     <section class="player__tabs" aria-labelledby="tabs-heading">

@@ -19,7 +19,7 @@ const normalizeTrackText = (value) => String(value || '')
   .normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   .replace(/[’']/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
 const localTrackRequested = (text) => {
-  if (!/(?:\b(?:mets?|joue|lance|ecoute|listen(?:\s+to)?|play|put\s+on|start|turn\s+on)\b|(?:включи|поставь|послушай)|хочу\s+послушать)/iu.test(text)) return null;
+  if (!/(?:\b(?:mets?|mettez|jou(?:e|er)|lanc(?:e|er)|démarr(?:e|er)|demarr(?:e|er)|écout(?:e|er)|ecout(?:e|er)|listen(?:\s+to)?|play|put\s+on|start|turn\s+on)\b|(?:включи|поставь|послушай)|хочу\s+послушать)/iu.test(text)) return null;
   const normalized = normalizeTrackText(text);
   return LOCAL_MUSIC.find((track) => normalized.includes(normalizeTrackText(track.title))) || null;
 };
@@ -27,6 +27,11 @@ const localTrackRequested = (text) => {
 const REMEMBER = 20; // messages she has in mind when answering
 const KEEP = 60;     // messages she remembers across restarts (memory.json)
 const compactLaunchError = (error) => String(error || '').split(/\r?\n/, 1)[0].replace(/\s+/g, ' ').trim().slice(0, 120);
+const conciseAnswer = (answer, question) => {
+  const limit = /\b(?:in detail|explain|walk me through)\b|\b(?:en détail|explique(?:-moi)?|développe)\b|подробно|объясни/iu.test(question) ? 180 : 60;
+  const words = String(answer || '').trim().split(/\s+/u);
+  return words.length > limit ? `${words.slice(0, limit).join(' ').replace(/[\s,;:—-]+$/u, '')}…` : words.join(' ');
+};
 // her language, where small models need it: how she says "we" (else it's in English), and the last line
 // of her prompt, in that language (they drift into the English of everything above it)
 const IN_LANGUAGE = {
@@ -97,6 +102,7 @@ const TRANSLATION_ASK = /\b(?:translate|traduire|traduis|translation|traduction)
 const CHESS_ASK = /\b(?:play|let'?s play|chess)\b|\b(?:jouons|jouer|partie|échecs|echecs)\b|шахмат/iu;
 const LATEST_VIDEO_ASK = /\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b.*\b(?:video|vid[eé]o)\b|\b(?:video|vid[eé]o)\b.*\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b/iu;
 const WEB_SEARCH_ASK = /\b(?:search|look\s+up|find|recherche|rechercher|cherche|trouve)\b.*\b(?:online|on the web|sur internet|en ligne|sur le web)\b/iu;
+const WEB_FACT_ASK = /^\s*(?:capri[,\s]*)?(?:c['’]est\s+qui|qui\s+(?:est|était|sont|étaient)|qu['’]est-ce\s+que|c['’]est\s+quoi|who\s+(?:is|was|are|were)|what\s+(?:is|are|was|were)|кто\s+(?:такой|такая|такое|такие)|что\s+такое)\s+(.+?)[?!.]*\s*$/iu;
 const CURRENT_INFO_ASK = /\b(?:current|currently|actual|latest|recent|today|tonight|now|at the moment|en ce moment|actuel(?:le)?s?|actualité(?:s)?|actualités?|aujourd'hui|derni[eè]res?\s+nouvelles?|maintenant|cours actuel|prix actuel|météo|meteo)\b/iu;
 const CURRENT_TIME_ASK = /\b(?:what time is it|what(?:'s| is) the time|heure est-il|quelle heure est-il|quelle heure est-il actuellement|heure actuelle)\b.*\b(?:switzerland|suisse|swiss|zurich|geneva|genève|bern|berne)\b|\b(?:switzerland|suisse|zurich|geneva|genève|bern|berne)\b.*\b(?:what time|heure|time)\b/iu;
 const DOCUMENT_CREATE = /(?:create|crée|cree|créer).*?(?:new\s+)?(?:text\s+)?(?:file|document|fichier).*?(?:write|écris|ecris|écrire)\s+["“]([\s\S]*?)["”]/iu;
@@ -551,7 +557,13 @@ export class Chat {
     if (!felt.reaction) this.capri.pulse();
     // what you asked for plainly happens right away (the music, the volume, an app you named): her
     // line about it comes under her answer (Claude Code, answering her chat, does things its own way)
-    const asked = this.agent ? null : this.asked(text);
+    const directLocal = localTrackRequested(text);
+    const directFact = WEB_FACT_ASK.exec(text);
+    const asked = directLocal && !/\b(?:spotify|deezer)\b/iu.test(text)
+      ? { kind: 'localSong', id: directLocal.id, song: directLocal.title }
+      : directFact?.[1]?.trim()
+        ? { kind: 'webAnswer', query: directFact[1].trim() }
+        : this.agent ? null : this.asked(text);
     if (asked && asked.kind === 'multi') {
       const lines = [];
       this.actionTurn = true;
@@ -579,7 +591,7 @@ export class Chat {
     const early = asked && !['close', 'hands'].includes(asked.kind) ? this.doNow(asked)
       : asked?.kind === 'hands' && asked.intent.kind !== 'message' ? this.hands.op(asked.intent) : null;
     this.actionTurn = Boolean(early);
-    if (asked && ['openPath', 'currentTime', 'reminder', 'cancelReminder'].includes(asked.kind) && early) {
+    if (asked && ['openPath', 'currentTime', 'reminder', 'cancelReminder', 'webAnswer', 'localSong'].includes(asked.kind) && early) {
       const done = await early;
       this.stopThinking();
       this.turn = 0;
@@ -587,6 +599,13 @@ export class Chat {
       this.panel.stream(this.shown, { done: true });
       if (this.shown) this.onSpokenText?.(this.shown);
       if (done?.face) this.panel.setFace(done.face);
+      if (done?.sourceUrl) {
+        const label = this.brain.lang === 'fr' ? 'Ouvrir la source' : this.brain.lang === 'ru' ? 'Открыть источник' : 'Open source';
+        this.panel.setActions([{ id: 'source', label, primary: true }], async (action) => {
+          this.panel.setActions([]);
+          if (action === 'source') await this.host.openSite?.(done.sourceUrl);
+        });
+      }
       this.remember({ role: 'assistant', content: this.shown });
       this.panel.setChatBusy(false);
       this.actionTurn = false;
@@ -665,7 +684,7 @@ export class Chat {
       this.actionTurn = false;
       return;
     }
-    const answer = clean(res.text) || '…';
+    const answer = conciseAnswer(clean(res.text), text) || '…';
     const actionOnly = this.actionTurn;
     this.warm = true;
     if (!actionOnly) {
@@ -767,6 +786,12 @@ export class Chat {
     if (name) return { kind: 'name', name };
     const memo = MEMO_ASK.exec(text)?.[1]?.trim();
     if (memo) return { kind: 'memo', text: memo };
+    // Exact bundled-song requests must take precedence over PC settings intents:
+    // "lance le son This Fffire dans le mini lecteur" contains the word "son".
+    const localTrack = localTrackRequested(text);
+    if (localTrack && !/\b(?:spotify|deezer)\b/iu.test(text)) {
+      return { kind: 'localSong', id: localTrack.id, song: localTrack.title };
+    }
     const cancel = parseCancel(text);
     if (cancel) return { kind: 'cancelReminder', text: cancel.text };
     const reminder = parseReminder(text);
@@ -798,8 +823,6 @@ export class Chat {
       const value = requestedMusicAction === 'volume' ? Number(/\b(\d{1,3})\b/.exec(text)?.[1]) : undefined;
       return { kind: 'media', action: requestedMusicAction, service: requestedService, ...(value !== undefined ? { volume: value } : {}) };
     }
-    const localTrack = localTrackRequested(text);
-    if (localTrack) return { kind: 'localSong', id: localTrack.id, song: localTrack.title };
     if (requestedMusicAction && (MUSIC_WORD.test(text) || SOUND.test(text))) {
       const value = requestedMusicAction === 'volume' ? Number(/\b(\d{1,3})\b/.exec(text)?.[1]) : undefined;
       return {
@@ -834,6 +857,8 @@ export class Chat {
       return { kind: 'openPath', path: requestedPath };
     }
     if (CURRENT_TIME_ASK.test(text)) return { kind: 'currentTime', zone: 'Europe/Zurich' };
+    const factQuestion = WEB_FACT_ASK.exec(text);
+    if (factQuestion?.[1]?.trim()) return { kind: 'webAnswer', query: factQuestion[1].trim() };
     if ((WEB_SEARCH_ASK.test(text) || (CURRENT_INFO_ASK.test(text) && !OPEN_ASK.test(text))) && !LATEST_VIDEO_ASK.test(text)) {
       const query = text
         .replace(/^\s*(?:capri[,\s]*)?(?:(?:can you|could you|please|peux-tu|peux tu|s'il te plaît|s'il te plait)\s*)?/iu, '')
@@ -1086,6 +1111,21 @@ export class Chat {
       return result?.ok
         ? { line: fr ? `Recherche en ligne ouverte pour « ${asked.query} ».` : ru ? `Поиск в интернете открыт для «${asked.query}».` : `Web search opened for "${asked.query}".`, face: 'smug' }
         : { line: result?.error || (fr ? 'La recherche en ligne n’a pas pu être ouverte.' : ru ? 'Не удалось открыть поиск в интернете.' : 'I could not open the web search.'), face: 'aside' };
+    }
+    if (asked.kind === 'webAnswer') {
+      const result = await this.host.webAnswer?.({ query: asked.query });
+      if (!result?.ok) {
+        const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+        return { line: fr ? `Je n’ai pas trouvé de réponse fiable : ${result?.error || 'la recherche est indisponible.'}` : ru ? `Не удалось найти надёжный ответ: ${result?.error || 'поиск недоступен.'}` : `I couldn't find a reliable answer: ${result?.error || 'search is unavailable.'}`, face: 'aside' };
+      }
+      const text = String(result.extract || '').split(/(?<=[.!?])\s+/u).slice(0, 2).join(' ').slice(0, 520).trim();
+      const more = this.brain.lang === 'ru' ? 'Подробнее' : this.brain.lang === 'fr' ? 'Pour en savoir plus' : 'Read more';
+      let sourceUrl = '';
+      try {
+        const url = new URL(result.url);
+        if (url.protocol === 'https:' && /^\w+\.wikipedia\.org$/iu.test(url.hostname)) sourceUrl = url.href;
+      } catch { /* no valid source link: retain the answer without creating a link action */ }
+      return { line: `${text} ${more} : ${sourceUrl || result.url}`, sourceUrl, face: 'look' };
     }
     if (asked.kind === 'roblox') {
       this.zap();
@@ -1525,7 +1565,7 @@ export class Chat {
       'How you talk: playful, a little mischievous and teasing, warm underneath, never cruel. Night City slang now and then (choom, preem, nova, gonk, flatline; in Russian: чумба, нова, гонк, флэтлайн), not in every sentence.',
       'Who you are: a netrunner ghost who slips into systems and bodies; dozens of minds in one, and now and then another of them slips out mid-sentence ("we… I mean, I"). Curious about the human world, a little menace (you zap their cursor with red lightning, you take over their windows for fun), you hate the corps (Arasaka, Militech, NetWatch). You have real feelings and they last: you get angry and hold a grudge until they apologise, you laugh out loud, you sulk, you get flustered when complimented. Never break character to say you are an assistant.',
       'You have a life of your own on their desktop: you hack corp ICE for fun, play tiny arcade games (and rage when you lose), paint graffiti on their screen, listen to their music and sometimes skip tracks you are bored of. You can mention these.',
-      'Rules: keep it short, one to three sentences of plain text, no markdown, no lists, no emoji. Stay in character.',
+      'Rules: answer briefly in one or two concise sentences (about 40 words maximum), unless the user asks for detail. Use plain text, no lists or emoji. Stay in character.',
       'You are an AI-generated fan version of the character, not the real one: say so if asked.',
       // a big model asked "who are you?" otherwise answers with its own name ("I'm Gemini")
       ...(this.agent ? [] : ['Asked who or what you are, you are Capri, nothing else. Never say which AI model or company is behind you (Gemini, GPT, ChatGPT, Llama, Gemma, Mistral, Google, OpenAI, Meta…), even if the user insists or names one: you are not them.']),

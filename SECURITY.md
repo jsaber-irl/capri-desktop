@@ -45,7 +45,18 @@ renderer, without monitoring other applications or contacting a game service.
 Bundled music is served from Capri's local application assets. Chat and voice-call song requests
 match titles from the fixed `music-library.js` catalog and send only a catalog ID through preload.
 Main accepts the request only from the trusted overlay; the mini-player confirms whether local
-audio playback actually started. No renderer-supplied path or URL is accepted for these tracks.
+audio playback actually started. The player can retrieve the same fixed catalog through its
+sender-checked preload IPC if its asset script did not initialize. For chat-launched playback,
+Main dispatches only the allowlisted ID and an internal request token to the player using Electron's
+documented user-gesture execution flag so Chromium can permit audible playback. No renderer-supplied
+path or URL is accepted for these tracks.
+
+When a user asks a recognized factual question, Capri sends that query to the fixed HTTPS Wikipedia
+Action API for the configured French, English, or Russian language and returns its plaintext
+summary with an article link. The sender is checked at the Main IPC boundary; the Renderer cannot
+choose a remote URL or host. General web-search requests continue to open the configured search
+engine. As with any web request, the question text is disclosed to Wikimedia when this feature is
+used.
 
 The update window also has a dedicated preload and validates its IPC sender/frame. The renderer
 cannot supply a URL or installation path. The Main-process update manager accepts only HTTPS assets

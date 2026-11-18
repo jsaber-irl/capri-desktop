@@ -66,7 +66,7 @@ async function remindersCtor() {
   return remindersClass;
 }
 const { openVideoSearch } = require('./video-search');
-const { openWebSearch } = require('./web-search');
+const { openWebSearch, quickWebAnswer } = require('./web-search');
 const { installNavigationGuards } = require('./electron-security');
 const { createFarewell } = require('./farewell');
 const { showDesktopNotification } = require('./desktop-notification');
@@ -2142,9 +2142,11 @@ function registerIpc() {
   ipcMain.handle('apps:resolveLaunch', (_e, text) => launch.resolve(String(text || '')).catch((err) => ({ status: 'error', error: err.message })));
   ipcMain.handle('apps:launch', (_e, item) => launch.launch(item).then(() => ({ ok: true }), (err) => ({ ok: false, error: err.message })));
   ipcMain.handle('apps:media', async (_e, action) => (await musicControl.command({ action })).ok);
-  ipcMain.handle('apps:musicLocal', (event, id) => trustedOverlay(event)
-    ? musicPlayer.playLocal(String(id || ''))
-    : { ok: false, error: 'Accès refusé.' });
+  ipcMain.handle('apps:musicLocal', (event, id) => {
+    const trusted = trustedOverlay(event);
+    devLog('[music-player:local] demande depuis le chat', { id: String(id || ''), trusted });
+    return trusted ? musicPlayer.playLocal(String(id || '')) : { ok: false, error: 'Accès refusé.' };
+  });
   ipcMain.handle('music:command', (_e, request) => musicControl.command(request || {}));
   ipcMain.handle('translation:open', (_e, source) => {
     translationWindow.show(source || null);
@@ -2166,6 +2168,10 @@ function registerIpc() {
   ipcMain.handle('apps:roblox', (_e, query) => launch.roblox(query).catch((err) => ({ name: null, error: err.message })));
   ipcMain.handle('apps:videoSearch', (_e, request) => performVideoSearch(request || {}));
   ipcMain.handle('apps:webSearch', (_e, request) => openWebSearch({ ...(request || {}), openExternal: (url) => shell.openExternal(url) }));
+  ipcMain.handle('apps:webAnswer', (event, request = {}) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Accès refusé.' };
+    return quickWebAnswer({ query: request?.query, lang: resolveLang(config.load().lang) });
+  });
   // une chanson exacte sur YouTube ("mets Bohemian Rhapsody")
   ipcMain.handle('apps:youtube', (_e, query) => {
     const q = String(query || '').trim();
