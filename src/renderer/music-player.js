@@ -1,4 +1,10 @@
+(function initializeCapriMusicPlayer() {
 'use strict';
+
+// A frameless player can be initialized again by Electron during a reload. Keep
+// its lexical state scoped and install listeners only once for this document.
+if (window.__capriMusicPlayerInitialized) return;
+window.__capriMusicPlayerInitialized = true;
 
 const bundledLibrary = Array.isArray(window.CapriMusicLibrary) ? window.CapriMusicLibrary : [];
 let library = [];
@@ -22,8 +28,10 @@ const audio = document.getElementById('library-audio');
 let index = 0;
 let playing = false;
 let localPlayback = false;
+let localTrackActive = false;
 let activeSession = null;
 let progressTimer = 0;
+let playbackRequest = 0;
 const DEFAULT_ART = '../../assets/capri/capri-face.png';
 
 function installLibrary(items) {
@@ -49,11 +57,11 @@ installLibrary(bundledLibrary);
 async function initializeLibrary() {
   devLog('[music-player] initialisation du catalogue', { bundled: bundledLibrary.length, hostAvailable: Boolean(host), groupAvailable: Boolean(localTrackGroup) });
   if (!library.length) {
-    const result = await host.musicPlayerLibrary?.();
+    const result = await host?.musicPlayerLibrary?.();
     devLog('[music-player] résultat du catalogue Main', { ok: result?.ok, count: result?.tracks?.length, error: result?.error });
     if (result?.ok) installLibrary(result.tracks);
   }
-  const result = await host.musicPlayerReady?.({ ok: library.length > 0, error: 'La bibliothèque des morceaux intégrés est indisponible.' });
+  const result = await host?.musicPlayerReady?.({ ok: library.length > 0, error: 'La bibliothèque des morceaux intégrés est indisponible.' });
   devLog('[music-player] accusé prêt', { count: library.length, ok: result?.ok });
   if (!library.length || !result?.ok) {
     artist.textContent = 'La bibliothèque des morceaux intégrés est indisponible.';
@@ -71,13 +79,13 @@ function addTrack(song) {
 }
 async function detectSessions() {
   const result = await host.musicPlayerSessions?.();
-  if (!result?.ok) { if (!localPlayback) renderSession(null); return; }
+  if (!result?.ok) { if (!isLocalPlayback()) renderSession(null); return; }
   const detected = (result.sessions || [])
     .filter((session) => session.title)
     .map((session) => session.playlist ? `${session.title} — ${session.playlist}` : session.title);
   for (const song of detected) if (![...track.options].some((option) => option.value === song)) addTrack(song);
   renderTabs(result.sessions || []);
-  if (localPlayback) return;
+  if (isLocalPlayback()) return;
   const active = result.sessions?.find((session) => session.playing) || result.sessions?.[0];
   if (!active) { renderSession(null); return; }
   const detectedTitle = active.playlist ? `${active.title} — ${active.playlist}` : active.title;
@@ -95,8 +103,21 @@ async function detectSessions() {
 function selected() {
   return availableSongs[index];
 }
+function hasBundledAudioSource() {
+  const source = audio.currentSrc || audio.src;
+  return Boolean(source && library.some((song) => song.src === source));
+}
+function isLocalPlayback() {
+  return localPlayback || hasBundledAudioSource();
+}
 function render() {
-  document.getElementById('toggle').textContent = playing ? 'Ⅱ' : '▶';
+  const toggle = document.getElementById('toggle');
+  const launchStop = document.getElementById('play-selected');
+  toggle.hidden = false;
+  toggle.textContent = playing ? 'Ⅱ' : '▶';
+  toggle.setAttribute('aria-label', playing ? 'Pause' : 'Lecture');
+  launchStop.textContent = localTrackActive ? 'ARRÊTER' : 'LANCER';
+  launchStop.setAttribute('aria-label', localTrackActive ? 'Arrêter le morceau intégré' : 'Lancer le morceau sélectionné');
 }
 function time(seconds) {
   if (seconds == null || !Number.isFinite(Number(seconds))) return '--:--';
@@ -104,10 +125,11 @@ function time(seconds) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 function renderSession(session) {
-  if (localPlayback && session) return;
+  if (isLocalPlayback() && session) return;
   activeSession = session || null;
   if (!session) {
     playing = false;
+    if (!isLocalPlayback()) localTrackActive = false;
     title.textContent = 'Aucune session média active';
     artist.textContent = 'Les métadonnées indisponibles restent vides.';
     art.src = DEFAULT_ART;
@@ -171,9 +193,9 @@ function startProgressPolling() {
   clearInterval(progressTimer);
   progressTimer = setInterval(async () => {
     const result = await host.musicPlayerSessions?.();
-    if (!result?.ok) { if (!localPlayback) renderSession(null); return; }
+    if (!result?.ok) { if (!isLocalPlayback()) renderSession(null); return; }
     renderTabs(result.sessions || []);
-    if (localPlayback) return;
+    if (isLocalPlayback()) return;
     const currentSession = result?.sessions?.find((session) => activeSession && session.id === activeSession.id) || result?.sessions?.find((session) => session.playing);
     if (currentSession) {
       renderSession(currentSession);
@@ -185,8 +207,10 @@ function startProgressPolling() {
 async function openSelected() {
   const local = library.find((song) => song.title === selected());
   if (local) {
-    const pauseExternal = !localPlayback && activeSession?.playing && typeof host.musicPlayerMedia === 'function';
+    const request = ++playbackRequest;
+    const pauseExternal = !isLocalPlayback() && activeSession?.playing && typeof host.musicPlayerMedia === 'function';
     localPlayback = true;
+    localTrackActive = true;
     activeSession = null;
     audio.src = local.src;
     audio.load();
@@ -203,14 +227,17 @@ async function openSelected() {
       const playback = audio.play();
       if (pauseExternal) await host.musicPlayerMedia('pause').catch(() => {});
       await playback;
+      if (request !== playbackRequest) return false;
       devLog('[music-player] lecture locale démarrée', { title: local.title, currentSrc: audio.currentSrc });
       playing = true;
       playbackState.textContent = 'LECTURE';
       render();
       return true;
     } catch (error) {
+      if (request !== playbackRequest) return false;
       devLog('[music-player] échec de lecture locale', { title: local.title, src: audio.src, name: error?.name, error: error?.message });
       playing = false;
+      localTrackActive = false;
       playbackState.textContent = 'PRÊT';
       artist.textContent = `Lecture impossible : ${error.message}`;
       render();
@@ -218,7 +245,9 @@ async function openSelected() {
     }
     return;
   }
+  playbackRequest += 1;
   localPlayback = false;
+  localTrackActive = false;
   audio.pause();
   audio.removeAttribute('src');
   audio.load();
@@ -234,6 +263,18 @@ track.addEventListener('change', () => { index = availableSongs.indexOf(track.va
 document.getElementById('play-selected').addEventListener('click', () => {
   index = availableSongs.indexOf(track.value);
   if (index < 0) return;
+  if (isLocalPlayback() && localTrackActive) {
+    playbackRequest += 1;
+    audio.pause();
+    audio.currentTime = 0;
+    playing = false;
+    localTrackActive = false;
+    progress.value = '0';
+    current.textContent = '0:00';
+    playbackState.textContent = 'ARRÊTÉ';
+    render();
+    return;
+  }
   void openSelected();
 });
 window.addEventListener('capri:music-local-play', async (event) => {
@@ -251,9 +292,16 @@ window.addEventListener('capri:music-local-play', async (event) => {
 });
 service.addEventListener('change', render);
 document.getElementById('toggle').addEventListener('click', async () => {
-  if (localPlayback) {
+  if (isLocalPlayback()) {
+    localPlayback = true;
     if (audio.paused) await audio.play().catch((error) => { artist.textContent = `Lecture impossible : ${error.message}`; });
     else audio.pause();
+    return;
+  }
+  const selectedLocal = library.find((song) => song.title === track.value);
+  if (selectedLocal) {
+    index = songs.indexOf(selectedLocal.title);
+    void openSelected();
     return;
   }
   const result = await host.musicPlayerMedia(playing ? 'pause' : 'play');
@@ -261,44 +309,60 @@ document.getElementById('toggle').addEventListener('click', async () => {
   setTimeout(() => detectSessions().catch(() => {}), 350);
 });
 document.getElementById('previous').addEventListener('click', async () => {
-  if (localPlayback) { index = (index - 1 + songs.length) % songs.length; track.value = songs[index]; openSelected(); return; }
+  if (isLocalPlayback()) { localPlayback = true; index = (index - 1 + songs.length) % songs.length; track.value = songs[index]; openSelected(); return; }
   const result = await host.musicPlayerMedia('previous');
   if (!result?.ok) artist.textContent = result?.error || 'Aucun lecteur actif ne peut passer au titre précédent.';
   setTimeout(() => detectSessions().catch(() => {}), 350);
 });
 document.getElementById('next').addEventListener('click', async () => {
-  if (localPlayback) { index = (index + 1) % songs.length; track.value = songs[index]; openSelected(); return; }
+  if (isLocalPlayback()) { localPlayback = true; index = (index + 1) % songs.length; track.value = songs[index]; openSelected(); return; }
   const result = await host.musicPlayerMedia('next');
   if (!result?.ok) artist.textContent = result?.error || 'Aucun lecteur actif ne peut passer au titre suivant.';
   setTimeout(() => detectSessions().catch(() => {}), 350);
 });
 document.getElementById('heart').addEventListener('click', (event) => { event.currentTarget.classList.toggle('is-liked'); });
 audio.addEventListener('loadedmetadata', () => {
-  if (!localPlayback) return;
+  if (!isLocalPlayback()) return;
   const total = Number.isFinite(audio.duration) ? audio.duration : null;
   progress.max = total > 0 ? String(total) : '100';
   duration.textContent = time(total);
   current.textContent = time(audio.currentTime);
 });
 audio.addEventListener('timeupdate', () => {
-  if (!localPlayback) return;
+  if (!isLocalPlayback()) return;
   progress.value = String(audio.currentTime || 0);
   current.textContent = time(audio.currentTime);
 });
-audio.addEventListener('play', () => { if (localPlayback) { playing = true; playbackState.textContent = 'LECTURE'; render(); } });
-audio.addEventListener('pause', () => { if (localPlayback) { playing = false; playbackState.textContent = audio.ended ? 'TERMINÉ' : 'PAUSE'; render(); } });
+audio.addEventListener('play', () => { if (isLocalPlayback()) { localPlayback = true; playing = true; localTrackActive = true; playbackState.textContent = 'LECTURE'; render(); } });
+audio.addEventListener('pause', () => {
+  if (!isLocalPlayback()) return;
+  playing = false;
+  playbackState.textContent = audio.ended ? 'TERMINÉ' : (localTrackActive ? 'PAUSE' : 'ARRÊTÉ');
+  render();
+});
 audio.addEventListener('ended', () => {
-  if (!localPlayback) return;
+  if (!isLocalPlayback()) return;
   index = (index + 1) % songs.length;
   track.value = songs[index];
   openSelected();
 });
+audio.addEventListener('error', () => {
+  if (!isLocalPlayback()) return;
+  playing = false;
+  localTrackActive = false;
+  playbackState.textContent = 'ERREUR';
+  const mediaError = audio.error;
+  artist.textContent = mediaError
+    ? `Fichier audio illisible (code ${mediaError.code}).`
+    : 'Le fichier audio n’a pas pu être lu.';
+  render();
+});
 progress.addEventListener('input', () => {
-  if (!localPlayback || !Number.isFinite(audio.duration)) return;
+  if (!isLocalPlayback() || !Number.isFinite(audio.duration)) return;
   current.textContent = time(Number(progress.value));
 });
 progress.addEventListener('change', () => {
-  if (localPlayback && Number.isFinite(audio.duration)) audio.currentTime = Number(progress.value);
+  if (isLocalPlayback() && Number.isFinite(audio.duration)) audio.currentTime = Number(progress.value);
 });
 let closeRequested = false;
 async function closePlayer(event) {
@@ -337,3 +401,4 @@ initializeLibrary().catch((error) => {
 });
 detectSessions().catch((error) => console.error('Unable to detect music sessions:', error));
 startProgressPolling();
+})();

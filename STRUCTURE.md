@@ -135,6 +135,9 @@ and catalog ID, opens the mini-player, and reports success only after its render
 `audio.play()` started. This keeps arbitrary paths and remote URLs out of the playback request.
 If the browser script has no catalog at startup, the mini-player requests the fixed catalog through
 its sender-validated preload IPC, then signals readiness before Main dispatches queued playback.
+The selector is populated from that catalog, and playback acknowledgements are returned only after
+the audio element's `play()` promise resolves; asynchronous audio errors update the visible player
+state without changing the catalog or accepting arbitrary file paths.
 
 Factual questions recognized by `chat.js` use `webAnswer` through preload and a sender-validated
 Main IPC handler. `web-search.js` queries the fixed Wikipedia Action API in the selected language,

@@ -31,3 +31,84 @@ test('closing the mini-player IPC closes its owned window without stopping playb
   assert.equal(player.isOpen(), false);
   assert.equal(stopped, false);
 });
+
+test('chat playback waits for the renderer audio-play acknowledgement and dispatches a catalog ID as a user gesture', async () => {
+  const handlers = new Map();
+  const ipcMain = { handle: (name, fn) => handlers.set(name, fn), on: (name, fn) => handlers.set(name, fn) };
+  class FakeWindow extends EventEmitter {
+    constructor() {
+      super();
+      this.dead = false;
+      this.webContents = {
+        id: 12,
+        mainFrame: {},
+        // Electron may still report a transient loading state after the renderer
+        // itself has signalled that its audio and IPC listeners are ready.
+        isLoading: () => true,
+        send() {},
+        on() {},
+        once: (event, callback) => { this.webContentsHandlers ||= {}; this.webContentsHandlers[event] = callback; },
+        executeJavaScript: async (script, userGesture) => {
+          this.dispatchCount = (this.dispatchCount || 0) + 1;
+          this.dispatch = { script, userGesture };
+        },
+      };
+      FakeWindow.last = this;
+    }
+    isDestroyed() { return this.dead; }
+    removeMenu() {}
+    loadURL() {}
+    show() {}
+    focus() {}
+    close() { this.dead = true; this.emit('closed'); }
+  }
+  const player = createMusicPlayer({ BrowserWindow: FakeWindow, ipcMain, preload: '', protocolUrl: 'capri://app/src/renderer/music-player.html', lang: () => 'fr', playTrack: () => {}, media: async () => ({ ok: true }), listMedia: async () => [] });
+  const playback = player.playLocal('this-fffire');
+  const window = FakeWindow.last;
+  const ownedEvent = { sender: window.webContents, senderFrame: window.webContents.mainFrame };
+
+  assert.deepEqual(await handlers.get('music-player:ready')(ownedEvent, { ok: true }), { ok: true });
+  await new Promise((resolve) => setImmediate(resolve));
+  window.webContentsHandlers['did-finish-load']();
+  assert.equal(window.dispatchCount, 1, 'ready and did-finish-load must not dispatch the same song twice');
+  assert.ok(window.dispatch?.script.includes('"id":"this-fffire"'));
+  assert.equal(window.dispatch.userGesture, true);
+
+  const detail = JSON.parse(window.dispatch.script.match(/detail: (\{.*\}) \}\)\);/u)[1]);
+  assert.deepEqual(await handlers.get('music-player:play-local-result')(ownedEvent, {
+    id: detail.id, requestId: detail.requestId, ok: true,
+  }), { ok: true });
+  assert.deepEqual(await playback, { ok: true, title: 'This Fffire' });
+});
+
+test('a failed renderer playback acknowledgement is never reported as success', async () => {
+  const handlers = new Map();
+  const ipcMain = { handle: (name, fn) => handlers.set(name, fn), on: (name, fn) => handlers.set(name, fn) };
+  class FakeWindow extends EventEmitter {
+    constructor() {
+      super(); this.dead = false;
+      this.webContents = {
+        mainFrame: {}, isLoading: () => true, send() {}, on() {}, once() {},
+        executeJavaScript: async (script) => { this.script = script; },
+      };
+      FakeWindow.last = this;
+    }
+    isDestroyed() { return this.dead; }
+    removeMenu() {}
+    loadURL() {}
+    show() {}
+    focus() {}
+    close() { this.dead = true; this.emit('closed'); }
+  }
+  const player = createMusicPlayer({ BrowserWindow: FakeWindow, ipcMain, preload: '', protocolUrl: 'capri://app/src/renderer/music-player.html', lang: () => 'fr', playTrack: () => {}, media: async () => ({ ok: true }), listMedia: async () => [] });
+  const playback = player.playLocal('this-fffire');
+  const window = FakeWindow.last;
+  const ownedEvent = { sender: window.webContents, senderFrame: window.webContents.mainFrame };
+  await handlers.get('music-player:ready')(ownedEvent, { ok: true });
+  await new Promise((resolve) => setImmediate(resolve));
+  const detail = JSON.parse(window.script.match(/detail: (\{.*\}) \}\)\);/u)[1]);
+  assert.deepEqual(await handlers.get('music-player:play-local-result')(ownedEvent, {
+    id: detail.id, requestId: detail.requestId, ok: false, error: 'Lecture impossible : NotSupportedError',
+  }), { ok: true });
+  assert.deepEqual(await playback, { ok: false, error: 'Lecture impossible : NotSupportedError' });
+});

@@ -71,10 +71,13 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
     return true;
   };
   const dispatchLocal = (requestId, id) => {
-    if (!rendererReady || !win || win.isDestroyed() || win.webContents.isLoading?.()) {
-      devLog('[music-player:local] dispatch différé', { rendererReady, open: Boolean(win && !win.isDestroyed()), loading: Boolean(win && !win.isDestroyed() && win.webContents.isLoading?.()) });
+    if (!rendererReady || !win || win.isDestroyed()) {
+      devLog('[music-player:local] dispatch différé', { rendererReady, open: Boolean(win && !win.isDestroyed()) });
       return false;
     }
+    const pending = pendingLocal.get(requestId);
+    if (!pending || pending.dispatched) return false;
+    pending.dispatched = true;
     const detail = JSON.stringify({ requestId, id });
     // Audio playback is subject to Chromium's user-activation policy. Electron's
     // documented userGesture flag is applied only to this fixed event dispatch;
@@ -99,7 +102,7 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
     const requestId = randomUUID();
     return new Promise((resolve) => {
       const timer = setTimeout(() => finishLocal(requestId, { ok: false, error: 'Le mini-lecteur n’a pas confirmé la lecture.' }), 12000);
-      pendingLocal.set(requestId, { id, timer, resolve });
+      pendingLocal.set(requestId, { id, timer, resolve, dispatched: false });
       dispatchLocal(requestId, id);
     });
   };

@@ -257,6 +257,12 @@ test('French mini-player requests from chat open the integrated music player', a
   const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
   assert.deepEqual(chat.asked('Ouvre le mini lecteur de musique.'), { kind: 'musicPlayer' });
   assert.deepEqual(chat.asked('Affiche le mini-lecteur.'), { kind: 'musicPlayer' });
+  assert.deepEqual(chat.asked('Lance le son This FFFire dans le mini lecteur de musique intégré.'), {
+    kind: 'localSong', id: 'this-fffire', song: 'This Fffire',
+  });
+  assert.deepEqual(chat.asked('Joue THIS   FFFIRE.'), {
+    kind: 'localSong', id: 'this-fffire', song: 'This Fffire',
+  });
 });
 
 test('translation requests from chat open the translator with a file or web page', async () => {

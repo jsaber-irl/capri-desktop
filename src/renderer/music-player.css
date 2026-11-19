@@ -19,6 +19,8 @@ h1 { overflow: hidden; margin: 0; font-size: 16px; text-overflow: ellipsis; whit
 .player__times { display: flex; justify-content: space-between; color: var(--muted); font-size: 9px; }
 .player__controls { display: flex; align-items: center; justify-content: center; gap: 22px; margin: 13px 0; }
 .player__controls button { background: transparent; font-size: 13px; }
+#toggle { display: grid; width: 39px; height: 39px; padding: 0; place-items: center; color: var(--ink); background: #f3f5f6; border-radius: 50%; visibility: visible; opacity: 1; }
+#toggle:hover { color: var(--pink); }
 .player__play { width: 39px; height: 39px; color: var(--ink); background: #f3f5f6; border-radius: 50%; font-size: 14px !important; }
 .player__play:hover { color: var(--pink); }
 .player__heart { color: var(--pink); font-size: 21px !important; }

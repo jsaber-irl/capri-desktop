@@ -23,6 +23,10 @@ flag, containing a catalog ID and generated request token; the player accepts on
 reports success after the audio element's `play()` promise resolves. Audio files are local packaged
 assets; the command does not fetch a track from a remote service. This source review does not
 constitute runtime playback validation on each operating system.
+The current automated renderer test uses a controlled `audio.play()` implementation to verify the
+catalog-to-audio-to-IPC acknowledgement sequence, while `ffmpeg` successfully decoded every bundled
+MP3 locally. Neither check confirms that a physical audio output device played sound, and no
+Windows runtime test was performed in this environment.
 
 The short-answer search path uses a fixed language-specific Wikipedia HTTPS endpoint and bounds the
 query and returned extract. Main validates the calling overlay before issuing the request, and the
