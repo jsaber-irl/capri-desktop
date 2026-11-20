@@ -36,6 +36,32 @@ windows and an allowlist of game identifiers. Their preload exposes a close requ
 restricted reaction request. Main validates the sending game window and an allowlist of reaction
 names before forwarding a contextual event to the overlay; game windows cannot send free-form
 dialogue or invoke arbitrary Capri actions.
+
+The drawing-recognition action is explicit: only a click in the trusted drawing window can submit
+its canvas image. Main validates the sender, PNG data URL, signature, and size, then resizes and
+converts the image before sending it to the user's configured vision provider. If the selected
+model rejects image input, Main retries only with models listed by that same provider as accepting
+image input; it does not change providers. Pollinations' legacy text endpoint remains available for
+keyless text chat, while image analysis uses its Gen API and requires an optionally saved Pollinations
+API key. The key uses the existing encrypted provider-key flow. The resulting description is sent to
+the overlay chat as context for Capri's answer. The image is not sent while drawing or autosaving.
+Chat and image analysis can use different providers. Screenshots and board images are sent to the
+separately selected vision provider, which may be remote even when chat uses a local provider; its
+privacy policy applies to those image requests. NVIDIA Build vision uses the existing encrypted API
+key flow and its free endpoint models may have changing availability and rate limits.
+
+The optional virtual cursor is disabled by default and requires a saved opt-in. Its dedicated
+sandboxed preload exposes only capability status, a primary-display snapshot, and a bounded
+coordinate click. Main validates the calling window and coordinates against display bounds. On
+macOS, Accessibility and Screen Recording must be granted and the user must explicitly verify the
+System Events Automation permission in the macOS permissions window. On Windows, a fixed
+PowerShell payload invokes only user32 pointer positioning and left-click APIs; no remote text is
+evaluated or typed. Linux uses `xdotool` if present. The control window hides before the click so it
+does not cover the selected screen point. The user can also ask Capri's configured vision provider
+to propose a target from a screenshot; the screenshot is disclosed to that provider, and a click
+plan expires after 60 seconds and cannot execute without an explicit confirmation in the control
+window. This implementation has no background input monitoring, keyboard injection, or autonomous
+click loop. Leave the feature off unless needed.
 Chess history is held in the in-memory game service and sent to the trusted chess renderer; browsing
 old positions is read-only and does not issue a move command. The existing chess opponent may send
 the current FEN position to Lichess Cloud Eval over HTTPS for a move suggestion, then uses local

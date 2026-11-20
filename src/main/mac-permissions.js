@@ -30,12 +30,14 @@ const PERMISSIONS_META = {
     affectedFr: [
       'Déplacement et repositionnement des fenêtres (« Posséder mes fenêtres »)',
       'Détection du placement des fenêtres et évitement pour ne pas gêner l’utilisateur',
-      'Navigation et basculement entre applications compatibles'
+      'Navigation et basculement entre applications compatibles',
+      'Clic du curseur virtuel sur le bureau (après activation explicite dans les paramètres)'
     ],
     affectedEn: [
       'Moving and repositioning desktop windows ("Possess my windows")',
       'Window layout detection and non-obtrusive mascot positioning',
-      'Navigation and focus switching between compatible applications'
+      'Navigation and focus switching between compatible applications',
+      'Virtual cursor clicks on the desktop (after explicit opt-in in settings)'
     ],
     instructionsFr: 'Ouvrez Réglages Système > Confidentialité et sécurité > Accessibilité > Activez « Capri » (ou « Electron » en développement). Un redémarrage de l’application est parfois requis.',
     instructionsEn: 'Open System Settings > Privacy & Security > Accessibility > Enable "Capri" (or "Electron" in dev mode). An application restart may be required.',
@@ -701,6 +703,7 @@ function createMacPermissionsWindow({
     show,
     isOpen: () => Boolean(win && !win.isDestroyed()),
     checkAll: () => checkAllPermissions({ systemPreferences, exec, platform }),
+    computerControlGranted: () => Boolean(platform === 'darwin' && checkAccessibility({ systemPreferences, platform }).granted && automationTargets.systemEvents.granted),
     close: () => { if (win && !win.isDestroyed()) win.close(); },
   };
 }

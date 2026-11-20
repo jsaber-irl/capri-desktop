@@ -9,7 +9,7 @@ export const PROVIDERS = {
   ollama: { name: 'Ollama', group: 'local', local: true },
   lmstudio: { name: 'LM Studio', group: 'local', local: true },
   llamacpp: { name: 'llama.cpp / vLLM', group: 'local', local: true },
-  pollinations: { name: 'Pollinations', group: 'cloud' },
+  pollinations: { name: 'Pollinations', group: 'cloud', optionalKey: true },
   groq: { name: 'Groq', group: 'cloud', key: true },
   gemini: { name: 'Gemini', group: 'cloud', key: true },
   openrouter: { name: 'OpenRouter', group: 'cloud', key: true },

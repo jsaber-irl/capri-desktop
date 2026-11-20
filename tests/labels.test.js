@@ -47,6 +47,7 @@ test('the preparation and the main menu are in the tray menu, in every language'
     assert.ok(TRAY[lang].prepare, `${lang}: prepare`);
     assert.ok(TRAY[lang].hub, `${lang}: hub`);
     assert.ok(TRAY[lang].settings, `${lang}: settings`);
+    assert.ok(TRAY[lang].generalSettings, `${lang}: general settings`);
     assert.ok(TRAY[lang].updates, `${lang}: updates`);
   }
 });

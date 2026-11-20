@@ -74,9 +74,36 @@ The existing chess opponent can send a FEN position to the HTTPS Lichess Cloud E
 suggested move; it falls back to local search if the request fails. The local game preload now
 allows only bounded reaction identifiers; Main verifies the originating game window and event
 allowlist before forwarding them to the overlay. The chess Main service emits its own reactions
-from the validated move result. No free-form message or privileged game action is exposed. No new
-dependency, file-system permission, or process control was added. This is a source-level review;
+from the validated move result. No free-form game dialogue is exposed. This is a source-level review;
 the Electron UI and audio playback have not been manually exercised on all platforms.
+
+The optional virtual-cursor panel is a new OS-input surface. It is disabled by default and checks
+the persisted user opt-in on every Main-process request. IPC accepts only an integer point inside
+the primary display bounds; it does not accept key presses, arbitrary scripts, executable names,
+or commands. The panel is its only permitted sender for screen snapshots, proposals, and clicks.
+The user may submit a short instruction with a screenshot to the configured vision provider; Capri
+returns a bounded point and label, which must be confirmed in the window within 60 seconds. Invalid,
+low-confidence, mismatched, and expired plans do not click. macOS gating checks Accessibility and
+Screen Recording and requires a successful user-initiated System Events probe; Windows uses fixed
+user32 calls through a PowerShell encoded command with validated integers; Linux invokes the fixed
+`xdotool` executable and fixed click arguments. Automated tests cover validation and adapter
+dispatch with injected executors, not real desktop interaction. Actual pointer behavior,
+screen-coordinate scaling, window hiding, TCC prompts, and multi-monitor setups remain unverified
+on macOS, Windows, and Linux.
+
+Whiteboard recognition submits a bounded, signature-checked PNG only after its trusted window
+invokes the explicit identify action. Main converts it to a bounded JPEG and calls the configured
+vision adapter; provider choice and credentials remain in Main. A remote provider may receive the
+image, as disclosed in the whiteboard UI; the image provider may be selected separately from chat.
+Unit tests check sender validation, image conversion, provider dispatch, and NVIDIA model routing
+with stubs; no real provider request was made. A model input rejection can retry
+against same-provider vision models; Pollinations uses its Gen model catalog and filters for entries
+advertising image input. Pollinations vision requests use the optional encrypted API key and Gen
+endpoint; its legacy text endpoint is retained for keyless text chat. On success, Main forwards only the
+bounded text description to the trusted overlay chat; it does not send the image through that chat
+IPC. The system-tray settings were
+grouped under General settings while preserving their config keys and handlers. These checks are
+not a full desktop security assessment.
 
 New-install defaults for Capri Cursor and Discord Rich Presence are disabled. Config loading merges
 saved user values over defaults, preserving existing opt-ins. Discord startup remains gated by the

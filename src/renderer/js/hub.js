@@ -165,13 +165,14 @@
       b.type = 'button';
       b.addEventListener('click', () => window.hub.keyPage(c.id));
       one.append(el('span', '', ui.cloudStep1), b);
-    } else if (!c.key && !c.url) {
+    } else if (!c.key && !c.optionalKey && !c.url) {
       one.append(el('span', '', ui.cloudNoKey));
     }
+    if (c.optionalKey) one.append(el('span', '', ui.cloudOptionalVisionKey));
     const two = $('keyStep2');
     two.replaceChildren();
     let input = null;
-    if (c.key || c.url) {
+    if (c.key || c.optionalKey || c.url) {
       input = el('input');
       input.type = c.url ? 'text' : 'password';
       input.autocomplete = 'off';

@@ -21,7 +21,7 @@ const CLOUD = [
   { id: 'groq', tag: 'free', key: true },
   { id: 'gemini', tag: 'free', key: true },
   { id: 'openrouter', tag: 'free-some', key: true },
-  { id: 'pollinations', tag: 'nokey', key: false },
+  { id: 'pollinations', tag: 'nokey', key: false, optionalKey: true },
   { id: 'anthropic', tag: 'best', key: true },
   { id: 'openai', tag: 'paid', key: true },
   { id: 'mistral', tag: 'paid', key: true },

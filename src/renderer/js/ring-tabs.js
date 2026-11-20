@@ -557,6 +557,25 @@ const senses = {
       go(c, s.look, 'lookNow', {}, { disabled: cfg.vision !== true }),
       go(c, s.visionSetup, 'setupVision'),
     ));
+    root.append(heading(s.visionAiTitle));
+    const configured = new Set([cfg.provider, ...(cfg.keys || [])].filter((id) => PROVIDERS[id]));
+    const visionProviders = [
+      { id: '', label: s.visionSameAsChat },
+      ...[...configured].map((id) => ({ id, label: PROVIDERS[id].name })),
+    ];
+    if (!configured.has('nvidia')) visionProviders.push({ id: 'nvidia', label: PROVIDERS.nvidia.name });
+    const selectedVisionProvider = cfg.visionProvider || '';
+    root.append(pick(visionProviders, selectedVisionProvider, (id) => c.set({
+      visionProvider: id,
+      visionModel: id === 'nvidia' ? 'nvidia/nemotron-3.5-super-vl-120b-a12b' : '',
+    })));
+    if (selectedVisionProvider === 'nvidia') {
+      root.append(note(s.nvidiaVisionModels, true));
+      root.append(pick([
+        { id: 'nvidia/nemotron-3.5-super-vl-120b-a12b', label: s.nvidiaVisionNemotron },
+      ], 'nvidia/nemotron-3.5-super-vl-120b-a12b', (id) => c.set({ visionModel: id })));
+      if (!(cfg.keys || []).includes('nvidia')) root.append(note(s.nvidiaKeyHint, true));
+    }
     root.append(toggle(s.rhythm, cfg.rhythm === true, (v) => c.set({ rhythm: v })));
     root.append(heading(''));
     root.append(toggle(s.hands, cfg.hands === true, (v) => c.set({ hands: v }), { disabled: !win, hint: win ? '' : s.winOnly }));

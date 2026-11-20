@@ -1108,6 +1108,15 @@ async function boot() {
       case 'chat': // "Talk to her" in her menu
         chat.start();
         break;
+      case 'drawingStarted':
+        await chat.drawingStarted();
+        break;
+      case 'drawingAnswer': // present the vision model's answer directly, without fabricating a user turn
+        await chat.answerDrawing(cmd.description);
+        break;
+      case 'drawingFailure': // errors from explicit whiteboard recognition are spoken by Capri, not printed in that window
+        await chat.reportDrawingError({ code: cmd.code, message: cmd.message });
+        break;
       case 'callAccepted':
         if (callActive) break;
         callActive = true;

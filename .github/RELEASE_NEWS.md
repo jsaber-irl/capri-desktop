@@ -1,5 +1,13 @@
-## Fixes, Optimizations & Improvements
-- Fixed the embedded music player's initialization and playback handoff so bundled songs appear in the library and start reliably.
-- Capri can now launch the five bundled Cyberpunk tracks in the integrated mini-player directly from chat or a voice conversation.
-- The play/pause control remains visible throughout playback. The library action changes to **STOP** while a bundled track is active, allowing playback to be stopped and reset from the same control.
-- Playback requests remain restricted to Capri's bundled music catalog and are confirmed only after the player starts audio.
+## New Features & Improvements
+
+### General Settings Menu
+- Added a new **General Settings** menu, accessible directly from Capri's system menu.
+- Consolidated features and options that were previously scattered across the system menu into a dedicated settings section.
+- Reorganized existing options to make them easier to find, access, and manage.
+- Preserved all existing features and their original behavior. This update focuses exclusively on improving organization and accessibility, without removing or rewriting existing functionality.
+
+### Whiteboard Drawing Recognition
+- Added the ability for users to ask Capri to identify or describe what they are drawing on the whiteboard.
+- When requested, Capri captures the whiteboard's visual content and sends it to the configured API for analysis.
+- Capri interprets the API response and provides a relevant identification or description of the drawing.
+- Added error handling for failed analysis requests and API availability issues.

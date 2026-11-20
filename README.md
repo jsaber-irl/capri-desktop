@@ -1,4 +1,4 @@
-## **Project Capricorn (2.4.4)**
+## **Project Capricorn (2.4.5)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -87,7 +87,7 @@ Release automation runs the full Node test suite and builds Windows, macOS, and 
 
 1. **Windows:** set `CSC_LINK`/`CSC_KEY_PASSWORD` (or the electron-builder signing equivalent), then verify the installer with `Get-AuthenticodeSignature Capri-Setup-*.exe`. A release is not considered signed when `Status` is not `Valid`.
 2. **macOS:** set the Developer ID signing and notarization credentials supported by electron-builder, then verify with `codesign --verify --deep --strict --verbose=2 Capri.app` and `spctl --assess --type execute Capri.app`.
-3. **Permissions:** on macOS, verify Microphone, Screen Recording, Accessibility, and per-target Automation from Capri’s permissions panel. Apple Events are never assumed to be granted; each target is probed and reported separately.
+3. **Permissions:** on macOS, verify Microphone, Screen Recording, Accessibility, and per-target Automation from Capri’s permissions panel. Apple Events are never assumed to be granted; each target is probed and reported separately. The optional virtual cursor additionally requires explicit opt-in and a successful System Events probe.
 4. **Updates:** confirm the release contains `update-manifest.json` and `update-manifest.sig` together with `Capri-<version>-arm64-mac.zip`, `Capri-<version>-x64-mac.zip`, and `Capri-Setup-<version>-x64.exe`. The release workflow verifies the signing key against the embedded public key and signs the manifest. This Ed25519 signature authenticates Capri's update metadata; it is not an Apple Developer ID or Windows Authenticode signature.
 
 The current public workflow intentionally builds unsigned artifacts unless signing secrets are supplied. This keeps forks reproducible and makes the signing status explicit rather than presenting an unsigned package as trusted.
@@ -192,7 +192,7 @@ NVIDIA Build uses its OpenAI-compatible endpoint. You can connect it from the AI
 `nvidia/nemotron-3.5-lightning-30b-a3b`. For environment-based setup, use `NVIDIA_API_KEY` and
 `NVIDIA_MODEL`.
 
-Pollinations can be used without a key or account. Capri checks the key when connecting and clearly reports errors.
+Pollinations' legacy text chat can be used without a key. Whiteboard image analysis uses Pollinations Gen's current multimodal API and model catalog, which require an API key; add it optionally in the provider settings. The key is stored through Capri's encrypted provider-key flow. Capri selects only catalog models that advertise image input.
 
 ### OpenAI-compatible server
 
@@ -365,6 +365,8 @@ Imports do not call an AI provider. Export creates a new timestamped folder and 
 ### Local games and drawing
 
 Open chess, tic-tac-toe, or 2048 from **More → Games**. Game windows open larger by default and shrink to fit the primary display work area; the tic-tac-toe window reserves space for its restart control. Chess lets you choose White or Black, records SAN moves, and lets you inspect earlier positions without changing the live game. Capri reacts to notable moves through her main presence rather than inserting dialogue into the game window. These games run locally in separate windows and do not use a game server. The **Drawing board** opens another independent window. Drawings autosave locally, can be saved and reopened as Capri drawing files, and can be exported as PNG. Closing the board waits for a successful local autosave.
+
+The drawing board’s **Ask Capri what she sees** action sends a resized image of the canvas to the configured vision provider only after you click it. Capri answers in her chat using that visual analysis; provider errors are also explained there, not written into the board. You can save API keys for multiple AI providers in **AI**, keep one for chat, and select a separate image provider in **Settings → Senses**. NVIDIA Build currently offers `nvidia/nemotron-3.5-super-vl-120b-a12b` as a free vision endpoint using the supported OpenAI-compatible chat API; add your NVIDIA API key in **AI** first. Free endpoint availability and rate limits can change. Old NVIDIA vision selections are migrated to this model, and unavailable model responses are reported rather than presented as success. If the selected chat model cannot accept images, Capri uses models from that same provider that advertise image input. Pollinations text chat remains keyless, while its Gen vision endpoint requires an API key that can be saved optionally in provider settings. The optional **Virtual cursor** window displays a local capture of the primary screen. After **Allow desktop control** is enabled under **General settings**, you can click the preview directly or ask Capri to locate an element. In the latter case, the screenshot goes to the configured vision provider and Capri only proposes a point; you must inspect the marker and confirm within 60 seconds before one left click is sent. macOS requires Accessibility, Screen Recording, and a successful System Events permission check; Windows uses the built-in user32 API; Linux requires `xdotool`. No action runs in the background. The system tray groups the existing configuration controls under **General settings**.
 
 Use the **Play** control next to the mini-player's **Bibliothèque / Recherche** selector to start a bundled song or a detected media session. Bundled tracks are grouped in the selector under **Morceaux intégrés**; detected browser or service sessions appear separately. Track selection can also start local playback. The bundled library includes I Really Want to Stay at Your House, Who's Ready for Tomorrow, This Fffire, In Love with Myself, and High Forever. Ask Capri in chat or during a voice call to play one by title (for example, **« lance This Fffire »**); she starts it in the embedded mini-player and confirms only after audio playback begins. Straightforward factual questions such as **« Qui est Elon Musk ? »** receive a short answer from the matching French, English, or Russian Wikipedia, with a source link. Explicit requests to search the web still open the selected browser search engine.
 

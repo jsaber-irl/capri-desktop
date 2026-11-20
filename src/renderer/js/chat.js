@@ -327,6 +327,8 @@ export class Chat {
     this.hands = null;   // hands.js: her hands on the PC (windows, messages)
     this.eyes = null;    // eyes.js: what's on your screen
     this.screenNow = ''; // what she saw this turn, if you asked about the screen
+    this.drawingNow = ''; // the vision summary from the whiteboard being discussed in this turn
+    this.drawingLater = ''; // whiteboard summary queued behind a reply already in progress
     this.later = '';     // what you said (your voice) while she was still answering
     this.onSetup = null; // (status) => void: she can't answer yet (app.js hands it to setup.js)
     this.onBetterModel = null; // () => void: a bigger model than the tiny one she's on (setup.js)
@@ -460,11 +462,91 @@ export class Chat {
     else this.send(text);
   }
 
+  async answerDrawing(description) {
+    const context = String(description || '').trim().slice(0, 1200);
+    if (!context) return false;
+    await this.start();
+    if (!this.open) return false;
+    this.stopThinking();
+    this.drawingNow = '';
+    this.drawingLater = '';
+    this.turn = 0; // invalidate an older chat response so it cannot replace this vision result
+    this.actionTurn = false;
+    const unclear = /(?:rien.{0,35}(?:identifi|reconn)|(?:identifi|reconn).{0,35}rien|ne trouve rien de précis|pas (?:pu|réussi à) (?:identifier|reconna[iî]tre)|pas pu en tirer (?:une )?interprétation|interprétation claire|nothing (?:was )?identified|could(?:n['’]t| not) identify|can(?:not|'t) make out|nothing recognizable|ничего не (?:удалось )?(?:определить|распознать)|не удалось разобрать)/iu.test(context);
+    const line = unclear
+      ? this.brain.lang === 'ru' ? 'Я пока не могу уверенно разобрать рисунок. Попробуй добавить более чёткие линии или детали.'
+        : this.brain.lang === 'en' ? 'I can’t make out the drawing clearly yet. Could you add a few clearer lines or details?'
+          : 'Je ne distingue pas encore clairement ton dessin. Tu peux ajouter quelques traits ou détails plus nets ?'
+      : /^(?:je vois|je distingue|je n'arrive pas|je n’arrive pas|je ne peux pas|i can see|i see|i can't|i cannot|я вижу|не могу|на рисунке)/iu.test(context)
+      ? context
+      : this.brain.lang === 'ru' ? `Я вижу, что ты нарисовал(а): ${context}`
+        : this.brain.lang === 'en' ? `I can see you drew ${context}`
+          : `Je vois que tu as dessiné ${context}`;
+    this.panel.setChatBusy(false);
+    this.panel.chatTurn({ quote: '', face: 'look' });
+    this.panel.stream(line, { done: true });
+    this.panel.setFace('look');
+    this.speech?.say(line, { mood: 'curious', kind: 'chat' });
+    this.onSpokenText?.(line);
+    return true;
+  }
+
+  async drawingStarted() {
+    await this.start();
+    if (!this.open) return false;
+    this.stopThinking(); // whiteboard analysis uses its own short status, never the command animation
+    this.turn = 0;
+    this.actionTurn = false;
+    this.drawingNow = '';
+    this.drawingLater = '';
+    this.panel.setChatBusy(true);
+    this.panel.chatTurn({ quote: '', face: 'look' });
+    const line = this.brain.lang === 'ru' ? 'Посмотрим, что ты нарисовал(а)…'
+      : this.brain.lang === 'en' ? 'Let’s see what you drew…'
+        : 'Voyons ce que tu as dessiné…';
+    this.panel.stream(line, { done: true });
+    return true;
+  }
+
+  async reportDrawingError({ code = '', message = '' } = {}) {
+    await this.start();
+    if (!this.open) return false;
+    const lang = this.brain.lang;
+    const line = code === 'visionkey'
+      ? (lang === 'ru' ? 'Чтобы я могла рассмотреть рисунок через Pollinations, добавь API-ключ в настройках поставщика. Обычный чат по-прежнему работает без ключа.'
+        : lang === 'en' ? 'To analyze drawings with Pollinations, add an API key in provider settings. Text chat still works without one.'
+          : 'Pour analyser les dessins avec Pollinations, ajoute une clé API dans les paramètres du fournisseur. Le chat textuel reste utilisable sans clé.')
+      : code === 'nokey'
+        ? (lang === 'ru' ? 'Для этого ИИ нужен API-ключ. Добавь его в настройках ИИ и выбери этого поставщика для изображений.'
+          : lang === 'en' ? 'This AI needs an API key. Add it in AI settings, then select this provider for images.'
+            : 'Cette IA nécessite une clé API. Ajoute-la dans les paramètres IA, puis sélectionne ce fournisseur pour les images.')
+      : code === 'novisionmodel'
+      ? (lang === 'ru' ? 'Я не нашла среди настроенных моделей ту, что умеет видеть изображения. Выбери модель с поддержкой vision в настройках.'
+        : lang === 'en' ? 'None of the configured models can read images. Choose a vision-capable model in settings.'
+          : 'Aucun des modèles configurés ne sait lire les images. Choisis un modèle compatible avec les images dans les paramètres.')
+      : code === 'emptyvision'
+      ? (lang === 'ru' ? 'Модель зрения не вернула описание в этот раз. Попробуй ещё раз.'
+        : lang === 'en' ? 'The vision model returned no description this time. Please try again.'
+          : 'Le modèle vision n’a pas renvoyé de description cette fois. Réessaie.')
+      : (lang === 'ru' ? 'Я не смогла разобрать рисунок. Попробуй ещё раз чуть позже.'
+        : lang === 'en' ? 'I couldn’t make out the drawing. Try again in a moment.'
+          : 'Je n’ai pas réussi à analyser le dessin. Réessaie dans un instant.');
+    this.panel.setChatBusy(false);
+    this.panel.chatTurn({ quote: '', face: 'aside' });
+    this.panel.stream(line, { done: true });
+    this.panel.setFace('aside');
+    this.speech?.say(line, { mood: 'calm', kind: 'chat' });
+    this.onSpokenText?.(line);
+    return true;
+  }
+
   // what was said while she answered, now
   sayLater() {
     const text = this.later;
     this.later = '';
-    if (text && this.open) setTimeout(() => this.send(text), 700);
+    const drawingContext = this.drawingLater;
+    this.drawingLater = '';
+    if (text && this.open) setTimeout(() => this.send(text, { drawingContext }), 700);
   }
 
   // Every model request and the satellite demo go through this same wait manager.
@@ -505,8 +587,9 @@ export class Chat {
     this.panel.clearThinking?.();
   }
 
-  async send(text) {
+  async send(text, { drawingContext = '' } = {}) {
     if (this.turn || !this.open) return;
+    this.drawingNow = String(drawingContext || '').slice(0, 1200);
     if (/^(?:quelle est )?ma version|version de capri|about capri|à propos de capri$/iu.test(String(text).trim())) {
       const version = await this.host.appVersion?.() || 'inconnue';
       this.panel.say({ kind: 'chat', face: 'smug', line: fmt(this.t.version || 'Version {version}.', { version }), hold: 3500 });
@@ -557,9 +640,13 @@ export class Chat {
     if (!felt.reaction) this.capri.pulse();
     // what you asked for plainly happens right away (the music, the volume, an app you named): her
     // line about it comes under her answer (Claude Code, answering her chat, does things its own way)
-    const directLocal = localTrackRequested(text);
-    const directFact = WEB_FACT_ASK.exec(text);
-    const asked = directLocal && !/\b(?:spotify|deezer)\b/iu.test(text)
+    // Une demande déclenchée depuis le tableau blanc a déjà son contexte visuel. Ne
+    // la détourne pas vers la recherche Wikipédia (ou une commande) à partir du texte
+    // générique « qu'est-ce que j'ai dessiné ? » : le modèle doit répondre avec l'analyse.
+    const hasDrawingContext = Boolean(this.drawingNow);
+    const directLocal = hasDrawingContext ? null : localTrackRequested(text);
+    const directFact = hasDrawingContext ? null : WEB_FACT_ASK.exec(text);
+    const asked = hasDrawingContext ? null : directLocal && !/\b(?:spotify|deezer)\b/iu.test(text)
       ? { kind: 'localSong', id: directLocal.id, song: directLocal.title }
       : directFact?.[1]?.trim()
         ? { kind: 'webAnswer', query: directFact[1].trim() }
@@ -638,7 +725,15 @@ export class Chat {
       this.screenNow = (await this.eyes.look({ silent: true }).catch(() => '')) || '';
     }
     await Promise.race([this.appsReady, new Promise((r) => setTimeout(r, 1500))]);
-    const messages = [{ role: 'system', content: this.persona(text) }, ...this.history.slice(-REMEMBER)];
+    const messages = [
+      { role: 'system', content: this.persona(text) },
+      ...(this.drawingNow ? [{
+        role: 'system',
+        content: `This message is about the user's drawing on Capri's whiteboard. Vision analysis of the actual image: ${this.drawingNow}. Answer what the user drew using this evidence. Do not define a whiteboard, search the web, or invent visual details.`,
+      }] : []),
+      ...this.history.slice(-REMEMBER),
+    ];
+    this.drawingNow = '';
     // nothing yet after a few seconds: Ollama is still loading the model (the first answer after a start),
     // or Claude Code is at work
     let res;
@@ -1522,6 +1617,7 @@ export class Chat {
       const seen = this.eyes?.context();
       if (seen) lines.push(seen);
     }
+    if (this.drawingNow) lines.push(`The user asks what they drew on Capri's whiteboard. The vision analysis of that board says: ${this.drawingNow}. Answer their question naturally and briefly using this as evidence. Do not claim to see details beyond this description.`);
     const d = new Date();
     lines.push(`It is ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} on the user's PC.`);
     return lines;

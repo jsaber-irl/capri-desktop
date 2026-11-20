@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { spawn, execFile } = require('node:child_process');
+const { devLog } = require('./logger');
 const ollama = require('./ollama');
 const anthropic = require('./anthropic');
 
@@ -19,7 +20,10 @@ const PROVIDERS = {
   lmstudio: { label: 'LM Studio (local)', url: 'http://127.0.0.1:1234/v1', local: true },
   llamacpp: { label: 'llama.cpp / vLLM (local :8080)', url: 'http://127.0.0.1:8080/v1', local: true },
   pollinations: {
-    label: 'Pollinations (no key)', url: 'https://text.pollinations.ai/openai', modelsUrl: 'https://text.pollinations.ai/models',
+    label: 'Pollinations', url: 'https://text.pollinations.ai/openai', modelsUrl: 'https://text.pollinations.ai/models',
+    // Le point d'accès historique reste utilisé pour le chat sans clé. La vision passe par le
+    // catalogue et l'API Gen actuels, qui exposent les capacités image de chaque modèle.
+    visionUrl: 'https://gen.pollinations.ai/v1', visionModelsUrl: 'https://gen.pollinations.ai/v1/models',
   },
   openrouter: { label: 'OpenRouter', url: 'https://openrouter.ai/api/v1', env: 'OPENROUTER_API_KEY' },
   openai: { label: 'OpenAI', url: 'https://api.openai.com/v1', env: 'OPENAI_API_KEY' },
@@ -61,12 +65,14 @@ async function failure(res) {
   try {
     const parsed = JSON.parse(body);
     const err = (Array.isArray(parsed) ? parsed[0] : parsed)?.error;
-    if (err) message = typeof err === 'string' ? err : err.message || message;
+    const detail = (Array.isArray(parsed) ? parsed[0] : parsed)?.detail;
+    if (err) message = typeof err === 'string' ? err : err.message || detail || message;
+    else if (detail) message = detail;
   } catch {
     // not JSON: the start of the body says it
   }
   const code = res.status === 429 || res.status === 503 || /overloaded|high demand|unavailable/i.test(message) ? 'busy'
-    : res.status === 404 ? 'gone' : null;
+    : res.status === 404 || res.status === 410 ? 'gone' : null;
   return Object.assign(new Error(message), { status: res.status, code });
 }
 
@@ -262,39 +268,179 @@ const VISION_MODELS = {
   gemini: 'gemini-2.0-flash',
   groq: 'meta-llama/llama-4-scout-17b-16e-instruct',
   mistral: 'pixtral-12b-latest',
-  pollinations: 'openai',
+  nvidia: 'nvidia/nemotron-3.5-super-vl-120b-a12b',
+  // La liste réelle des modèles avec entrée image est chargée depuis Gen (voir see()).
+  pollinations: '',
   anthropic: anthropic.DEFAULT_MODEL,
 };
+// NVIDIA Build currently marks these vision endpoints as free. Their live availability and limits
+// can change, so see() still verifies the selected model through the provider API.
+const NVIDIA_FREE_VISION_MODELS = [
+  'nvidia/nemotron-3.5-super-vl-120b-a12b',
+];
 
 // Her eyes: one look at a picture (base64 JPEG), answered in one go (not streamed). `prompt` is
 // what to make of it; `model` the vision model, or the provider's default. Returns the text.
 // Claude Code and plain local servers with no vision model throw; the caller falls back.
-async function see(id, cfg, { image, prompt, model = null }) {
+async function see(id, cfg, { image, prompt, model = null, language = cfg.lang }) {
+  if (!PROVIDERS[id]) throw Object.assign(new Error('Unknown vision provider'), { code: 'unknownprovider' });
   const p = endpoint(id, cfg);
-  const use = model || cfg.visionModel || VISION_MODELS[id];
-  if (p.kind === 'claude') throw Object.assign(new Error('Claude Code has no eyes here'), { code: 'noeyes' });
-  // (a vision model named for another service isn't one of Claude's)
-  if (p.kind === 'anthropic') return anthropic.see(p.key, { model: /^claude-/.test(use || '') ? use : anthropic.DEFAULT_MODEL, image, prompt });
-  if (p.kind === 'ollama') {
-    if (!use) throw Object.assign(new Error('no vision model set'), { code: 'novision' });
-    return ollama.once({ model: use, messages: [{ role: 'user', content: prompt, images: [image] }] }, AbortSignal.timeout(40000));
-  }
-  if (!p.url) throw Object.assign(new Error('no address for this server'), { code: 'nourl' });
-  if (p.env && !p.key) throw Object.assign(new Error(`no API key (or ${p.env})`), { code: 'nokey' });
-  if (!use) throw Object.assign(new Error('no vision model set'), { code: 'novision' });
-  const content = [
-    { type: 'text', text: prompt },
-    { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${image}` } },
+  let use = model || cfg.visionModel || VISION_MODELS[id];
+  const RETIRED_NVIDIA_VISION_MODELS = [
+    'meta/llama-3.2-11b-vision-instruct',
+    'meta/llama-3.2-90b-vision-instruct',
+    'google/paligemma',
+    'nvidia/cosmos3-nano-reasoner',
+    'google/diffusiongemma-26b-a4b-it',
   ];
-  const res = await fetch(`${p.url}/chat/completions`, {
-    method: 'POST',
-    headers: headers(p.key),
-    body: JSON.stringify({ model: use, messages: [{ role: 'user', content }], max_tokens: 300, stream: false }),
-    signal: AbortSignal.timeout(40000),
-  });
-  if (!res.ok) throw await failure(res);
-  const body = await res.json();
-  return body.choices?.[0]?.message?.content || '';
+  if (id === 'nvidia' && RETIRED_NVIDIA_VISION_MODELS.includes(use)) {
+    devLog('[vision] replacing unavailable NVIDIA vision model with the current free endpoint model:', use);
+    use = VISION_MODELS.nvidia;
+  }
+  if (p.kind === 'claude') throw Object.assign(new Error('Claude Code has no eyes here'), { code: 'noeyes' });
+  if (id === 'pollinations' && !p.key) {
+    throw Object.assign(new Error('Pollinations image analysis requires an API key. Add it in Capri’s provider settings; regular text chat can still use Pollinations without a key.'), { code: 'visionkey' });
+  }
+  const outputLanguage = ({ fr: 'French', en: 'English', ru: 'Russian' })[language] || 'English';
+  const languageInstruction = `Language requirement: answer only in ${outputLanguage}. Do not switch to English or any other language, even if the image or model defaults suggest it. Output one short sentence and no translation.`;
+  const rejectsImageInput = (error) => /(?:does not support|doesn't support|unsupported|not support)[^\n]{0,80}(?:image|vision)|(?:image|vision)[^\n]{0,80}(?:not supported|unsupported)/i.test(String(error?.message || error));
+  const visionModelName = (name) => /(?:vision|(?:^|[-/])vl(?:[-/]|$)|paligemma|cosmos3-nano-reasoner|diffusiongemma|gpt-4o(?:$|[-/])|gpt-4\.1|gemini|claude|pixtral|llava|qwen.*(?:-vl|\.vl|vl)|llama-4-(?:scout|maverick)|mistral-small-3)/i.test(name);
+  const request = async (visionModel) => {
+    // (a vision model named for another service isn't one of Claude's)
+    if (p.kind === 'anthropic') return anthropic.see(p.key, { model: /^claude-/.test(visionModel || '') ? visionModel : anthropic.DEFAULT_MODEL, image, prompt: `${languageInstruction}\n${prompt}` });
+    if (p.kind === 'ollama') {
+      if (!visionModel) throw Object.assign(new Error('no vision model set'), { code: 'novision' });
+      return ollama.once({ model: visionModel, messages: [{ role: 'system', content: languageInstruction }, { role: 'user', content: prompt, images: [image] }] }, AbortSignal.timeout(40000));
+    }
+    const visionUrl = id === 'pollinations' ? p.visionUrl : p.url;
+    if (!visionUrl) throw Object.assign(new Error('no address for this server'), { code: 'nourl' });
+    if (p.env && !p.key) throw Object.assign(new Error(`no API key (or ${p.env})`), { code: 'nokey' });
+    if (!visionModel) throw Object.assign(new Error('no vision model set'), { code: 'novision' });
+    const content = [
+      { type: 'text', text: prompt },
+      { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${image}` } },
+    ];
+    const res = await fetch(`${visionUrl}/chat/completions`, {
+      method: 'POST',
+      headers: headers(p.key),
+      body: JSON.stringify({
+        model: visionModel,
+      messages: [{ role: 'system', content: languageInstruction }, { role: 'user', content }],
+        max_tokens: 1024,
+        stream: false,
+        ...(id === 'nvidia' ? {
+          temperature: 0.6,
+          top_p: 0.95,
+          // Avoid spending this short visual-description budget on hidden reasoning tokens.
+          chat_template_kwargs: { enable_thinking: false },
+        } : {}),
+      }),
+      signal: AbortSignal.timeout(40000),
+    });
+    if (!res.ok) throw await failure(res);
+    const body = await res.json();
+    const choice = body.choices?.[0];
+    const message = choice?.message;
+    const raw = message?.content;
+    const answer = typeof raw === 'string'
+      ? raw
+      : Array.isArray(raw)
+        ? raw.map((part) => typeof part === 'string' ? part : typeof part?.text === 'string' ? part.text : '').join('\n')
+        : '';
+    if (!answer.trim()) {
+      devLog('[vision] provider returned an empty visible answer:', {
+        provider: id,
+        model: visionModel,
+        finishReason: choice?.finish_reason || null,
+        contentType: Array.isArray(raw) ? 'array' : typeof raw,
+        messageFields: message && typeof message === 'object' ? Object.keys(message).slice(0, 12) : [],
+        reasoningCharacters: typeof message?.reasoning_content === 'string' ? message.reasoning_content.length : 0,
+      });
+      throw Object.assign(new Error('Le modèle vision a terminé sans fournir de description.'), { code: 'emptyvision' });
+    }
+    return answer.trim();
+  };
+  const failed = [];
+  const candidates = [];
+  if (use) candidates.push(use);
+  if (id === 'nvidia') candidates.push(...NVIDIA_FREE_VISION_MODELS.filter((candidate) => candidate !== use));
+  else if (VISION_MODELS[id]) candidates.push(VISION_MODELS[id]);
+  let availableVisionModels;
+  async function discoveredVisionModels() {
+    if (availableVisionModels) return availableVisionModels;
+    try {
+      if (id === 'pollinations') {
+        const res = await fetch(p.visionModelsUrl, { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw await failure(res);
+        const catalog = await res.json();
+        const entries = Array.isArray(catalog) ? catalog : catalog.data || catalog.models || [];
+        const visionEntries = entries.filter((entry) => {
+          const modalities = entry?.input_modalities || entry?.architecture?.input_modalities || entry?.capabilities?.input_modalities;
+          return Array.isArray(modalities) && modalities.some((modality) => String(modality).toLowerCase() === 'image');
+        });
+        const preferred = ['google/gemini-3.7-flash', 'google/gemini-3-flash-preview', 'openai/gpt-4o-mini', 'meta/llama-4-scout'];
+        visionEntries.sort((a, b) => preferred.indexOf(a.id) - preferred.indexOf(b.id));
+        availableVisionModels = visionEntries.map((entry) => entry.id || entry.name).filter(Boolean).slice(0, 5);
+        devLog('[vision] Pollinations catalog image models:', availableVisionModels);
+        return availableVisionModels;
+      }
+      const available = await models(id, cfg);
+      availableVisionModels = (available || []).filter(visionModelName).slice(0, 3);
+    } catch (error) {
+      devLog('[vision] could not list provider models for vision fallback:', id, error.message);
+      availableVisionModels = [];
+    }
+    return availableVisionModels;
+  }
+  if (id === 'pollinations') {
+    // Pollinations a migré ses identifiants vers publisher/model; son ancien alias `openai`
+    // est textuel. Ne l'envoyons pas à la nouvelle API multimodale.
+    const catalog = await discoveredVisionModels();
+    candidates.length = 0;
+    if (use && catalog.includes(use)) candidates.push(use, ...catalog.filter((candidate) => candidate !== use));
+    else {
+      if (use) devLog('[vision] configured Pollinations model is absent or text-only; using catalog image models:', use);
+      candidates.push(...catalog);
+    }
+  } else if (!use && !candidates.length) candidates.push(...await discoveredVisionModels());
+  if (!candidates.length) {
+    const error = Object.assign(new Error('The configured API did not list a model known to accept images. Choose a vision-capable model in Capri settings.'), { code: 'novisionmodel' });
+    devLog('[vision] no model candidate is available:', { provider: id });
+    throw error;
+  }
+  let firstFailure = null;
+  for (let index = 0; index < candidates.length; index++) {
+    const visionModel = candidates[index];
+    devLog('[vision] trying image request:', { provider: id, model: visionModel, attempt: index + 1 });
+    try { return await request(visionModel); }
+    catch (error) {
+      firstFailure ||= error;
+      devLog('[vision] image request failed:', { provider: id, model: visionModel, code: error.code || null, message: String(error.message || error).slice(0, 240) });
+      if (!rejectsImageInput(error) && error.code !== 'gone') throw error;
+      failed.push(visionModel);
+    }
+  }
+  if (failed.length) {
+    const fallback = VISION_MODELS[id];
+    const available = await discoveredVisionModels();
+    for (const visionModel of [...(fallback ? [fallback] : []), ...available]) {
+      if (candidates.includes(visionModel) || failed.includes(visionModel)) continue;
+      candidates.push(visionModel);
+      devLog('[vision] retrying with a detected vision model:', { provider: id, model: visionModel });
+      try { return await request(visionModel); }
+      catch (error) {
+        devLog('[vision] fallback failed:', { provider: id, model: visionModel, code: error.code || null, message: String(error.message || error).slice(0, 240) });
+        if (!rejectsImageInput(error) && error.code !== 'gone') throw error;
+        failed.push(visionModel);
+      }
+    }
+  }
+  if (firstFailure && rejectsImageInput(firstFailure)) {
+    const message = 'The configured API did not provide an available model that accepts images. Choose a vision-capable model in Capri settings.';
+    devLog('[vision] no compatible model found:', { provider: id, attempted: failed });
+    throw Object.assign(new Error(message), { code: 'novisionmodel' });
+  }
+  throw firstFailure || Object.assign(new Error('no vision model set'), { code: 'novision' });
 }
 
 // Whether her answers stay on this PC: a server on this machine.
@@ -307,4 +453,4 @@ function isLocal(id, cfg) {
 // A model as her menus show it (Claude's have names: "Claude Opus 5.5"; the rest are their own ids).
 const modelLabel = (id, model) => (PROVIDERS[id]?.kind === 'anthropic' ? anthropic.label(model) : model);
 
-module.exports = { isLocal, PROVIDERS, CLAUDE_MODES, VISION_MODELS, models, modelLabel, warm, chat, see, resetClaude, isChatSession, claudeMemory, restoreClaude };
+module.exports = { isLocal, PROVIDERS, CLAUDE_MODES, VISION_MODELS, NVIDIA_FREE_VISION_MODELS, models, modelLabel, warm, chat, see, resetClaude, isChatSession, claudeMemory, restoreClaude };

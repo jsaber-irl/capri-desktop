@@ -48,6 +48,59 @@ test('affection gets an immediate localized line while keeping model answers ava
   assert.equal(affectionReply('What time is it?', 'en', []), null);
 });
 
+test('whiteboard recognition shows a quiet pending line and the vision result in chat without a user question', async () => {
+  const { Chat } = await load('chat.js');
+  const turns = [];
+  const lines = [];
+  const thinking = [];
+  const chat = Object.assign(Object.create(Chat.prototype), {
+    open: false, turn: 0, brain: { lang: 'fr' },
+    start: async () => { chat.open = true; },
+    stopThinking: () => thinking.push('stopped'),
+    panel: {
+      setChatBusy() {},
+      chatTurn: (value) => turns.push(value),
+      stream: (line, options) => lines.push({ line, options }),
+      setFace() {},
+    },
+  });
+  assert.equal(await chat.drawingStarted(), true);
+  assert.equal(await chat.answerDrawing('un petit chat avec un collier rouge.'), true);
+  assert.deepEqual(turns, [{ quote: '', face: 'look' }, { quote: '', face: 'look' }]);
+  assert.deepEqual(lines, [
+    { line: 'Voyons ce que tu as dessiné…', options: { done: true } },
+    { line: 'Je vois que tu as dessiné un petit chat avec un collier rouge.', options: { done: true } },
+  ]);
+  await chat.answerDrawing('Nous n’avons rien identifié dans le tableau, l’analyse ne trouve rien de précis.');
+  assert.equal(lines.at(-1).line, 'Je ne distingue pas encore clairement ton dessin. Tu peux ajouter quelques traits ou détails plus nets ?');
+  assert.equal(thinking.length, 3);
+});
+
+test('a whiteboard question uses the vision result instead of Wikipedia or web-answer routing', async () => {
+  const { Chat } = await load('chat.js');
+  const requests = [];
+  const chat = Object.assign(Object.create(Chat.prototype), {
+    open: true, turn: 0, history: [], brain: { lang: 'fr' }, appsReady: Promise.resolve(),
+    panel: {
+      setChatBusy() {}, setActions() {}, chatTurn() {}, stream() {}, setFace() {},
+    },
+    host: {
+      chatSend: async (request) => { requests.push(request); return { ok: true, text: 'Tu as dessiné un chat avec un collier rouge.' }; },
+      webAnswer: async () => assert.fail('whiteboard question must not be sent to Wikipedia'),
+    },
+    capri: { pulse() {} },
+    persona: () => 'Capri persona',
+    startThinking() {}, stopThinking() {}, runManagedRequest: (request) => request(),
+    remember(message) { this.history.push(message); }, sayLater() {}, listApps() {}, after() {},
+  });
+
+  await chat.send('Qu’est-ce que j’ai dessiné dans le tableau blanc ?', { drawingContext: 'Un petit chat avec un collier rouge.' });
+
+  assert.equal(requests.length, 1);
+  assert.ok(requests[0].messages.some((message) => message.role === 'system' && message.content.includes('Un petit chat avec un collier rouge.')));
+  assert.equal(requests[0].messages.at(-1).content, 'Qu’est-ce que j’ai dessiné dans le tableau blanc ?');
+});
+
 test('thinking commands type one at a time, clear, and then type the next command', async () => {
   const { Chat, thinkingCommands } = await load('chat.js');
   const previousSetInterval = globalThis.setInterval;

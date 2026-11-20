@@ -23,6 +23,7 @@ const MODELS = [
 
 // Where to get a key, by provider (llm.js)
 const KEY_PAGES = {
+  pollinations: 'https://enter.pollinations.ai/',
   anthropic: 'https://console.anthropic.com/settings/keys',
   groq: 'https://console.groq.com/keys',
   gemini: 'https://aistudio.google.com/apikey',

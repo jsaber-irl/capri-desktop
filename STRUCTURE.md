@@ -44,6 +44,7 @@ capri-desktop/
 │   │   ├── privacy-tools.js Local Markdown import/export, inventory, retention and purge
 │   │   ├── data-window.js  Data-management window, folder dialogs and guarded IPC
 │   │   ├── draw-window.js  Drawing window, validated local files and autosave
+│   │   ├── computer-control.js  Permission-gated primary-screen capture and pointer click adapter
 │   │   ├── games-window.js Allowlisted independent local-game windows
 │   │   ├── version-window.js Update window and confirmed install IPC
 │   │   ├── update-manager.js HTTPS release lookup, signature/hash validation and download
@@ -80,6 +81,7 @@ capri-desktop/
 │   │   ├── index.html       Main overlay document
 │   │   ├── chess.html / chess-ui.js / chess.css  Chess board, history navigation and orientation
 │   │   ├── game.html / game.js / game.css        Tic-tac-toe and 2048 game windows
+│   │   ├── computer-control.html / .js / .css     Virtual cursor and confirmed desktop actions
 │   │   ├── music-player.html / music-player.js / music-player.css  Local and system media controls
 │   │   ├── music-library.js Shared bundled MP3 catalog and local asset URLs
 │   │   ├── hub.html         Main settings window
@@ -89,6 +91,7 @@ capri-desktop/
 │   ├── preload.js           Narrow API for the main overlay
 │   ├── data-preload.js      Data/Markdown window API
 │   ├── draw-preload.js      Drawing window API
+│   ├── computer-control-preload.js  Narrow screen-preview and pointer-action API
 │   ├── games-preload.js     Local-game window API
 │   ├── version-preload.js   Narrow update-window API
 │   ├── hub-preload.js       Settings-window API
@@ -167,7 +170,23 @@ confirmation dialogs are owned by the Main process.
 `draw-window.js` owns a dedicated drawing window and validates bounded normalized strokes before
 autosave, save, or open. `draw-preload.js` exposes only drawing operations; `renderer/draw.js` handles
 pointer input, Canvas rendering, undo/redo, and PNG export. Drawings autosave under Capri's
-user-data directory.
+user-data directory. The explicit recognition action sends a bounded PNG through its dedicated
+IPC handler, converts it to a resized JPEG in Main, and calls the currently configured `llm.see`
+provider (the optional `visionProvider` config may differ from the chat provider). If a selected model
+rejects image input, `llm.js` uses same-provider models advertising image input; for Pollinations it
+reads the Gen model catalog and calls the Gen API, while regular text chat keeps the legacy keyless
+endpoint. NVIDIA Build exposes curated free vision-model choices in the Senses tab. A successful description is routed through the Main command event to the
+overlay's chat, where it is included as context for a natural-language answer. The drawing window
+reports provider failures without silently retrying elsewhere.
+
+`computer-control.js` owns the optional virtual-cursor window, primary-display capture, permission
+gate, coordinate validation, and platform pointer adapters. Its dedicated preload exposes only
+status, snapshot, click proposals, and confirmed click requests; the renderer draws a pseudo-cursor
+over the captured desktop and requires confirmation for Capri's AI-proposed target.
+macOS requires Accessibility, Screen Recording, and a successful explicit System Events permission
+probe. Windows uses user32 via a fixed PowerShell command; Linux uses `xdotool` when installed.
+System-tray configuration controls are grouped beneath General settings without changing their
+underlying config keys.
 
 `games-window.js` opens independent, work-area-bounded windows for allowlisted game IDs.
 `renderer/games/` contains standalone logic for tic-tac-toe and 2048; `renderer/game.js` provides

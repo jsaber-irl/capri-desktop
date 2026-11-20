@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('drawBoard', Object.freeze({
   load: () => ipcRenderer.invoke('drawing:load'), autosave: (drawing) => ipcRenderer.invoke('drawing:autosave', drawing),
   open: () => ipcRenderer.invoke('drawing:open'), save: (drawing) => ipcRenderer.invoke('drawing:save', drawing),
   exportPng: (data) => ipcRenderer.invoke('drawing:export-png', data),
+  start: () => ipcRenderer.invoke('drawing:start'),
+  identify: (data) => ipcRenderer.invoke('drawing:identify', data),
   onFlush: (callback) => { const listener=()=>callback();ipcRenderer.on('drawing:flush',listener);return()=>ipcRenderer.removeListener('drawing:flush',listener); },
   flushComplete: () => ipcRenderer.send('drawing:flush-complete'),
 }));

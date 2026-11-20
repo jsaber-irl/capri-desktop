@@ -45,6 +45,7 @@ const { createIncomingCall } = require('./incoming-call');
 const { createChessWindow } = require('./chess-window');
 const { createGamesWindow } = require('./games-window');
 const { createDrawWindow } = require('./draw-window');
+const { createComputerControl } = require('./computer-control');
 const { createDataWindow } = require('./data-window');
 const { createPrivacyTools } = require('./privacy-tools');
 const { createMusicPlayer } = require('./music-player');
@@ -161,7 +162,20 @@ const chessWindow = createChessWindow({
   onReaction: (event) => toOverlay('games:reaction', event),
 });
 const gamesWindow = createGamesWindow({ BrowserWindow, ipcMain, screen, lang: () => resolveLang(config.load().lang), preload: path.join(__dirname, '..', 'games-preload.js'), onReaction: (event) => toOverlay('games:reaction', event) });
-const drawWindow = createDrawWindow({ BrowserWindow, ipcMain, dialog, preload: path.join(__dirname, '..', 'draw-preload.js'), userData: app.getPath('userData') });
+const drawWindow = createDrawWindow({ BrowserWindow, ipcMain, dialog, preload: path.join(__dirname, '..', 'draw-preload.js'), userData: app.getPath('userData'), llm, config: { load: () => { const cfg = config.load(); return { ...llmConfig(cfg), lang: resolveLang(cfg.lang) }; } }, nativeImage, onStarted: () => {
+  if (!overlay || overlay.isDestroyed()) return false;
+  sendCommand('drawingStarted');
+  return true;
+}, onRecognized: ({ answer }) => {
+  if (!overlay || overlay.isDestroyed()) return false;
+  sendCommand('drawingAnswer', { description: answer });
+  return true;
+}, onFailed: ({ message, code }) => {
+  if (!overlay || overlay.isDestroyed()) return false;
+  sendCommand('drawingFailure', { message, code });
+  return true;
+} });
+const computerControlWindow = createComputerControl({ BrowserWindow, ipcMain, desktopCapturer, screen, systemPreferences, config: { load: () => llmConfig(config.load()) }, llm, macAutomationGranted: () => macPermissions?.computerControlGranted() === true, preload: path.join(__dirname, '..', 'computer-control-preload.js') });
 let dataWindow = null;
 // the recording she was given as her voice, if any (voice-sample.js): in her own data folder
 const voiceSample = createSample({ dir: () => path.join(app.getPath('userData'), 'voices') });
@@ -1174,6 +1188,7 @@ function buildTray() {
       { label: '2048', click: () => gamesWindow.open('2048') },
     ] },
     { label: text3('Tableau de dessin…','Drawing board…','Рисование…'), click: () => drawWindow.show() },
+    { label: text3('Curseur virtuel…','Virtual cursor…','Виртуальный курсор…'), click: () => computerControlWindow.show() },
     { label: text3('Données et coffre Markdown…','Data and Markdown vault…','Данные и Markdown-хранилище…'), click: () => dataWindow.show() },
     { label: t.translator, click: () => translationWindow.show() },
     { label: t.terminal, click: openTerminal },
@@ -1196,13 +1211,13 @@ function buildTray() {
     { label: t.ring, click: () => sendCommand('ring') },
     { label: t.custom, click: () => sendCommand('customize') },
     { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
-    { label: t.settings, submenu: [
+    { label: t.generalSettings || text3('Paramètres généraux','General settings','Общие настройки'), submenu: [
       { label: t.cursor, type: 'checkbox', checked: cfg.capriCursor === true, click: (item) => updateConfig({ capriCursor: item.checked }) },
+      { label: text3('Autoriser le contrôle du bureau','Allow desktop control','Разрешить управление рабочим столом'), type: 'checkbox', checked: cfg.computerControl === true, click: (item) => updateConfig({ computerControl: item.checked }) },
       { label: `${text3('Gaming Mode','Gaming Mode','Игровой режим')}${cfg.gamingMode ? text3(' — activé',' — on',' — включён') : ''}`, type: 'checkbox', checked: cfg.gamingMode === true, click: (item) => updateConfig({ gamingMode: item.checked }) },
       { type: 'separator' },
       { label: text3('Données et confidentialité…','Data and privacy…','Данные и конфиденциальность…'), click: () => dataWindow.show() },
       { label: t.updates, click: () => versionWindow.show() },
-    ] },
     { type: 'separator' },
     {
       label: t.discord,
@@ -1421,6 +1436,7 @@ function buildTray() {
       checked: app.getLoginItemSettings(loginItemOptions()).openAtLogin,
       click: (item) => app.setLoginItemSettings({ ...loginItemOptions(), openAtLogin: item.checked }),
     },
+    ] },
     // her hooks, while she watches Claude Code
     ...(cfg.claude ? [
       { type: 'separator' },
@@ -1948,6 +1964,11 @@ function registerIpc() {
   ipcMain.handle('config:set', (_e, patch) => {
     if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return rendererConfig();
     const { apiKeys: _keys, ...safe } = patch; // (her keys only go in through setup:use and the voice and ears setups, sealed)
+    if (Object.hasOwn(safe, 'visionProvider') && safe.visionProvider !== '' && !llm.PROVIDERS[safe.visionProvider]) delete safe.visionProvider;
+    if (Object.hasOwn(safe, 'visionModel')) {
+      if (typeof safe.visionModel !== 'string') delete safe.visionModel;
+      else safe.visionModel = safe.visionModel.trim().slice(0, 200);
+    }
     return updateConfig(safe);
   });
   ipcMain.handle('reminder:notify', (event, request) => {
@@ -2308,7 +2329,7 @@ function registerIpc() {
     try {
       const image = await vision.grab({ displayId: cfg.follow !== false ? targetDisplay().id : cfg.displayId, hideOverlay: hideOverlayForShot });
       if (!image) return { ok: false, error: 'no picture', code: 'nocapture' };
-      const text = await llm.see(cfg.provider, llmConfig(cfg), { image, prompt });
+      const text = await llm.see(cfg.visionProvider || cfg.provider, llmConfig(cfg), { image, prompt, model: cfg.visionModel || null });
       return { ok: true, text };
     } catch (err) {
       return { ok: false, error: err.message, code: err.code || null };
