@@ -77,19 +77,35 @@ allowlist before forwarding them to the overlay. The chess Main service emits it
 from the validated move result. No free-form game dialogue is exposed. This is a source-level review;
 the Electron UI and audio playback have not been manually exercised on all platforms.
 
-The optional virtual-cursor panel is a new OS-input surface. It is disabled by default and checks
-the persisted user opt-in on every Main-process request. IPC accepts only an integer point inside
-the primary display bounds; it does not accept key presses, arbitrary scripts, executable names,
-or commands. The panel is its only permitted sender for screen snapshots, proposals, and clicks.
-The user may submit a short instruction with a screenshot to the configured vision provider; Capri
-returns a bounded point and label, which must be confirmed in the window within 60 seconds. Invalid,
-low-confidence, mismatched, and expired plans do not click. macOS gating checks Accessibility and
-Screen Recording and requires a successful user-initiated System Events probe; Windows uses fixed
-user32 calls through a PowerShell encoded command with validated integers; Linux invokes the fixed
-`xdotool` executable and fixed click arguments. Automated tests cover validation and adapter
-dispatch with injected executors, not real desktop interaction. Actual pointer behavior,
-screen-coordinate scaling, window hiding, TCC prompts, and multi-monitor setups remain unverified
-on macOS, Windows, and Linux.
+The optional virtual-cursor feature is an OS-input surface. It is disabled by default and checks the
+persisted user opt-in on every Main-process request. IPC accepts only an integer point inside the
+primary display bounds; it does not accept key presses, arbitrary scripts, executable names, or
+commands. The dedicated panel is the only permitted sender for screen snapshots and proposals; the
+panel and the separate confirmation window can invoke only validated confirmation/refusal handlers.
+The main overlay may only open the panel with a bounded target description. Explicit
+chat and call requests such as “click the Save button” open the same confirmation flow. Main sends
+the primary-screen screenshot to the configured vision provider, receives a bounded point and target
+label, and requires user confirmation within 60 seconds. Invalid, low-confidence, mismatched,
+cancelled, and expired plans do not click. Before execution, a separate transparent window animates
+the bundled cursor GIF with mouse events ignored; the panel is hidden, and Main performs one left
+click only after confirmation. Stop can cancel a queued plan or cursor animation; it cannot reverse
+a click after the platform adapter has begun executing that atomic action. macOS gating checks
+Accessibility and Screen Recording and requires a successful user-initiated System Events probe;
+Windows uses fixed user32 calls through a PowerShell encoded command with validated integers; Linux
+invokes the fixed `xdotool` executable and fixed click arguments. The current implementation targets
+only the primary display and one click per request; it does not perform arbitrary multi-step tasks.
+Both `computerControl` and `computerControlPreview` default to false. The saved
+`computerControlPreview` preference controls whether the compact top-right panel remains visible;
+enabling computer control opens it when this preference is on. Hiding the preview does not
+disable the confirmed-action IPC capability. The compact panel displays a local primary-screen
+preview. A separate lower-right notification is
+created for each proposed click and exposes allow/refuse for that single expiring plan through a
+dedicated preload; dismissing it refuses the action. The cursor overlay is displayed at the proposed
+point before confirmation and remains click-through.
+Automated tests cover intent routing, validation, confirmation, cancellation during virtual motion,
+adapter dispatch with injected executors, and the confirmation sender and placement. They do not
+exercise a real desktop click. Actual screen-capture rendering, pointer alignment/scaling, overlay
+behavior, TCC prompts, and application interaction remain unverified on macOS, Windows, and Linux.
 
 Whiteboard recognition submits a bounded, signature-checked PNG only after its trusted window
 invokes the explicit identify action. Main converts it to a bounded JPEG and calls the configured

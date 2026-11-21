@@ -384,6 +384,14 @@ test('online research requests are routed to the shared web search action', asyn
   assert.deepEqual(chat.asked('Quelles sont les informations actuelles sur le trafic à Paris ?'), { kind: 'webSearch', query: 'Quelles sont les informations actuelles sur le trafic à Paris' });
 });
 
+test('explicit click requests from chat route through the computer-control confirmation panel', async () => {
+  const { Chat } = await load('chat.js');
+  const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
+  assert.deepEqual(chat.asked('Capri, clique sur le bouton Enregistrer.'), { kind: 'computerControl', instruction: 'le bouton Enregistrer' });
+  assert.deepEqual(chat.asked('Please click on the Save button.'), { kind: 'computerControl', instruction: 'the Save button' });
+  assert.deepEqual(chat.asked('Пожалуйста, нажми на кнопку Сохранить.'), { kind: 'computerControl', instruction: 'кнопку Сохранить' });
+});
+
 test('local paths take priority and preserve Finder or Explorer destinations', async () => {
   const { Chat } = await load('chat.js');
   const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });

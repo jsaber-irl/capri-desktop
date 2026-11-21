@@ -25,13 +25,15 @@ test('the Capri cursor is opt-in until the user enables it', () => {
   assert.equal(config.DEFAULTS.capriCursor, false);
   assert.equal(config.DEFAULTS.discordPresence, false);
   assert.equal(config.DEFAULTS.computerControl, false);
+  assert.equal(config.DEFAULTS.computerControlPreview, false);
 });
 
 test('saved cursor, Discord, and desktop-control choices override new-install defaults', () => {
-  fs.writeFileSync(config.file(), JSON.stringify({ capriCursor: true, discordPresence: true, computerControl: true }));
+  fs.writeFileSync(config.file(), JSON.stringify({ capriCursor: true, discordPresence: true, computerControl: true, computerControlPreview: true }));
   assert.equal(config.load(true).capriCursor, true);
   assert.equal(config.load().discordPresence, true);
   assert.equal(config.load().computerControl, true);
+  assert.equal(config.load().computerControlPreview, true);
   fs.rmSync(config.file(), { force: true });
   config.load(true);
 });

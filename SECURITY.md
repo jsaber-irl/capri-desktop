@@ -50,18 +50,26 @@ separately selected vision provider, which may be remote even when chat uses a l
 privacy policy applies to those image requests. NVIDIA Build vision uses the existing encrypted API
 key flow and its free endpoint models may have changing availability and rate limits.
 
-The optional virtual cursor is disabled by default and requires a saved opt-in. Its dedicated
-sandboxed preload exposes only capability status, a primary-display snapshot, and a bounded
-coordinate click. Main validates the calling window and coordinates against display bounds. On
-macOS, Accessibility and Screen Recording must be granted and the user must explicitly verify the
-System Events Automation permission in the macOS permissions window. On Windows, a fixed
-PowerShell payload invokes only user32 pointer positioning and left-click APIs; no remote text is
-evaluated or typed. Linux uses `xdotool` if present. The control window hides before the click so it
-does not cover the selected screen point. The user can also ask Capri's configured vision provider
-to propose a target from a screenshot; the screenshot is disclosed to that provider, and a click
-plan expires after 60 seconds and cannot execute without an explicit confirmation in the control
-window. This implementation has no background input monitoring, keyboard injection, or autonomous
-click loop. Leave the feature off unless needed.
+The optional virtual cursor and its compact screen-preview panel are both disabled by default. The
+control requires its own saved opt-in. A separate saved setting controls whether the compact panel
+remains visible; hiding that panel does not grant or revoke computer-control permission. Its dedicated
+sandboxed preload exposes only capability status, a primary-display snapshot, bounded target
+proposals, cancellation, and a bounded coordinate click. Main validates the calling window and
+coordinates against display bounds. Explicit click requests from chat or a voice call open the same
+human-confirmed flow; the model cannot execute a click itself. The compact upper-right window shows
+a local preview, and a separate lower-right notification offers **Allow** or **Refuse** for the
+specific proposed target. On macOS, Accessibility and Screen Recording must be granted and the user
+must explicitly verify the System Events Automation
+permission in the macOS permissions window. On Windows, a fixed PowerShell payload invokes only
+user32 pointer positioning and left-click APIs; no remote text is evaluated or typed. Linux uses
+`xdotool` if present. Before authorization, a separate transparent, click-through window shows the
+bundled Capri cursor GIF at the proposed target without clicking. When allowed, it animates to the
+target while the control window is hidden. The panel returns to a compact top-right position after
+the action. A click plan expires after 60 seconds and requires an explicit confirmation; refusing,
+dismissing, timing out, or pressing Stop cancels the pending plan before the click.
+This feature has no background input monitoring, keyboard injection, or multi-action automation.
+Screenshots are disclosed to the configured vision provider when Capri must locate a target. Leave
+the feature off unless needed.
 Chess history is held in the in-memory game service and sent to the trusted chess renderer; browsing
 old positions is read-only and does not issue a move command. The existing chess opponent may send
 the current FEN position to Lichess Cloud Eval over HTTPS for a move suggestion, then uses local

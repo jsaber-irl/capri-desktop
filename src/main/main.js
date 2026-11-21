@@ -175,7 +175,7 @@ const drawWindow = createDrawWindow({ BrowserWindow, ipcMain, dialog, preload: p
   sendCommand('drawingFailure', { message, code });
   return true;
 } });
-const computerControlWindow = createComputerControl({ BrowserWindow, ipcMain, desktopCapturer, screen, systemPreferences, config: { load: () => llmConfig(config.load()) }, llm, macAutomationGranted: () => macPermissions?.computerControlGranted() === true, preload: path.join(__dirname, '..', 'computer-control-preload.js') });
+const computerControlWindow = createComputerControl({ BrowserWindow, ipcMain, desktopCapturer, screen, systemPreferences, config: { load: () => llmConfig(config.load()) }, llm, macAutomationGranted: () => macPermissions?.computerControlGranted() === true, preload: path.join(__dirname, '..', 'computer-control-preload.js'), confirmPreload: path.join(__dirname, '..', 'computer-control-confirm-preload.js') });
 let dataWindow = null;
 // the recording she was given as her voice, if any (voice-sample.js): in her own data folder
 const voiceSample = createSample({ dir: () => path.join(app.getPath('userData'), 'voices') });
@@ -1213,7 +1213,8 @@ function buildTray() {
     { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     { label: t.generalSettings || text3('Paramètres généraux','General settings','Общие настройки'), submenu: [
       { label: t.cursor, type: 'checkbox', checked: cfg.capriCursor === true, click: (item) => updateConfig({ capriCursor: item.checked }) },
-      { label: text3('Autoriser le contrôle du bureau','Allow desktop control','Разрешить управление рабочим столом'), type: 'checkbox', checked: cfg.computerControl === true, click: (item) => updateConfig({ computerControl: item.checked }) },
+      { label: text3('Autoriser le contrôle du bureau','Allow desktop control','Разрешить управление рабочим столом'), type: 'checkbox', checked: cfg.computerControl === true, click: (item) => { updateConfig({ computerControl: item.checked }); if (item.checked && config.load().computerControlPreview !== false) computerControlWindow.show(); else computerControlWindow.setCompactVisible(false); } },
+      { label: text3('Afficher l’aperçu compact en haut à droite','Show compact top-right preview','Показывать компактный предпросмотр справа вверху'), type: 'checkbox', enabled: cfg.computerControl === true, checked: cfg.computerControlPreview !== false, click: (item) => { updateConfig({ computerControlPreview: item.checked }); if (item.checked && config.load().computerControl === true) computerControlWindow.show(); else computerControlWindow.setCompactVisible(false); } },
       { label: `${text3('Gaming Mode','Gaming Mode','Игровой режим')}${cfg.gamingMode ? text3(' — activé',' — on',' — включён') : ''}`, type: 'checkbox', checked: cfg.gamingMode === true, click: (item) => updateConfig({ gamingMode: item.checked }) },
       { type: 'separator' },
       { label: text3('Données et confidentialité…','Data and privacy…','Данные и конфиденциальность…'), click: () => dataWindow.show() },
@@ -1896,6 +1897,14 @@ function registerIpc() {
   const trustedOverlay = (event) => Boolean(overlay && !overlay.isDestroyed() && event.sender === overlay.webContents && event.senderFrame === overlay.webContents.mainFrame);
   ipcMain.handle('tools:data-open', (event) => trustedOverlay(event) ? (dataWindow.show(), { ok: true }) : { ok: false, error: 'Accès refusé.' });
   ipcMain.handle('tools:drawing-open', (event) => trustedOverlay(event) ? (drawWindow.show(), { ok: true }) : { ok: false, error: 'Accès refusé.' });
+  ipcMain.handle('computer-control:open-from-chat', (event, instruction) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Accès refusé.' };
+    const access = computerControlWindow.capability();
+    if (!access.enabled) return { ok: false, error: access.reason };
+    if (typeof instruction !== 'string' || !instruction.trim() || instruction.length > 240) return { ok: false, error: 'Élément à localiser invalide.' };
+    computerControlWindow.show(instruction);
+    return { ok: true };
+  });
   ipcMain.handle('tools:game-open', (event, id) => trustedOverlay(event) ? gamesWindow.open(String(id || '')) : { ok: false, error: 'Accès refusé.' });
   ipcMain.on('farewell:done', (event) => {
     if (event.sender === overlay?.webContents) farewell.finish();
@@ -2567,6 +2576,7 @@ function main() {
     createOverlay();
     startFollowingPointer();
     createTray();
+    if (config.load().computerControl === true && config.load().computerControlPreview !== false) computerControlWindow.show();
     watchWindows();
     syncTitleWindowTracking();
     mover = createMover({

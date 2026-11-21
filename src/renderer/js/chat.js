@@ -103,6 +103,7 @@ const CHESS_ASK = /\b(?:play|let'?s play|chess)\b|\b(?:jouons|jouer|partie|éche
 const LATEST_VIDEO_ASK = /\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b.*\b(?:video|vid[eé]o)\b|\b(?:video|vid[eé]o)\b.*\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b/iu;
 const WEB_SEARCH_ASK = /\b(?:search|look\s+up|find|recherche|rechercher|cherche|trouve)\b.*\b(?:online|on the web|sur internet|en ligne|sur le web)\b/iu;
 const WEB_FACT_ASK = /^\s*(?:capri[,\s]*)?(?:c['’]est\s+qui|qui\s+(?:est|était|sont|étaient)|qu['’]est-ce\s+que|c['’]est\s+quoi|who\s+(?:is|was|are|were)|what\s+(?:is|are|was|were)\s+(?!next\b|there\b|this\b|that\b|it\b)|кто\s+(?:такой|такая|такое|такие)|что\s+такое)\s+(.+?)[?!.]*\s*$/iu;
+const COMPUTER_CLICK_ASK = /^\s*(?:capri[,\s]*)?(?:(?:please|s['’]il\s+te\s+pla[iî]t|stp|пожалуйста)[,\s]+)?(?:click(?:\s+on)?|clique(?:r)?(?:\s+sur)?|нажми(?:те)?(?:\s+на)?|кликни(?:те)?(?:\s+по)?)\s+(.+?)[.!?]*\s*$/iu;
 const CURRENT_INFO_ASK = /\b(?:current|currently|actual|latest|recent|today|tonight|now|at the moment|en ce moment|actuel(?:le)?s?|actualité(?:s)?|actualités?|aujourd'hui|derni[eè]res?\s+nouvelles?|maintenant|cours actuel|prix actuel|météo|meteo)\b/iu;
 const CURRENT_TIME_ASK = /\b(?:what time is it|what(?:'s| is) the time|heure est-il|quelle heure est-il|quelle heure est-il actuellement|heure actuelle)\b.*\b(?:switzerland|suisse|swiss|zurich|geneva|genève|bern|berne)\b|\b(?:switzerland|suisse|zurich|geneva|genève|bern|berne)\b.*\b(?:what time|heure|time)\b/iu;
 const DOCUMENT_CREATE = /(?:create|crée|cree|créer).*?(?:new\s+)?(?:text\s+)?(?:file|document|fichier).*?(?:write|écris|ecris|écrire)\s+["“]([\s\S]*?)["”]/iu;
@@ -678,7 +679,7 @@ export class Chat {
     const early = asked && !['close', 'hands'].includes(asked.kind) ? this.doNow(asked)
       : asked?.kind === 'hands' && asked.intent.kind !== 'message' ? this.hands.op(asked.intent) : null;
     this.actionTurn = Boolean(early);
-    if (asked && ['openPath', 'currentTime', 'reminder', 'cancelReminder', 'webAnswer', 'localSong'].includes(asked.kind) && early) {
+    if (asked && ['openPath', 'currentTime', 'reminder', 'cancelReminder', 'webAnswer', 'localSong', 'computerControl'].includes(asked.kind) && early) {
       const done = await early;
       this.stopThinking();
       this.turn = 0;
@@ -903,6 +904,8 @@ export class Chat {
     }
     if (CHESS_ASK.test(text)) return { kind: 'chess' };
     if (SCREENSHOT_ASK.test(text)) return { kind: 'screenshot' };
+    const computerTarget = COMPUTER_CLICK_ASK.exec(text)?.[1]?.trim();
+    if (computerTarget && computerTarget.length <= 240) return { kind: 'computerControl', instruction: computerTarget };
     const requestedUrl = /(?:https?:\/\/|www\.)?[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.[a-z]{2,}(?:\/[^\s"'<>]*)?/i.exec(text)?.[0];
     const requestedBrowser = REQUESTED_BROWSER.exec(text)?.[1];
     if (requestedUrl && requestedBrowser && OPEN_ASK.test(text)) {
@@ -1071,6 +1074,17 @@ export class Chat {
   async doNow(asked) {
     const { t } = this;
     const custom = this.brain.custom;
+    if (asked.kind === 'computerControl') {
+      const result = await this.host.computerControlOpen?.(asked.instruction);
+      const fr = this.brain.lang === 'fr', ru = this.brain.lang === 'ru';
+      return result?.ok
+        ? { line: fr ? `Je repère « ${asked.instruction} ». Vérifie la cible et confirme le clic dans le panneau de contrôle.` : ru ? `Я ищу «${asked.instruction}». Проверь цель и подтверди щелчок в панели управления.` : `I’m locating “${asked.instruction}”. Review the target and confirm the click in the control panel.`, face: 'look' }
+        : { line: result?.error === 'accessibility-required' ? (fr ? 'Autorise Capri dans Réglages Système > Confidentialité et sécurité > Accessibilité.' : ru ? 'Разреши Capri в системных настройках: Конфиденциальность и безопасность > Универсальный доступ.' : 'Allow Capri in System Settings > Privacy & Security > Accessibility.')
+          : result?.error === 'screen-recording-required' ? (fr ? 'Autorise l’enregistrement de l’écran pour que Capri puisse repérer la cible.' : ru ? 'Разреши запись экрана, чтобы Capri могла найти цель.' : 'Allow screen recording so Capri can locate the target.')
+            : result?.error === 'automation-required' ? (fr ? 'Autorise Événements système dans Autorisations macOS.' : ru ? 'Разреши Системные события в настройках разрешений macOS.' : 'Allow System Events in macOS Permissions.')
+              : result?.error === 'opt-in-required' ? (fr ? 'Active « Autoriser le contrôle du bureau » dans Paramètres généraux.' : ru ? 'Включи «Разрешить управление рабочим столом» в общих настройках.' : 'Enable “Allow desktop control” in General Settings.')
+                : result?.error || (fr ? 'Le contrôle du bureau est indisponible.' : ru ? 'Управление рабочим столом недоступно.' : 'Desktop control is unavailable.'), face: 'aside' };
+    }
     if (asked.kind === 'pc') {
       const pc = t.pc || {};
       const fr = this.brain.lang === 'fr';

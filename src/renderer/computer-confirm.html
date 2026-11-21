@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' capri:; script-src 'self'; style-src 'self';">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Capri // Autorisation</title>
+  <link rel="stylesheet" href="computer-confirm.css">
+</head>
+<body>
+  <main>
+    <div class="mark" aria-hidden="true">C</div>
+    <section>
+      <p class="eyebrow">ACTION À CONFIRMER</p>
+      <h1>Capri demande l’autorisation</h1>
+      <p id="action">Chargement de l’action…</p>
+      <p id="status" role="status"></p>
+      <div class="buttons">
+        <button id="refuse" type="button">Refuser</button>
+        <button id="allow" type="button">Autoriser</button>
+      </div>
+    </section>
+  </main>
+  <script src="computer-confirm.js"></script>
+</body>
+</html>

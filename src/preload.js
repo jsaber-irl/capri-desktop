@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld('host', {
   chessGetState: () => ipcRenderer.invoke('chess:getState'),
   openDataTools: () => ipcRenderer.invoke('tools:data-open'),
   openDrawing: () => ipcRenderer.invoke('tools:drawing-open'),
+  computerControlOpen: (instruction) => ipcRenderer.invoke('computer-control:open-from-chat', String(instruction || '').slice(0, 240)),
   openLocalGame: (id) => ipcRenderer.invoke('tools:game-open', String(id || '')),
   onChessState: on('chess:state'),
   installHooks: () => ipcRenderer.invoke('hooks:install'),

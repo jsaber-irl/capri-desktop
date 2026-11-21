@@ -44,7 +44,7 @@ capri-desktop/
 │   │   ├── privacy-tools.js Local Markdown import/export, inventory, retention and purge
 │   │   ├── data-window.js  Data-management window, folder dialogs and guarded IPC
 │   │   ├── draw-window.js  Drawing window, validated local files and autosave
-│   │   ├── computer-control.js  Permission-gated primary-screen capture and pointer click adapter
+│   │   ├── computer-control.js  Permission-gated primary-screen capture, cursor overlay, and click adapter
 │   │   ├── games-window.js Allowlisted independent local-game windows
 │   │   ├── version-window.js Update window and confirmed install IPC
 │   │   ├── update-manager.js HTTPS release lookup, signature/hash validation and download
@@ -81,7 +81,9 @@ capri-desktop/
 │   │   ├── index.html       Main overlay document
 │   │   ├── chess.html / chess-ui.js / chess.css  Chess board, history navigation and orientation
 │   │   ├── game.html / game.js / game.css        Tic-tac-toe and 2048 game windows
-│   │   ├── computer-control.html / .js / .css     Virtual cursor and confirmed desktop actions
+│   │   ├── computer-control.html / .js / .css     Compact live preview, target proposal, and control panel
+│   │   ├── computer-confirm.html / .js / .css     Lower-right allow/refuse prompt for a pending click
+│   │   ├── computer-cursor.html / .css             Transparent click-through cursor overlay
 │   │   ├── music-player.html / music-player.js / music-player.css  Local and system media controls
 │   │   ├── music-library.js Shared bundled MP3 catalog and local asset URLs
 │   │   ├── hub.html         Main settings window
@@ -91,7 +93,8 @@ capri-desktop/
 │   ├── preload.js           Narrow API for the main overlay
 │   ├── data-preload.js      Data/Markdown window API
 │   ├── draw-preload.js      Drawing window API
-│   ├── computer-control-preload.js  Narrow screen-preview and pointer-action API
+│   ├── computer-control-preload.js  Narrow preview, proposal, cancellation, and pointer-action API
+│   ├── computer-control-confirm-preload.js  Allow/refuse access to the one pending click plan
 │   ├── games-preload.js     Local-game window API
 │   ├── version-preload.js   Narrow update-window API
 │   ├── hub-preload.js       Settings-window API
@@ -179,12 +182,20 @@ endpoint. NVIDIA Build exposes curated free vision-model choices in the Senses t
 overlay's chat, where it is included as context for a natural-language answer. The drawing window
 reports provider failures without silently retrying elsewhere.
 
-`computer-control.js` owns the optional virtual-cursor window, primary-display capture, permission
-gate, coordinate validation, and platform pointer adapters. Its dedicated preload exposes only
-status, snapshot, click proposals, and confirmed click requests; the renderer draws a pseudo-cursor
-over the captured desktop and requires confirmation for Capri's AI-proposed target.
+`computer-control.js` owns the optional control window, primary-display capture, permission gate,
+coordinate validation, and platform pointer adapters. Explicit click requests in `chat.js` route
+through a validated overlay IPC handler to this window; voice-call transcripts share the chat path.
+The dedicated preload exposes status, snapshot, click proposals, cancellation, resizing, and
+confirmed click requests. A separate transparent BrowserWindow animates the bundled Capri cursor
+GIF over the actual desktop with mouse input ignored. The compact panel shows a local screen preview.
+Each proposed click also opens a lower-right allow/refuse window with a separate narrow preload;
+Main verifies its sender and the pending plan ID before acting.
 macOS requires Accessibility, Screen Recording, and a successful explicit System Events permission
-probe. Windows uses user32 via a fixed PowerShell command; Linux uses `xdotool` when installed.
+probe. Windows uses user32 via a fixed PowerShell command; Linux uses `xdotool` when installed. The
+current adapter targets the primary display and a single confirmed click per request. Both desktop
+control and its compact preview default to off. A persistent `computerControlPreview` preference
+independently shows or hides the compact preview panel; enabling desktop control opens that panel
+when the preference is on.
 System-tray configuration controls are grouped beneath General settings without changing their
 underlying config keys.
 

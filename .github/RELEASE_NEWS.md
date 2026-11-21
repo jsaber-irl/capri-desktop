@@ -1,13 +1,10 @@
 ## New Features & Improvements
 
-### General Settings Menu
-- Added a new **General Settings** menu, accessible directly from Capri's system menu.
-- Consolidated features and options that were previously scattered across the system menu into a dedicated settings section.
-- Reorganized existing options to make them easier to find, access, and manage.
-- Preserved all existing features and their original behavior. This update focuses exclusively on improving organization and accessibility, without removing or rewriting existing functionality.
-
-### Whiteboard Drawing Recognition
-- Added the ability for users to ask Capri to identify or describe what they are drawing on the whiteboard.
-- When requested, Capri captures the whiteboard's visual content and sends it to the configured API for analysis.
-- Capri interprets the API response and provides a relevant identification or description of the drawing.
-- Added error handling for failed analysis requests and API availability issues.
+### Computer Control
+- Added an opt-in computer-control flow that can be requested from Capri's chat or voice conversation for explicit click actions.
+- The compact upper-right panel now shows the primary-screen preview Capri uses to identify a target.
+- Desktop control and its compact preview are off by default; the setting directly below independently shows or hides the panel after the feature is enabled.
+- Each proposed click appears in a separate lower-right notification with **Allow** and **Refuse** actions; dismissal and timeout cancel it.
+- Added a click-through Capri cursor overlay that marks the proposed target and animates there after approval without replacing the user's system cursor.
+- Added a **Stop** control to cancel a pending action or cursor movement, plus platform-specific permission checks and clear unavailable-state handling.
+- Computer control is currently limited to one user-confirmed click at a time; arbitrary action sequences and full application operation are not included.
