@@ -24,6 +24,7 @@ const nodeTools = require('./node-check');
 const hardwareLib = require('./hardware');
 const profiles = require('./profiles');
 const { text } = require('./prepare-lines');
+const { collectDiagnostics, diagnosticsText } = require('./diagnostics');
 
 const GB = 1024 ** 3;
 const STEPS = [
@@ -619,6 +620,13 @@ class Provision extends EventEmitter {
     if (cb) lines.push(`chatterbox: ${JSON.stringify({ phase: cb.phase, dir: cb.dir, python: cb.python, device: cb.device, error: cb.error })}`, ...cb.log.map((l) => `    | ${l}`));
     if (pp) lines.push(`piper: ${JSON.stringify({ phase: pp.phase, exe: pp.exe, voice: pp.voice, error: pp.error })}`, ...pp.log.map((l) => `    | ${l}`));
     lines.push(`os: ${process.platform} ${os.release()}, ram ${Math.round(os.totalmem() / GB)} GB`);
+    const diagnostics = collectDiagnostics({
+      cfg: this.d.cfg?.() || {},
+      platform: process.platform,
+      systemPreferences: this.d.systemPreferences || null,
+    });
+    lines.push('diagnostics:', diagnosticsText(diagnostics));
+    lines.push('diagnostics note: no API keys or private provider URLs are included');
     return lines.join('\n');
   }
 }

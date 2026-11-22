@@ -206,6 +206,7 @@ const installed = createInstalled({ file: () => path.join(app.getPath('userData'
 const provision = new Provision({
   record: (kind, value) => installed.record(kind, value),
   cfg: () => config.load(),
+  systemPreferences,
   save: (patch) => updateConfig(patch),
   lang: () => resolveLang(config.load().lang),
   ollamaHost,

@@ -436,6 +436,10 @@ The data involved depends on the features you enable:
 
 Read each cloud provider's privacy policy before using it.
 
+## Capabilities and diagnostics
+
+The [capability matrix](docs/CAPABILITIES.md) documents platform support, permissions, dependencies, and associated tests for each feature. The preparation report copies useful diagnostics without including API keys or private addresses.
+
 ## Troubleshooting
 
 ### Capri does not speak
