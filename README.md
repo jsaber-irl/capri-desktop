@@ -1,4 +1,4 @@
-## **Project Capricorn (2.5.0 LTS)**
+## **Project Capricorn (2.5.1)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -12,7 +12,7 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 
 ## Main features
 
-- **Coding AI monitoring** (Claude Code, Codex, Antigravity): Capri comments on actions, asks for your permission when needed, and reacts when the task is finished.
+- **Coding AI monitoring** (Claude Code, Codex, Antigravity, OpenCode): Capri comments on actions, asks for your permission when needed, and reacts when the task is finished.
 - **AI conversation**: local Ollama, Claude, Gemini, GPT, Groq, and other providers. While an answer loads, localized cyberpunk-style commands type out in the chat; simple thanks and apologies receive an immediate reply without waiting for the AI. App-opening confirmations stay brief and are shown only after a successful launch. Capri can speak using Piper, Chatterbox, the system voice, or a cloud service.
 - **AI jealousy**: when enabled, Capri recognizes supported AI names in browser-tab titles and AI desktop-app windows. Detection is available on Windows, macOS, and Linux; closing rival pages remains Windows-only.
 - **Reminders**: create one-time or recurring reminders in the circular menu, with an in-app alert and a desktop notification when they are due.
@@ -40,7 +40,7 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 1. [Quick start](#quick-start)
 2. [Installation and launch](#installation-and-launch)
 3. [Connecting to an AI](#connecting-to-an-ai)
-4. [Monitoring Claude Code, Codex, and Antigravity](#monitoring-claude-code-codex-and-antigravity)
+4. [Monitoring coding assistants](#monitoring-coding-assistants)
 5. [Using Capri](#using-capri)
 6. [Configuration](#configuration)
 7. [Detailed features](#detailed-features)
@@ -203,7 +203,7 @@ LM Studio, llama.cpp, vLLM, and other OpenAI-compatible servers can be used with
 http://127.0.0.1:1234/v1
 ```
 
-## Monitoring Claude Code, Codex, and Antigravity
+## Monitoring coding assistants
 
 ### Claude Code
 
@@ -217,7 +217,13 @@ Install Node.js if necessary, then choose to install the Codex hooks. Events are
 
 Choose **Install Antigravity hooks** from the menu. Then start a new conversation in Antigravity.
 
-Hooks can be removed from the same menu. Your coding assistant continues to work even when Capri is closed.
+### OpenCode
+
+Choose **Install OpenCode hooks** from the menu. Capri writes a local plugin to OpenCode's global plugin directory, creates a timestamped backup when an existing Capri plugin is upgraded, and preserves unrelated plugins.
+
+OpenCode 1.18.29 or later is recommended because it supports the V2 plugin API and backward-compatible plugin migration. Restart OpenCode or reload its plugins after installation. The integration observes prompts, tool activity, permission prompts, completion, failures, and session shutdown. It does not approve permissions or block OpenCode actions.
+
+Hooks can be removed from the same menu. Your coding assistant continues to work when Capri is closed.
 
 ## Using Capri
 
@@ -438,7 +444,7 @@ Read each cloud provider's privacy policy before using it.
 
 ## Capabilities and diagnostics
 
-The [capability matrix](docs/CAPABILITIES.md) documents platform support, permissions, dependencies, and associated tests for each feature. The preparation report copies useful diagnostics without including API keys or private addresses.
+The [capability matrix](CAPABILITIES.md) documents platform support, permissions, dependencies, and associated tests for each feature. The preparation report copies useful diagnostics without including API keys or private addresses.
 
 ## Troubleshooting
 

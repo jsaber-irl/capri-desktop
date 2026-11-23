@@ -80,7 +80,7 @@ const { createBrowserTabCloser } = require('./browser-tabs');
 const { createTerminal, safeOpenFile, safeOpenPath } = require('./terminal');
 const { ASSISTANTS, assistant } = require('./assistants');
 const { startDiscordPresence, stopDiscordPresence } = require('./discord-presence');
-const activeAssistant = () => assistant(config.load().assistant); // Claude Code or Codex
+const activeAssistant = () => assistant(config.load().assistant); // Claude Code, Codex, Antigravity or OpenCode
 const activeHooks = () => activeAssistant().hooks;
 const demoSteps = require('../../scripts/demo-sequence');
 
@@ -1443,9 +1443,9 @@ function buildTray() {
     ...(cfg.claude ? [
       { type: 'separator' },
       hookState.installed
-        ? { label: t.hooksOn, enabled: false }
-        : { label: t.hooksOff, click: () => runHooks('install') },
-      ...(hookState.installed ? [{ label: t.hooksRemove, click: () => runHooks('uninstall') }] : []),
+        ? { label: t.hooksOnFor ? t.hooksOnFor(watched.name) : t.hooksOn, enabled: false }
+        : { label: t.hooksOffFor ? t.hooksOffFor(watched.name) : t.hooksOff, click: () => runHooks('install') },
+      ...(hookState.installed ? [{ label: t.hooksRemoveFor ? t.hooksRemoveFor(watched.name) : t.hooksRemove, click: () => runHooks('uninstall') }] : []),
     ] : []),
     { type: 'separator' },
     { label: t.farewell, click: () => { if (!config.load().visible) toggleVisible(true); farewell.start(); } },
@@ -2563,7 +2563,7 @@ function main() {
       const audioOnly = details.mediaType === 'audio' || (Array.isArray(details.mediaTypes) && details.mediaTypes.includes('audio') && !details.mediaTypes.includes('video'));
       return isCapri(contents) && ownOrigin && permission === 'media' && audioOnly;
     });
-    if (!['codex', 'claude'].includes(config.load().assistant)) config.save({ assistant: activeAssistant().id });
+    if (!Object.hasOwn(ASSISTANTS, config.load().assistant)) config.save({ assistant: activeAssistant().id });
     if (config.load().discordPresence !== false) {
       startDiscordPresence({
         details: process.argv.includes('--dev')

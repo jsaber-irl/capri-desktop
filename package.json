@@ -1,6 +1,6 @@
 {
   "name": "capri-desktop",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "Capri, the Project Capricorn construct, living on your desktop and narrating what Claude Code is doing.",
   "author": {
     "name": "jsaber and contributors",
@@ -19,9 +19,12 @@
     "hooks:codex:uninstall": "node scripts/install-codex-hooks.js --uninstall",
     "hooks:agy:install": "node scripts/install-hooks-agy.js",
     "hooks:agy:uninstall": "node scripts/install-hooks-agy.js --uninstall",
+    "hooks:opencode:install": "node scripts/install-opencode-hooks.js",
+    "hooks:opencode:uninstall": "node scripts/install-opencode-hooks.js --uninstall",
     "check:llm": "node scripts/check-llm.js",
     "voices:demo": "node scripts/voice-demo.js",
     "test:hooks": "node --test tests/hooks.test.js",
+    "test:opencode": "node --test tests/opencode.test.js",
     "dist": "electron-builder --win --x64",
     "dist:mac": "electron-builder --mac",
     "dist:mac:arm64": "electron-builder --mac --arm64",

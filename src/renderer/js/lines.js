@@ -2637,7 +2637,7 @@ export const LINES = {
     }
   }
 };
-export const ASSISTANT_NAMES = { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity' };
+export const ASSISTANT_NAMES = { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity', opencode: 'OpenCode' };
 const OTHERS = {
   codex: {
     name: 'Codex', file: 'hooks.json', dir: '.codex',
@@ -2672,6 +2672,23 @@ const OTHERS = {
       es: 'Ahora empieza una conversación nueva en Antigravity. En cuanto haga algo, te aviso.',
       pt: 'Agora comece uma conversa nova no Antigravity. Assim que ele fizer algo, eu te aviso.',
       ru: 'Теперь начни новый разговор в Antigravity. Как только он что-то сделает, я скажу.',
+    },
+  },
+  opencode: {
+    name: 'OpenCode', file: 'plugins/capri-opencode-plugin.js', dir: '.config/opencode',
+    ask: {
+      en: 'Want me to plug into OpenCode? One click, then restart OpenCode or reload its plugins.',
+      fr: 'Tu veux que je me branche sur OpenCode ? Un clic, puis redémarre OpenCode ou recharge ses plugins.',
+      es: '¿Quieres que me conecte a OpenCode? Un clic y luego reinicia OpenCode o recarga sus plugins.',
+      pt: 'Quer que eu me conecte ao OpenCode? Um clique, depois reinicie o OpenCode ou recarregue seus plugins.',
+      ru: 'Подключиться к OpenCode? Один клик, затем перезапусти OpenCode или перезагрузи его плагины.',
+    },
+    after: {
+      en: 'Restart OpenCode or reload its plugins. As soon as it does something, I’ll tell you.',
+      fr: 'Redémarre OpenCode ou recharge ses plugins. Dès qu’il fait quelque chose, je te le dis.',
+      es: 'Reinicia OpenCode o recarga sus plugins. En cuanto haga algo, te aviso.',
+      pt: 'Reinicie o OpenCode ou recarregue seus plugins. Assim que ele fizer algo, eu aviso.',
+      ru: 'Перезапусти OpenCode или перезагрузи его плагины. Как только он что-то сделает, я скажу.',
     },
   },
 };

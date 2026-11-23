@@ -4,7 +4,7 @@ This matrix describes behavior verified in the local application. **Supported** 
 
 | Feature | Windows | macOS | Linux | Dependencies / permissions | Status | Implementation | Tests |
 |---|---|---|---|---|---|---|---|
-| Claude Code / Codex / Antigravity | Yes | Yes | Yes | Node.js and provider hooks | Supported | [hooks/](../hooks/) | [tests/hooks.test.js](../tests/hooks.test.js) |
+| Claude Code / Codex / Antigravity / OpenCode | Yes | Yes | Yes | Node.js and provider hooks/plugins | Supported | [hooks/](../hooks/) | [tests/hooks.test.js](../tests/hooks.test.js), [tests/opencode.test.js](../tests/opencode.test.js) |
 | Ollama AI chat | Yes | Yes | Yes | Ollama and a local model | Supported | [src/main/llm.js](../src/main/llm.js) | [tests/ollama-host.test.js](../tests/ollama-host.test.js) |
 | Cloud AI providers | Yes | Yes | Yes | API key/network access and data-sharing consent | Supported | [src/main/setup.js](../src/main/setup.js) | [tests/config.test.js](../tests/config.test.js) |
 | Voice input | Yes | Yes | Yes | Microphone and configured STT engine | Partial | [src/main/stt.js](../src/main/stt.js) | [tests/stt.test.js](../tests/stt.test.js) |

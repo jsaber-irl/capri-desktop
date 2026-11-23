@@ -22,7 +22,7 @@ export class Brain {
     this.host = host;
     this.mission = mission; // today's log, for her report card (mission.js)
     this.lang = lang;
-    this.assistant = assistant; // 'claude', 'codex' or 'agy': whose events she follows
+    this.assistant = assistant; // 'claude', 'codex', 'agy' or 'opencode': whose events she follows
     this.custom = {};       // what you made her (custom.js): { userName, persona, myLines, memories }
     this.heart = null;      // how she feels (heart.js): her idle lines follow it, Claude's work moves it
     this.bond = null;       // how close you two are (bond.js): a word about it now and then
@@ -79,8 +79,8 @@ export class Brain {
     // the demo's second half (scripts/demo-sequence.js), not a Claude event
     if (evt.hook_event_name === 'CapriShowcase') return this.onShowcase?.();
     if (evt.hook_event_name === 'CapriSatelliteTest') return this.onSatelliteTest?.();
-    // Codex's and Antigravity's hooks mark their sessions (codex:..., agy:...): only the one she watches counts
-    const source = /^(codex|agy):/.exec(String(evt.session_id || ''))?.[1] || 'claude';
+    // Assistant hooks mark their sessions: only the one she watches counts
+    const source = /^(codex|agy|opencode):/.exec(String(evt.session_id || ''))?.[1] || 'claude';
     if (!evt.demo && source !== this.assistant) {
       this.onRival?.(source === 'agy' ? 'gemini' : source);
       return undefined;
