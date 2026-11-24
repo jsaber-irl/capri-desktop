@@ -989,6 +989,7 @@ function rendererConfig() {
     ...cfg,
     dataMod: active?.palette ? { id: active.paletteId || active.id, palette: active.palette } : null,
     appearanceMod: active?.appearance ? { id: active.appearanceId || active.id, appearance: active.appearance } : null,
+    appearanceMods: active?.appearances || [],
     keys: Object.keys(apiKeys || {}),
     assistant: activeAssistant().id,
     lang: resolveLang(cfg.lang),
@@ -1378,8 +1379,9 @@ function buildTray() {
               ];
             }
             return [{
-              label: mod.name + (mod.version ? ` (${mod.version})` : ''),
+              label: mod.name + (mod.version ? ` (${mod.version})` : '') + (mod.sourceMissing ? ` — ${t.modSourceMissing}` : ''),
               type: 'checkbox',
+              enabled: !mod.sourceMissing,
               checked: mod.enabled,
               click: (item) => {
                 try {
@@ -2259,6 +2261,22 @@ function registerIpc() {
     pendingMusicSelections.set(token, { folder: filePaths[0], expiresAt: now + ACCESSORY_SELECTION_TTL });
     return { ok: true, token, name: path.basename(filePaths[0]) };
   });
+  ipcMain.handle('mods:choose-music-file', async (event) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    const { canceled, filePaths } = await dialog.showOpenDialog(overlay || undefined, {
+      title: 'Choose a music file for a Capri mode',
+      properties: ['openFile'],
+      filters: [{ name: 'Audio', extensions: ['mp3', 'm4a', 'aac', 'ogg', 'oga', 'wav', 'webm'] }],
+    });
+    if (canceled || !filePaths[0]) return { ok: false, canceled: true };
+    const now = Date.now();
+    for (const [token, selection] of pendingMusicSelections) {
+      if (selection.expiresAt <= now) pendingMusicSelections.delete(token);
+    }
+    const token = randomUUID();
+    pendingMusicSelections.set(token, { file: filePaths[0], expiresAt: now + ACCESSORY_SELECTION_TTL });
+    return { ok: true, token, name: path.basename(filePaths[0]) };
+  });
   ipcMain.handle('mods:create-music', (event, token, name) => {
     if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
     const selection = typeof token === 'string' ? pendingMusicSelections.get(token) : null;
@@ -2267,7 +2285,9 @@ function registerIpc() {
       return { ok: false, error: 'Choose a music folder again before creating the mode.' };
     }
     try {
-      const mod = dataModsNow().importMusicFolder(selection.folder, String(name || '').slice(0, 80));
+      const mod = selection.file
+        ? dataModsNow().importMusicFile(selection.file, String(name || '').slice(0, 80))
+        : dataModsNow().importMusicFolder(selection.folder, String(name || '').slice(0, 80));
       pendingMusicSelections.delete(token);
       musicPlayer.refreshLibrary();
       toOverlay('mods:changed', rendererConfig());

@@ -118,11 +118,12 @@ snapshots are local user-data files and are not encrypted or included in Capri's
 An HTTPS accessory image remains a separate opt-in network feature; changing its dimensions or
 position does not download or upload the image.
 
-Music modes are imported as validated metadata. Adding a local music folder from either Mods menu
-uses a native folder picker, accepts only supported audio formats, and stores paths relative to the user's home folder;
-it does not grant renderer code a filesystem path. The player receives an opaque mode/track ID, and
-Main resolves it only for an enabled music mode before serving the file through Capri's local
-protocol. Local sources must resolve inside the home folder, including after symlink resolution.
+Music modes use native file/folder pickers and accept only supported audio formats. Selected absolute
+paths are stored in Capri's private local mod manifest; renderer code does not receive filesystem
+paths. The player receives an opaque mode/track ID, and Main resolves a selected path only for the
+matching enabled mode and track before serving it through Capri's local protocol. Legacy relative
+sources from imported `.capri-mod` files remain confined to the home folder, including after symlink
+resolution.
 Imported online sources are direct HTTPS media URLs without embedded credentials; these URLs are
 played by the audio element and disclose the user's network request to that host. Capri does not
 call arbitrary catalog APIs or execute content from a music mode. Only one music mode is active at

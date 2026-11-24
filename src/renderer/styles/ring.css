@@ -308,6 +308,7 @@
   margin: 4px 0 8px;
 }
 .ring__mode-dialog-error { color: var(--red); font-weight: 700; }
+.ring__mod-source-missing { color: var(--red) !important; opacity: 1; font-weight: 800; }
 .ring__mod-editor .ring__h:first-child { margin-top: 2px; }
 .ring__mod-colors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 10px; }
 .ring__mod-color { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; min-width: 0; color: var(--paper-2); font-family: var(--font-mono); font-size: var(--text-data); }
@@ -390,6 +391,7 @@
 .ring__h + .ring__row { border-top: 0; }
 
 .ring__row.is-off { opacity: 0.45; }
+.ring__row.is-source-missing { opacity: 1; }
 
 .ring__label-text { min-width: 0; }
 .ring__label-text small { display: block; margin-top: 2px; color: var(--paper-3); font-size: var(--text-meta); }

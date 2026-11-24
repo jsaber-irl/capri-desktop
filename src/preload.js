@@ -65,6 +65,7 @@ contextBridge.exposeInMainWorld('host', {
   modsCreateAccessory: (token, name, layout) => ipcRenderer.invoke('mods:create-accessory', String(token || ''), String(name || '').slice(0, 80), layout || {}),
   modsCreateAccessoryUrl: (url, name, layout) => ipcRenderer.invoke('mods:create-accessory-url', String(url || '').slice(0, 2048), String(name || '').slice(0, 80), layout || {}),
   modsChooseMusicFolder: () => ipcRenderer.invoke('mods:choose-music-folder'),
+  modsChooseMusicFile: () => ipcRenderer.invoke('mods:choose-music-file'),
   modsCreateMusic: (token, name) => ipcRenderer.invoke('mods:create-music', String(token || ''), String(name || '').slice(0, 80)),
   modsCreateMusicUrl: (request) => ipcRenderer.invoke('mods:create-music-url', request || {}),
   modsImport: () => ipcRenderer.invoke('mods:import'),

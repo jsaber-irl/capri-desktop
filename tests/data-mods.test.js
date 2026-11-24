@@ -191,6 +191,27 @@ test('new accessory modes package the selected PNG as a project .capri-mod', (t)
   assert.equal(created.enabled, true);
   const saved = JSON.parse(fs.readFileSync(path.join(projectModsDir, `${created.id}.capri-mod`), 'utf8'));
   assert.match(saved.appearance.data, /^data:image\/png;base64,/u);
+  const resized = mods.update(created.id, { appearance: { width: 210, height: 132 } });
+  assert.deepEqual([resized.appearance.width, resized.appearance.height], [210, 132]);
+});
+
+test('multiple accessory and music modes can stay enabled together', (t) => {
+  const dir = fixture(t);
+  const mods = createDataMods({ userData: path.join(dir, 'data'), projectModsDir: path.join(dir, 'project', 'mods'), platform: 'linux' });
+  const image = path.join(__dirname, 'mods', 'party-hat.png');
+  const firstAccessory = mods.createAccessoryMode(image, 'First accessory');
+  const secondAccessory = mods.createAccessoryMode(image, 'Second accessory');
+  mods.setEnabled(firstAccessory.id, true);
+  assert.equal(mods.list().find((mod) => mod.id === firstAccessory.id).enabled, true);
+  assert.equal(mods.list().find((mod) => mod.id === secondAccessory.id).enabled, true);
+  assert.equal(mods.active().appearances.length, 2);
+
+  const firstMusic = mods.createMusicUrlMode('First playlist', 'First track', 'https://media.example.test/first.mp3');
+  const secondMusic = mods.createMusicUrlMode('Second playlist', 'Second track', 'https://media.example.test/second.mp3');
+  mods.setEnabled(firstMusic.id, true);
+  assert.equal(mods.list().find((mod) => mod.id === firstMusic.id).enabled, true);
+  assert.equal(mods.list().find((mod) => mod.id === secondMusic.id).enabled, true);
+  assert.equal(mods.musicLibrary().length, 2);
 });
 
 test('accessory modes can use a validated HTTPS image URL and custom placement', (t) => {

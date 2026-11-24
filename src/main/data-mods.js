@@ -288,9 +288,20 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
   const manifestFile = path.join(dir, 'manifest.json');
   const audioRoot = fsx.realpathSync(path.resolve(homeDir));
 
-  function resolveMusicPath(source) {
+  function resolveMusicPath(source, modId = '', trackId = '') {
     if (typeof source !== 'string' || !source.startsWith('./')) throw new Error('The music source is not a local relative path.');
     const parts = source.slice(2).split('/');
+    if (parts[0] === '_selected') {
+      if (!GOOD_ID.test(modId) || !GOOD_ID.test(trackId) || !source.startsWith(`./_selected/${trackId}.`)) {
+        throw new Error('The selected music source is invalid.');
+      }
+      const storedPath = readManifest()[modId]?.selectedMusic?.[trackId];
+      if (typeof storedPath !== 'string') throw new Error('The selected music file is no longer linked to this mode.');
+      const real = fsx.realpathSync(storedPath);
+      const stat = fsx.statSync(real);
+      if (!stat.isFile() || !AUDIO_EXTENSIONS.has(path.extname(real).toLowerCase())) throw new Error('The selected music source is not a supported audio file.');
+      return real;
+    }
     const candidate = path.resolve(audioRoot, ...parts);
     const real = fsx.realpathSync(candidate);
     const relative = path.relative(audioRoot, real);
@@ -319,6 +330,13 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
   function modFile(id) {
     if (!GOOD_ID.test(String(id || ''))) throw new Error('Invalid mod id.');
     return path.join(dir, `${id}.capri-mod`);
+  }
+
+  function sourceModPath(id, state, installedFile) {
+    const source = typeof state?.source === 'string' ? state.source : '';
+    if (source && source !== 'local' && path.extname(source).toLowerCase() === '.capri-mod') return source;
+    if (projectModsDir) return path.join(projectModsDir, `${id}.capri-mod`);
+    return installedFile;
   }
 
   function historyDir(id) {
@@ -385,6 +403,9 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
           continue;
         }
         const state = manifest[mod.id] || {};
+        const sourcePath = sourceModPath(mod.id, state, file);
+        let sourceMissing = false;
+        try { sourceMissing = !fsx.statSync(sourcePath).isFile(); } catch { sourceMissing = true; }
         mods.push({
           id: mod.id,
           fileName: name,
@@ -396,7 +417,8 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
           platforms: mod.platforms || ['win32', 'darwin', 'linux'],
           permissions: mod.permissions || (mod.kind === 'appearance' ? ['appearance'] : []),
           source: state.source || 'local',
-          enabled: state.enabled === true,
+          sourceMissing,
+          enabled: state.enabled === true && !sourceMissing,
           hash: sha256(file),
           music: mod.music,
           trackCount: mod.music?.tracks?.length || 0,
@@ -419,21 +441,31 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
   function duplicateIdentity(mod) {
     const installed = list().filter((item) => !item.problem);
     const usedIds = new Set(installed.map((item) => item.id));
+    const usedNames = new Set(installed.map((item) => item.name.toLocaleLowerCase()));
+    if (projectModsDir && fsx.existsSync(projectModsDir)) {
+      for (const fileName of fsx.readdirSync(projectModsDir).filter((name) => name.endsWith('.capri-mod'))) {
+        try {
+          const projectMod = inspect(path.join(projectModsDir, fileName));
+          usedIds.add(projectMod.id);
+          usedNames.add(projectMod.name.toLocaleLowerCase());
+        } catch {}
+      }
+    }
     for (let number = 2; number < 10000; number++) {
       const suffix = `-${number}`;
       const id = `${mod.id.slice(0, 48 - suffix.length)}${suffix}`;
       const nameSuffix = ` (${number})`;
       const name = `${mod.name.slice(0, 80 - nameSuffix.length).trimEnd()}${nameSuffix}`;
       if (!usedIds.has(id) && !fsx.existsSync(path.join(dir, `${id}.capri-mod`))
-        && !installed.some((item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+        && !usedNames.has(name.toLocaleLowerCase())) {
         return { id, name };
       }
     }
     throw new Error('No unique name is available for this duplicate mod.');
   }
 
-  function findDuplicateMod(incoming) {
-    const existing = list().find((item) => !item.problem
+  function findDuplicateMod(incoming, excludeId = '') {
+    const existing = list().find((item) => !item.problem && item.id !== excludeId
       && item.name.trim().toLocaleLowerCase() === incoming.name.trim().toLocaleLowerCase()
       && item.version === (incoming.version || ''));
     if (!existing) return null;
@@ -451,13 +483,57 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
     return findDuplicateMod(inspect(file));
   }
 
+  function projectCopy(mod, selectedFile) {
+    if (!projectModsDir) return null;
+    fsx.mkdirSync(projectModsDir, { recursive: true });
+    const destination = path.join(projectModsDir, `${mod.id}.capri-mod`);
+    const sameSource = path.resolve(selectedFile) === path.resolve(destination);
+    if (!sameSource && fsx.existsSync(destination)) throw new Error(`A different mod already exists at ${destination}.`);
+
+    const copy = clone(mod);
+    let createdAsset = '';
+    try {
+      if (copy.appearance?.data) {
+        const bytes = Buffer.from(copy.appearance.data.slice(copy.appearance.data.indexOf(',') + 1), 'base64');
+        validatePng(bytes);
+        const preferred = `${mod.id}.png`;
+        let assetName = preferred;
+        let assetPath = path.join(projectModsDir, assetName);
+        if (fsx.existsSync(assetPath)) {
+          if (fsx.readFileSync(assetPath).equals(bytes)) {
+            // Reuse an identical asset already belonging to this mode.
+          } else {
+            assetName = `${mod.id}-${crypto.randomBytes(3).toString('hex')}.png`;
+            assetPath = path.join(projectModsDir, assetName);
+          }
+        }
+        if (!fsx.existsSync(assetPath)) {
+          fsx.writeFileSync(assetPath, bytes, { flag: 'wx', mode: 0o600 });
+          createdAsset = assetPath;
+        }
+        // Keep the image embedded in the portable manifest while also saving
+        // the original PNG beside it for users who want to edit the mod.
+      }
+      if (!sameSource) fsx.writeFileSync(destination, JSON.stringify(copy, null, 2), { flag: 'wx', mode: 0o600 });
+      return destination;
+    } catch (error) {
+      if (createdAsset) { try { fsx.unlinkSync(createdAsset); } catch {} }
+      throw error;
+    }
+  }
+
   function importMod(file, { allowDuplicate = false } = {}) {
     const sourceMod = inspect(file);
     if (sourceMod.kind === 'music') {
-      for (const track of sourceMod.music.tracks) if (track.src.startsWith('./')) resolveMusicPath(track.src);
+      for (const track of sourceMod.music.tracks) {
+        if (!track.src.startsWith('./')) continue;
+        if (track.src.startsWith('./_selected/')) resolveMusicPath(track.src, sourceMod.id, track.id);
+        else resolveMusicPath(track.src);
+      }
     }
-    const mod = clone(sourceMod);
-    const duplicate = findDuplicateMod(sourceMod);
+    let mod = clone(sourceMod);
+    const duplicate = findDuplicateMod(sourceMod,
+      path.resolve(file) === path.resolve(modFile(sourceMod.id)) ? sourceMod.id : '');
     if (duplicate) {
       if (!allowDuplicate) {
         const error = new Error('A mod with the same name and version is already installed.');
@@ -468,15 +544,24 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
       mod.id = duplicate.copyId;
       mod.name = duplicate.copyName;
     }
+    if (projectModsDir) {
+      const projectFile = path.join(projectModsDir, `${mod.id}.capri-mod`);
+      if (fsx.existsSync(projectFile) && path.resolve(file) !== path.resolve(projectFile)) {
+        const identity = duplicateIdentity(mod);
+        mod = { ...mod, ...identity };
+      }
+    }
     validateMod(mod, platform);
     const relativeSource = mod.appearance?.src;
     if (relativeSource?.startsWith('./')) {
       mod.appearance.data = resolveRelativeAccessory(file, relativeSource, fsx);
       delete mod.appearance.src;
     }
+    const projectSource = projectCopy(mod, file);
     fsx.mkdirSync(dir, { recursive: true });
     const destination = path.join(dir, `${mod.id}.capri-mod`);
-    const packaged = duplicate || relativeSource?.startsWith('./')
+    const identityChanged = mod.id !== sourceMod.id || mod.name !== sourceMod.name;
+    const packaged = duplicate || identityChanged || relativeSource?.startsWith('./')
       ? Buffer.from(JSON.stringify(mod, null, 2))
       : null;
     if (path.resolve(file) === path.resolve(destination)) {
@@ -487,11 +572,13 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
         fsx.writeFileSync(destination, packaged);
       }
       const manifest = readManifest();
+      const priorState = manifest[sourceMod.id] || {};
       manifest[mod.id] = {
         enabled: manifest[mod.id]?.enabled === true,
-        source: path.resolve(file),
+        source: projectSource || path.resolve(file),
         installedAt: manifest[mod.id]?.installedAt || Date.now(),
         hash: sha256(destination),
+        ...(sourceMod.kind === 'music' && priorState.selectedMusic ? { selectedMusic: priorState.selectedMusic } : {}),
       };
       writeManifest(manifest);
       return list().find((item) => item.id === mod.id);
@@ -507,27 +594,43 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
     if (packaged) fsx.writeFileSync(destination, packaged);
     else fsx.copyFileSync(file, destination);
     const manifest = readManifest();
+    const priorState = manifest[sourceMod.id] || {};
     manifest[mod.id] = {
       enabled: manifest[mod.id]?.enabled === true,
-      source: path.resolve(file),
+      source: projectSource || path.resolve(file),
       installedAt: Date.now(),
       hash: sha256(destination),
+      ...(sourceMod.kind === 'music' && priorState.selectedMusic ? { selectedMusic: priorState.selectedMusic } : {}),
     };
     writeManifest(manifest);
     return list().find((item) => item.id === mod.id);
   }
 
-  function createModeFile(raw) {
+  function createModeFile(raw, { selectedMusic = null } = {}) {
     const mod = validateMod(raw, platform);
     const destinationDir = projectModsDir || dir;
     fsx.mkdirSync(destinationDir, { recursive: true });
     const file = path.join(destinationDir, `${mod.id}.capri-mod`);
     fsx.writeFileSync(file, JSON.stringify(mod, null, 2), { flag: 'wx', mode: 0o600 });
+    const previousManifest = readManifest();
+    if (selectedMusic && typeof selectedMusic === 'object') {
+      previousManifest[mod.id] = {
+        ...previousManifest[mod.id],
+        selectedMusic: { ...selectedMusic },
+      };
+      writeManifest(previousManifest);
+    }
     try {
-      if (path.resolve(file) !== path.resolve(modFile(mod.id))) importMod(file);
+      importMod(file);
       const enabled = setEnabled(mod.id, true);
       return { ...enabled, createdFile: file };
     } catch (error) {
+      if (selectedMusic) {
+        const currentManifest = readManifest();
+        if (previousManifest[mod.id]) currentManifest[mod.id] = previousManifest[mod.id];
+        else delete currentManifest[mod.id];
+        writeManifest(currentManifest);
+      }
       if (destinationDir !== dir) {
         try { fsx.unlinkSync(file); } catch {}
       }
@@ -589,15 +692,25 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
     validatePng(bytes);
     const cleanName = ensureModeNameAvailable(name || path.basename(real, path.extname(real)));
     const identity = newModeIdentity(cleanName, 'accessory');
+    const destinationDir = projectModsDir || dir;
+    fsx.mkdirSync(destinationDir, { recursive: true });
+    const assetName = `${identity.id}.png`;
+    const assetPath = path.join(destinationDir, assetName);
+    fsx.writeFileSync(assetPath, bytes, { flag: 'wx', mode: 0o600 });
     const safeLayout = {};
     for (const key of ['x', 'y', 'width', 'height']) {
       if (layout && Object.hasOwn(layout, key) && Number.isFinite(layout[key])) safeLayout[key] = layout[key];
     }
-    return createModeFile({
-      format: FORMAT, ...identity, version: '1.0', kind: 'appearance', permissions: ['appearance'],
-      description: 'A Capri accessory.',
+    try {
+      return createModeFile({
+        format: FORMAT, ...identity, version: '1.0', kind: 'appearance', permissions: ['appearance'],
+        description: 'A Capri accessory.',
       appearance: { type: 'accessory', data: `data:image/png;base64,${bytes.toString('base64')}`, x: 118, y: 20, width: 120, height: 70, anchor: 'center', ...safeLayout },
-    });
+      });
+    } catch (error) {
+      try { fsx.unlinkSync(assetPath); } catch {}
+      throw error;
+    }
   }
 
   function createAccessoryUrlMode(imageUrl, name, layout = {}) {
@@ -642,14 +755,22 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
     if (!fsx.existsSync(file)) throw new Error('The mod is not installed.');
     inspect(file);
     if (enabled) {
+      const sourcePath = sourceModPath(id, manifest[id], file);
+      let validSource = false;
+      try { validSource = fsx.statSync(sourcePath).isFile(); } catch {}
+      if (!validSource) throw new Error('The source .capri-mod file is missing or was moved. Reimport it before enabling this mode.');
       const target = inspect(file);
-      for (const other of Object.keys(manifest)) {
-        if (other === id) continue;
-        const otherFile = path.join(dir, `${other}.capri-mod`);
-        if (fsx.existsSync(otherFile)) {
-          try {
-            if (inspect(otherFile).kind === target.kind) manifest[other] = { ...manifest[other], enabled: false };
-          } catch {}
+      // A palette is a single global look. Accessories layer together, and
+      // music modes are independent libraries, so neither should disable peers.
+      if (target.kind === 'palette') {
+        for (const other of Object.keys(manifest)) {
+          if (other === id) continue;
+          const otherFile = path.join(dir, `${other}.capri-mod`);
+          if (fsx.existsSync(otherFile)) {
+            try {
+              if (inspect(otherFile).kind === target.kind) manifest[other] = { ...manifest[other], enabled: false };
+            } catch {}
+          }
         }
       }
     }
@@ -660,11 +781,6 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
 
   function importMusicFolder(folderPath, modeName = '') {
     const selected = fsx.realpathSync(String(folderPath || ''));
-    const homeReal = fsx.realpathSync(audioRoot);
-    const insideHome = path.relative(homeReal, selected);
-    if (insideHome === '..' || insideHome.startsWith(`..${path.sep}`) || path.isAbsolute(insideHome)) {
-      throw new Error('Choose a music folder inside your home folder so Capri can save portable relative paths.');
-    }
     if (!fsx.statSync(selected).isDirectory()) throw new Error('Choose a folder containing music files.');
     const found = [];
     let tooMany = false;
@@ -677,9 +793,9 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
         else if (item.isFile() && AUDIO_EXTENSIONS.has(path.extname(item.name).toLowerCase())) {
           if (found.length >= MAX_MUSIC_TRACKS) { tooMany = true; return; }
           const real = fsx.realpathSync(absolute);
-          const rel = path.relative(homeReal, real);
-          if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) continue;
-          found.push({ real, relative: rel.split(path.sep).join('/') });
+          const stat = fsx.statSync(real);
+          if (!stat.isFile() || !AUDIO_EXTENSIONS.has(path.extname(real).toLowerCase())) continue;
+          found.push({ real });
           if (found.length >= MAX_MUSIC_TRACKS) break;
         }
       }
@@ -691,22 +807,37 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
     const slug = baseName.normalize('NFKD').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 28) || 'library';
     const id = `music-${slug}-${crypto.randomBytes(3).toString('hex')}`;
     const seenTitles = new Map();
-    const tracks = found.map(({ relative }) => {
-      const filename = path.basename(relative, path.extname(relative));
+    const selectedMusic = {};
+    const tracks = found.map(({ real }) => {
+      const filename = path.basename(real, path.extname(real));
       const count = (seenTitles.get(filename.toLowerCase()) || 0) + 1;
       seenTitles.set(filename.toLowerCase(), count);
       const title = count === 1 ? filename.slice(0, 150) : `${filename.slice(0, 145)} (${count})`;
-      const trackId = `track-${crypto.createHash('sha1').update(relative).digest('hex').slice(0, 12)}`;
-      return { id: trackId, title, src: `./${relative}` };
+      const trackId = `track-${crypto.createHash('sha1').update(real).digest('hex').slice(0, 12)}`;
+      selectedMusic[trackId] = real;
+      return { id: trackId, title, src: `./_selected/${trackId}${path.extname(real).toLowerCase()}` };
     });
     const name = modeName ? ensureModeNameAvailable(modeName) : `Music — ${baseName}`;
     const mod = validateMod({ format: FORMAT, id, name, version: '1.0', kind: 'music', music: { tracks } }, platform);
-    for (const track of tracks) resolveMusicPath(track.src);
-    const created = createModeFile(mod);
-    const manifest = readManifest();
-    manifest[id] = { ...manifest[id], enabled: true, source: selected };
-    writeManifest(manifest);
-    return list().find((item) => item.id === id) || created;
+      return createModeFile(mod, { selectedMusic });
+  }
+
+  function importMusicFile(filePath, modeName = '') {
+    const real = fsx.realpathSync(String(filePath || ''));
+    const stat = fsx.statSync(real);
+    if (!stat.isFile() || !AUDIO_EXTENSIONS.has(path.extname(real).toLowerCase())) {
+      throw new Error('Choose a supported audio file (MP3, M4A, AAC, OGG, WAV, or WEBM).');
+    }
+    const baseName = path.basename(real, path.extname(real)).slice(0, 150) || 'Track';
+    const slug = baseName.normalize('NFKD').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 28) || 'track';
+    const id = `music-${slug}-${crypto.randomBytes(3).toString('hex')}`;
+    const name = modeName ? ensureModeNameAvailable(modeName) : `Music — ${baseName}`;
+    const trackId = `track-${crypto.createHash('sha1').update(real).digest('hex').slice(0, 12)}`;
+    const mod = validateMod({
+      format: FORMAT, id, name, version: '1.0', kind: 'music',
+      music: { tracks: [{ id: trackId, title: baseName, src: `./_selected/${trackId}${path.extname(real).toLowerCase()}` }] },
+    }, platform);
+    return createModeFile(mod, { selectedMusic: { [trackId]: real } });
   }
 
   function update(id, changes) {
@@ -756,8 +887,9 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
   }
 
   function active() {
-    const palette = list().find((item) => item.enabled && item.kind === 'palette' && !item.problem);
-    const appearance = list().find((item) => item.enabled && item.kind === 'appearance' && !item.problem);
+    const palette = list().find((item) => item.enabled && item.kind === 'palette' && !item.problem && !item.sourceMissing);
+    const appearances = list().filter((item) => item.enabled && item.kind === 'appearance' && !item.problem && !item.sourceMissing);
+    const appearance = appearances[0] || null;
     if (!palette && !appearance) return null;
     return {
       id: palette?.id || appearance?.id || '',
@@ -765,16 +897,17 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
       appearanceId: appearance?.id || '',
       palette: palette?.palette || null,
       appearance: appearance?.appearance || null,
+      appearances: appearances.map((item) => ({ id: item.id, appearance: item.appearance })),
     };
   }
 
   function musicLibrary() {
     const catalog = [];
-    for (const mod of list().filter((item) => item.enabled && item.kind === 'music' && !item.problem)) {
+    for (const mod of list().filter((item) => item.enabled && item.kind === 'music' && !item.problem && !item.sourceMissing)) {
       for (const track of mod.music?.tracks || []) {
         const id = `${mod.id}__${track.id}`;
         if (track.src.startsWith('./')) {
-          try { resolveMusicPath(track.src); } catch { continue; }
+          try { resolveMusicPath(track.src, mod.id, track.id); } catch { continue; }
         }
         catalog.push({
           id,
@@ -794,10 +927,10 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
     const id = String(rawId || '');
     if (!/^[a-z0-9-]{1,48}__[a-z0-9-]{1,48}$/.test(id)) return null;
     const [modId, trackId] = id.split('__');
-    const mod = list().find((item) => item.id === modId && item.enabled && item.kind === 'music' && !item.problem);
+    const mod = list().find((item) => item.id === modId && item.enabled && item.kind === 'music' && !item.problem && !item.sourceMissing);
     const track = mod?.music?.tracks?.find((item) => item.id === trackId);
     if (!track?.src.startsWith('./')) return null;
-    try { return resolveMusicPath(track.src); } catch { return null; }
+    try { return resolveMusicPath(track.src, mod.id, track.id); } catch { return null; }
   }
 
   function uninstall(id) {
@@ -820,7 +953,7 @@ function createDataMods({ userData, platform = process.platform, fsx = fs, homeD
     return { ok: true, removed: true };
   }
 
-  return { dir, list, findDuplicate, import: importMod, importMusicFolder, createPaletteMode, createAccessoryMode, createAccessoryUrlMode, createMusicUrlMode, setEnabled, update, history, restore, active, musicLibrary, musicSourceForId, uninstall, validate: validateMod };
+  return { dir, list, findDuplicate, import: importMod, importMusicFolder, importMusicFile, createPaletteMode, createAccessoryMode, createAccessoryUrlMode, createMusicUrlMode, setEnabled, update, history, restore, active, musicLibrary, musicSourceForId, uninstall, validate: validateMod };
 }
 
 module.exports = { FORMAT, createDataMods, validateMod, parseModJson };

@@ -116,10 +116,11 @@ feature rather than by UI screen alone.
 up to 50 previous file versions per mod under the user's `mods/.history/<id>/` directory. Its
 history API validates a selected snapshot before restoring it and snapshots the replaced version as
 well. Main exposes update/history/restore through sender-checked IPC and refreshes the overlay
-configuration after a successful change. It also supports `kind: "music"` modes with local-home
-relative paths or direct HTTPS media URLs. Main turns local track IDs into a guarded
-`capri://music/<mode>__<track>` source; the circular Mods tab and system menu can create a music
-mode from a user-selected folder beneath home. The mini-player catalog merges active music modes with its
+configuration after a successful change. It also supports `kind: "music"` modes with legacy
+home-relative paths, direct HTTPS sources, and local file/folder paths recorded in the private mod
+manifest after native selection. Main turns local track IDs into a guarded
+`capri://music/<mode>__<track>` source and resolves selected paths only for enabled modes. The
+circular Mods tab can create a music mode from one selected file or a folder. The mini-player catalog merges active music modes with its
 bundled tracks and can refresh when a mode is enabled or removed. The circular menu's Mods tab contains the editor; the
 system tray's **General settings → Mods → Edit modes…** opens that same tab. Palette values have
 colour pickers for effect colours and numeric controls for hue, mix, saturation, and brightness.

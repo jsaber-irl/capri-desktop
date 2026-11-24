@@ -114,7 +114,7 @@ async function boot() {
     onAnimation: (name) => host.animationLog(name),
   });
   const capriRoot = document.getElementById('capri');
-  applyDataModAppearance(config.appearanceMod, { capriRoot });
+  applyDataModAppearance(config.appearanceMods?.length ? config.appearanceMods : config.appearanceMod, { capriRoot });
   capri.onHandstandState = (active) => host.handstandState(active);
   capri.wander = config.wander;
   capri.possessWindows = config.possess;
@@ -867,7 +867,7 @@ async function boot() {
     } else if (cfg.dataMod?.palette && activeDataMod) {
       applyDataModPalette(cfg.dataMod.palette, { capri });
     }
-    applyDataModAppearance(cfg.appearanceMod, { capriRoot });
+    applyDataModAppearance(cfg.appearanceMods?.length ? cfg.appearanceMods : cfg.appearanceMod, { capriRoot });
     if (!cfg.dataMod?.id && (cfg.colourTheme || 'classic') !== themeSetting) {
       // new colours: a twirl to show them off (and a word, unless her chat already said one)
       themeSetting = cfg.colourTheme || 'classic';

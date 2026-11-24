@@ -95,30 +95,37 @@ export function applyDataModPalette(palette, { capri, root = document.documentEl
 
 export function applyDataModAppearance(appearance, { capriRoot } = {}) {
   if (!capriRoot) return false;
-  let accessory = capriRoot.querySelector('.capri__accessory');
-  if (!appearance?.appearance) {
-    accessory?.remove();
-    return true;
+  const entries = Array.isArray(appearance)
+    ? appearance
+    : (appearance?.appearance ? [{ id: appearance.id || 'legacy', appearance: appearance.appearance }] : []);
+  const desired = new Set(entries.filter((entry) => entry?.appearance).map((entry) => String(entry.id || 'legacy')));
+  for (const node of capriRoot.querySelectorAll('.capri__accessory')) {
+    if (!desired.has(node.dataset.modId || 'legacy')) node.remove();
   }
-  const mod = appearance.appearance;
-  if (!accessory) {
-    accessory = document.createElement('img');
-    accessory.className = 'capri__accessory';
-    accessory.alt = '';
-    accessory.setAttribute('aria-hidden', 'true');
-    accessory.referrerPolicy = 'no-referrer';
-    capriRoot.append(accessory);
+  for (const entry of entries) {
+    const mod = entry?.appearance;
+    if (!mod) continue;
+    const id = String(entry.id || 'legacy');
+    let accessory = [...capriRoot.querySelectorAll('.capri__accessory')].find((node) => (node.dataset.modId || 'legacy') === id);
+    if (!accessory) {
+      accessory = document.createElement('img');
+      accessory.className = 'capri__accessory';
+      accessory.alt = '';
+      accessory.setAttribute('aria-hidden', 'true');
+      accessory.referrerPolicy = 'no-referrer';
+      accessory.dataset.modId = id;
+      capriRoot.append(accessory);
+    }
+    const anchor = mod.anchor === 'top-left' ? 0 : 0.5;
+    const imageSource = mod.data || mod.src;
+    if (accessory.getAttribute('src') !== imageSource) accessory.src = imageSource;
+    // Capri.place() uses these logical sprite-space dimensions for every layer.
+    accessory.dataset.modX = String(mod.x ?? 118);
+    accessory.dataset.modY = String(mod.y ?? 20);
+    accessory.dataset.modWidth = String(mod.width ?? 120);
+    accessory.dataset.modHeight = String(mod.height ?? 70);
+    accessory.dataset.modAnchor = String(anchor);
   }
-  const anchor = mod.anchor === 'top-left' ? 0 : 0.5;
-  const imageSource = mod.data || mod.src;
-  if (accessory.getAttribute('src') !== imageSource) accessory.src = imageSource;
-  // Capri.place() updates the accessory in the sprite's padded logical canvas,
-  // applying the same scale, mirror and turn as the canvas itself.
-  accessory.dataset.modX = String(mod.x ?? 118);
-  accessory.dataset.modY = String(mod.y ?? 20);
-  accessory.dataset.modWidth = String(mod.width || 120);
-  accessory.dataset.modHeight = String(mod.height || 70);
-  accessory.dataset.modAnchor = String(anchor);
   return true;
 }
 

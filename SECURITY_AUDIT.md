@@ -141,13 +141,10 @@ the menu's screen-edge/scroll behavior has been performed. Existing import, enab
 handlers retain their previous IPC policy; this change does not claim a uniform sender-validation
 review of every older mods handler.
 
-Music modes add an explicit native folder-picker flow and a strict track schema. Relative paths are
-resolved against the user's home folder, symlinks are resolved before containment checks, and only
-bounded supported audio extensions are accepted. The mini-player receives opaque IDs, while the
-Main-process `capri://music` route resolves IDs only for enabled music modes; arbitrary filesystem
-paths are never accepted from the renderer. Direct HTTPS audio URLs are user-imported metadata and
-are exposed to Chromium's media loader; no API response is parsed, no audio is downloaded to
-persistent storage, and no real API provider was tested. Automated tests exercise music-mode
-validation, selected-folder registration, source resolution, catalog inclusion, and playback
-acknowledgement. Runtime audio decoding, HTTPS provider behavior, and file access across macOS,
-Windows, and Linux were not manually verified.
+Music modes use native file/folder pickers and a strict track schema. Paths selected by the user are
+stored in the private local mod manifest; the renderer receives only opaque IDs. Main's
+`capri://music` resolver verifies the enabled mode, track-to-path mapping, file existence, and
+supported audio extension before serving a selected file. Legacy relative `.capri-mod` sources stay
+confined to the home folder with symlink checks. Direct HTTPS audio URLs remain user-imported
+metadata exposed to Chromium's media loader. Audio is not copied. Runtime audio decoding, HTTPS
+provider behavior, and file access across macOS, Windows, and Linux were not manually verified.

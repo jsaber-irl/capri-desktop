@@ -1,15 +1,15 @@
-### Mod menu and accessory improvements
-- Added a dedicated, translated **Mods** section to the circular menu and **General settings → Mods** to the system menu; Colours now contains built-in themes only.
-- Duplicate name/version imports now use a localized in-app Capri confirmation and keep the existing unique-copy naming behavior.
-- Appearance mods can add a validated PNG accessory from embedded data, a relative image file, or an optional HTTPS URL, independently from active palette mods.
-- Accessory source images up to 2048 × 2048 pixels are proportionally scaled to fit their configured display box.
-- Added safe `.capri-mod` palette imports with strict JSON schema validation, platform checks, appearance-only permissions, idempotent activation, timestamped upgrades, rollback/uninstall, and one-active-mod behavior.
-- Added in-app editing and local saved-version restore for installed palette and accessory modes, accessible from the circular menu and the system menu.
-- Palette mods now expose primary and secondary effect colour pickers. Accessory placement is easier with a draggable Capri preview and pixel-exact X/Y controls; the wider Mods card stays centered after loading and scrolls when needed.
-- Added music modes: choose a local music folder or import a mode with direct HTTPS audio sources, then play its tracks alongside Capri's bundled songs in the integrated mini-player.
-- Fixed mod management so invalid or misnamed files remain visible and removable, and surfaced activation, import, and uninstall errors in the Mods menu.
-- Importing refreshes only the mod list, keeping the circular menu responsive.
-- Data mods execute no code and cannot start processes or access files at runtime; only explicitly configured HTTPS accessory images contact the network while enabled.
-- Updated the English documentation for the Mods menus and accessory image sizing.
-- Completed the Capri Remote P1 design study with threat boundaries, pairing, relay metadata, end-to-end envelope expectations, revocation, and separate opt-in phases for text, capture, voice, and desktop control.
-- Remote implementation remains deferred until the documented security and review gates are accepted.
+### Multiple Modes
+You can now activate multiple accessory modes and multiple music modes simultaneously.
+
+### Accessory Customization
+Added the ability to adjust the size of accessories.
+
+### Local Mod Storage
+When a mod is imported, it is automatically duplicated into the project's `/mods/` directory.
+
+### Accessory Asset Storage
+Accessory images are now stored in the project's `/mods/` directory.
+
+### Improvements & Fixes
+- **Mod File Validation:** If a `.capri-mod` file is deleted or moved, the corresponding mod can no longer be activated. A red error message appears next to its version to indicate that the file is missing.
+- **Music File Paths:** Fixed music path handling so that music folders and individual audio files can now be located outside the project's directory.

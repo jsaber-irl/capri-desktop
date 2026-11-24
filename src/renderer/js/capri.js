@@ -328,8 +328,7 @@ export class Capri {
     this.root.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
     const spriteTransform = `rotate(${this.turn.toFixed(2)}deg) scale(${(this.facing * this.sx).toFixed(3)}, ${this.sy.toFixed(3)})`;
     this.canvas.style.transform = spriteTransform;
-    const accessory = this.root.querySelector('.capri__accessory');
-    if (accessory) {
+    for (const accessory of this.root.querySelectorAll('.capri__accessory')) {
       const layout = accessoryLayout({
         x: Number(accessory.dataset.modX), y: Number(accessory.dataset.modY),
         width: Number(accessory.dataset.modWidth), height: Number(accessory.dataset.modHeight),

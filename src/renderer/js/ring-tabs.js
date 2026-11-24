@@ -967,6 +967,7 @@ function modAccessoryEditor(c, draft, labels) {
   accessory.addEventListener('pointercancel', stopDrag);
   addCoordinate('x', -200, 400);
   addCoordinate('y', -200, 384);
+  root.append(heading(labels.accessorySize || 'Accessory size'));
   addRange('width', 8, 320, 1);
   addRange('height', 8, 320, 1);
   paint();
@@ -1106,7 +1107,7 @@ const mods = {
         dialog.append(seg([
           { id: 'file', label: k.accessoryFile || 'PNG file' },
           { id: 'url', label: k.accessoryUrl || 'HTTPS URL' },
-        ], sourceType, (id) => { c.state.accessorySourceType = id; c.refresh(); }));
+        ], sourceType, (id) => { c.state.accessorySourceType = id; c.state.accessorySelection = null; c.state.accessoryUrl = ''; c.refresh(); }));
         if (sourceType === 'url') {
           const url = el('input', 'ring__input ring__mode-source');
           url.type = 'url';
@@ -1123,6 +1124,8 @@ const mods = {
         } else {
           dialog.append(button(k.chooseAccessory || 'Choose a PNG accessory…', async () => {
             try {
+              c.host.setInteractive?.(true);
+              c.host.focusOverlay?.(true);
               const selected = await c.host.modsChooseAccessory?.();
               if (selected?.canceled) return;
               if (!selected?.ok || !selected.token) {
@@ -1132,6 +1135,7 @@ const mods = {
                 c.state.createModeError = '';
               }
             } catch (error) { c.state.createModeError = error?.message || (k.accessoryChooseFailed || 'The image could not be selected.'); }
+            finally { c.host.setInteractive?.(true); }
             c.refresh();
           }));
           if (c.state.accessorySelection?.name) dialog.append(note(c.state.accessorySelection.name, true));
@@ -1171,8 +1175,9 @@ const mods = {
         const sourceType = c.state.musicSourceType || 'folder';
         dialog.append(seg([
           { id: 'folder', label: k.musicFolder || 'Folder' },
+          { id: 'file', label: k.musicFile || 'File' },
           { id: 'url', label: k.musicUrl || 'HTTPS URL' },
-        ], sourceType, (id) => { c.state.musicSourceType = id; c.refresh(); }));
+        ], sourceType, (id) => { c.state.musicSourceType = id; c.state.musicSelection = null; c.state.musicUrl = ''; c.refresh(); }));
         if (sourceType === 'url') {
           const url = el('input', 'ring__input ring__mode-source');
           url.type = 'url';
@@ -1204,21 +1209,29 @@ const mods = {
             dialog.append(input);
           }
         } else {
-          dialog.append(button(k.chooseMusicFolder || 'Choose a music folder…', async () => {
+          const chooseFile = sourceType === 'file';
+          dialog.append(button(chooseFile ? (k.chooseMusicFile || 'Choose a music file…') : (k.chooseMusicFolder || 'Choose a music folder…'), async () => {
             try {
-              const selected = await c.host.modsChooseMusicFolder?.();
+              c.host.setInteractive?.(true);
+              c.host.focusOverlay?.(true);
+              const selected = chooseFile
+                ? await c.host.modsChooseMusicFile?.()
+                : await c.host.modsChooseMusicFolder?.();
               if (selected?.canceled) return;
               if (!selected?.ok || !selected.token) {
-                c.state.createModeError = selected?.error || (k.musicFolderChooseFailed || 'The music folder could not be selected.');
+                c.state.createModeError = selected?.error || (chooseFile ? (k.musicFileChooseFailed || 'The music file could not be selected.') : (k.musicFolderChooseFailed || 'The music folder could not be selected.'));
               } else {
                 c.state.musicSelection = { token: selected.token, name: selected.name || '' };
                 c.state.createModeError = '';
               }
-            } catch (error) { c.state.createModeError = error?.message || (k.musicFolderChooseFailed || 'The music folder could not be selected.'); }
+            } catch (error) { c.state.createModeError = error?.message || (chooseFile ? (k.musicFileChooseFailed || 'The music file could not be selected.') : (k.musicFolderChooseFailed || 'The music folder could not be selected.')); }
+            finally { c.host.setInteractive?.(true); }
             c.refresh();
           }));
           if (c.state.musicSelection?.name) dialog.append(note(c.state.musicSelection.name, true));
-          dialog.append(note(k.musicFolderHint || 'Audio files in the selected folder will be added to Capri’s music library.', true));
+          dialog.append(note(chooseFile
+            ? (k.musicFileHint || 'The selected audio file will be added as one track in this mode.')
+            : (k.musicFolderHint || 'Audio files in the selected folder will be added to Capri’s music library.'), true));
         }
       }
       const nameInput = el('input', 'ring__input');
@@ -1374,6 +1387,16 @@ const mods = {
       const paletteMods = mods.filter((mod) => !mod.problem && mod.kind === 'palette');
       const appearanceMods = mods.filter((mod) => !mod.problem && mod.kind === 'appearance');
       const musicMods = mods.filter((mod) => !mod.problem && mod.kind === 'music');
+      const modeToggle = (mod, label) => {
+        const line = toggle(label, mod.enabled, async (on) => {
+          await runModAction(() => c.host.modsSetEnabled?.(mod.id, on));
+        }, { disabled: mod.sourceMissing === true });
+        if (mod.sourceMissing) {
+          line.classList.add('is-source-missing');
+          line.querySelector('.ring__label-text')?.append(el('small', 'ring__mod-source-missing', k.sourceMissing || 'Source .capri-mod file missing — reimport to enable.'));
+        }
+        return line;
+      };
       const renderEditor = (mod) => {
         const draft = c.state.modDraft?.id === mod.id ? c.state.modDraft : null;
         if (!draft) return note(k.loadingEdit || 'Loading mode…', true);
@@ -1455,9 +1478,7 @@ const mods = {
       if (paletteMods.length) {
         modsRoot.append(heading(k.paletteMods || 'Palette mods'));
         for (const mod of paletteMods) {
-          modsRoot.append(toggle(mod.name + (mod.version ? ` · ${mod.version}` : ''), mod.enabled, async (on) => {
-            await runModAction(() => c.host.modsSetEnabled?.(mod.id, on));
-          }));
+          modsRoot.append(modeToggle(mod, mod.name + (mod.version ? ` · ${mod.version}` : '')));
           modsRoot.append(button(k.edit || 'Edit', () => beginEdit(mod)));
           if (c.state.editModId === mod.id) modsRoot.append(renderEditor(mod));
           modsRoot.append(button(k.removeMod || 'Remove', async () => {
@@ -1471,9 +1492,7 @@ const mods = {
           if (mod.remoteImageHost) {
             modsRoot.append(note(fmt(k.remoteImage || 'Remote image from {host}; loaded while this mod is enabled.', { host: mod.remoteImageHost }), true));
           }
-          modsRoot.append(toggle(mod.name + (mod.version ? ` · ${mod.version}` : ''), mod.enabled, async (on) => {
-            await runModAction(() => c.host.modsSetEnabled?.(mod.id, on));
-          }));
+          modsRoot.append(modeToggle(mod, mod.name + (mod.version ? ` · ${mod.version}` : '')));
           modsRoot.append(button(k.edit || 'Edit', () => beginEdit(mod)));
           if (c.state.editModId === mod.id) modsRoot.append(renderEditor(mod));
           modsRoot.append(button(k.removeMod || 'Remove', async () => {
@@ -1484,9 +1503,8 @@ const mods = {
       if (musicMods.length) {
         modsRoot.append(heading(k.musicModes || 'Music modes'));
         for (const mod of musicMods) {
-          modsRoot.append(toggle(`${mod.name} · ${fmt(k.trackCount || '{count} tracks', { count: mod.trackCount || 0 })}`, mod.enabled, async (on) => {
-            await runModAction(() => c.host.modsSetEnabled?.(mod.id, on));
-          }));
+          const version = mod.version ? ` · ${mod.version}` : '';
+          modsRoot.append(modeToggle(mod, `${mod.name}${version} · ${fmt(k.trackCount || '{count} tracks', { count: mod.trackCount || 0 })}`));
           modsRoot.append(button(k.removeMod || 'Remove', async () => {
             await runModAction(() => c.host.modsUninstall?.(mod.id));
           }, { danger: true }));
