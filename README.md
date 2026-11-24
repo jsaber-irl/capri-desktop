@@ -405,6 +405,7 @@ Example:
   "author": "Local creator",
   "description": "A blue appearance palette.",
   "platforms": ["win32", "darwin", "linux"],
+  "kind": "appearance",
   "permissions": ["appearance"],
   "palette": {
     "hue": 0.55,
@@ -450,7 +451,7 @@ Music example :
   "version": "1.0",
   "description": "A new music song.",
   "platforms": ["win32", "darwin", "linux"],
-  "kind": "song",
+  "kind": "music",
   "music": {
     "tracks": [
       { "id": "song-one", "title": "My Soul, Your Beats!", "artist": "Lia - VISUAL ARTS / Key Sounds Label.", "src": "https://pub-e57c53755f854a3d9735b1f842344a2c.r2.dev/My%20Soul%2C%20Your%20Beats!.mp3" },

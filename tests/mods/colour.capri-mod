@@ -2,7 +2,7 @@
   "format": 1,
   "id": "ocean",
   "name": "Ocean",
-  "version": "1.0",
+  "version": "11.1",
   "description": "A blue appearance palette.",
   "platforms": ["win32", "darwin", "linux"],
   "kind": "colours",
