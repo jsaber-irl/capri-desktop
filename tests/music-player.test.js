@@ -112,3 +112,40 @@ test('a failed renderer playback acknowledgement is never reported as success', 
   }), { ok: true });
   assert.deepEqual(await playback, { ok: false, error: 'Lecture impossible : NotSupportedError' });
 });
+
+test('an active music mode is included in the player catalog and can receive a real play acknowledgement', async () => {
+  const handlers = new Map();
+  const ipcMain = { handle: (name, fn) => handlers.set(name, fn), on: (name, fn) => handlers.set(name, fn) };
+  class FakeWindow extends EventEmitter {
+    constructor() {
+      super(); this.dead = false;
+      this.webContents = {
+        mainFrame: {}, send() {}, on() {}, once() {},
+        executeJavaScript: async (script) => { this.script = script; },
+      };
+      FakeWindow.last = this;
+    }
+    isDestroyed() { return this.dead; }
+    removeMenu() {}
+    loadURL() {}
+    show() {}
+    focus() {}
+    close() { this.dead = true; this.emit('closed'); }
+  }
+  const custom = { id: 'music-jazz__track-one', title: 'Side Street', src: 'capri://music/music-jazz__track-one', mode: 'Jazz' };
+  const player = createMusicPlayer({
+    BrowserWindow: FakeWindow, ipcMain, preload: '', protocolUrl: 'capri://app/src/renderer/music-player.html',
+    playTrack: () => {}, media: async () => ({ ok: true }), listMedia: () => [], getLibrary: () => [custom],
+  });
+  player.show();
+  const owner = () => ({ sender: FakeWindow.last.webContents, senderFrame: FakeWindow.last.webContents.mainFrame });
+  const listed = handlers.get('music-player:library')(owner());
+  assert.ok(listed.tracks.some((item) => item.id === custom.id && item.src === custom.src));
+  const playback = player.playLocal(custom.id);
+  await handlers.get('music-player:ready')(owner(), { ok: true });
+  await new Promise((resolve) => setImmediate(resolve));
+  const detail = JSON.parse(FakeWindow.last.script.match(/detail: (\{.*\}) \}\)\);/u)[1]);
+  assert.equal(detail.id, custom.id);
+  await handlers.get('music-player:play-local-result')(owner(), { ...detail, ok: true });
+  assert.deepEqual(await playback, { ok: true, title: custom.title });
+});

@@ -55,7 +55,7 @@ test('diagnostics report keeps disabled senses off and is platform-safe', () => 
 
 test('P0 capability matrix and quality criteria are present', () => {
   const root = path.join(__dirname, '..');
-  const matrix = fs.readFileSync(path.join(root, 'CAPABILITIES.md'), 'utf8');
+  const matrix = fs.readFileSync(path.join(root, 'documentation/CAPABILITIES.md'), 'utf8');
   assert.match(matrix, /\| Feature \| Windows \| macOS \| Linux \|/);
   assert.match(matrix, /## Diagnostic workflow/);
   assert.match(matrix, /## P0 quality criteria/);

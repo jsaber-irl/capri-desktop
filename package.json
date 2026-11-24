@@ -1,6 +1,6 @@
 {
   "name": "capri-desktop",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "description": "Capri, the Project Capricorn construct, living on your desktop and narrating what Claude Code is doing.",
   "author": {
     "name": "jsaber and contributors",
@@ -25,6 +25,7 @@
     "voices:demo": "node scripts/voice-demo.js",
     "test:hooks": "node --test tests/hooks.test.js",
     "test:opencode": "node --test tests/opencode.test.js",
+    "test:data-mods": "node --test tests/data-mods.test.js",
     "dist": "electron-builder --win --x64",
     "dist:mac": "electron-builder --mac",
     "dist:mac:arm64": "electron-builder --mac --arm64",

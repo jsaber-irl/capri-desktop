@@ -28,6 +28,15 @@ test('the Capri cursor is opt-in until the user enables it', () => {
   assert.equal(config.DEFAULTS.computerControlPreview, false);
 });
 
+test('compact preview stays disabled when the key is missing or is not true', () => {
+  if (fs.existsSync(config.file())) fs.rmSync(config.file(), { force: true });
+  assert.equal(config.load(true).computerControlPreview, false);
+  fs.writeFileSync(config.file(), JSON.stringify({ computerControlPreview: null }));
+  assert.equal(config.load(true).computerControlPreview, null);
+  fs.rmSync(config.file(), { force: true });
+  config.load(true);
+});
+
 test('saved cursor, Discord, and desktop-control choices override new-install defaults', () => {
   fs.writeFileSync(config.file(), JSON.stringify({ capriCursor: true, discordPresence: true, computerControl: true, computerControlPreview: true }));
   assert.equal(config.load(true).capriCursor, true);

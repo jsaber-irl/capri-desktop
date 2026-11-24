@@ -24,7 +24,7 @@ import { Bond } from './bond.js';
 import { Jealousy } from './jealousy.js';
 import { devLog } from './dev-log.js';
 import { Ring } from './ring.js';
-import { applyTheme, applyWindowTheme, resolveTheme, askedTheme } from './themes.js';
+import { applyTheme, applyDataModPalette, applyDataModAppearance, applyWindowTheme, resolveTheme, askedTheme } from './themes.js';
 import { classify } from './mood.js';
 import { Care } from './care.js';
 import { Breaks } from './breaks.js';
@@ -113,6 +113,8 @@ async function boot() {
     voice,
     onAnimation: (name) => host.animationLog(name),
   });
+  const capriRoot = document.getElementById('capri');
+  applyDataModAppearance(config.appearanceMod, { capriRoot });
   capri.onHandstandState = (active) => host.handstandState(active);
   capri.wander = config.wander;
   capri.possessWindows = config.possess;
@@ -173,6 +175,8 @@ async function boot() {
   applyWindowTheme(config.theme || 'classic');
   let themeSetting = config.colourTheme || 'classic';
   let themeShown = applyTheme(resolveTheme(themeSetting, heart.state.mood), { capri });
+  let activeDataMod = config.dataMod?.id || '';
+  if (config.dataMod?.palette) applyDataModPalette(config.dataMod.palette, { capri });
   // Heart can publish its initial state before the jealousy watcher is created.
   let jealousy = null;
   const updateMoodState = () => {
@@ -855,7 +859,16 @@ async function boot() {
     showSenses();
     capri.lang = cfg.lang;
     applyWindowTheme(cfg.theme || 'classic');
-    if ((cfg.colourTheme || 'classic') !== themeSetting) {
+    const nextDataMod = cfg.dataMod?.id || '';
+    if (nextDataMod !== activeDataMod) {
+      activeDataMod = nextDataMod;
+      if (cfg.dataMod?.palette) applyDataModPalette(cfg.dataMod.palette, { capri });
+      else applyTheme(resolveTheme(themeSetting, heart.state.mood), { capri });
+    } else if (cfg.dataMod?.palette && activeDataMod) {
+      applyDataModPalette(cfg.dataMod.palette, { capri });
+    }
+    applyDataModAppearance(cfg.appearanceMod, { capriRoot });
+    if (!cfg.dataMod?.id && (cfg.colourTheme || 'classic') !== themeSetting) {
       // new colours: a twirl to show them off (and a word, unless her chat already said one)
       themeSetting = cfg.colourTheme || 'classic';
       const next = resolveTheme(themeSetting, heart.state.mood);
@@ -1024,9 +1037,90 @@ async function boot() {
   }
 
   let farewellInProgress = false;
+  async function wakeForModMessage() {
+    if (capri.stowed) {
+      host.setConfig({ visible: true });
+      await capri.unstow();
+    }
+    capri.wake();
+    setInteractive(true);
+  }
+
+  async function showModsDuplicatePrompt(cmd) {
+    const k = lifeLines(brain.lang).ring.mods;
+    const token = cmd.confirmationToken;
+    const duplicate = cmd.duplicate;
+    if (typeof token !== 'string' || !duplicate || typeof duplicate.name !== 'string') {
+      panel.say({ kind: 'error', face: 'wide', line: k.importFailed.replace('{error}', 'The duplicate confirmation is invalid.'), hold: 8000 });
+      return;
+    }
+    await wakeForModMessage();
+    let finished = false;
+    let busy = false;
+    const cancel = () => {
+      if (finished) return;
+      finished = true;
+      host.modsImportCancel(token).catch((error) => console.error('[capri] could not cancel duplicate mod import:', error));
+    };
+    const shown = panel.say({
+      kind: 'alert',
+      face: 'look',
+      line: fmt(k.duplicatePrompt, {
+        name: duplicate.name,
+        version: duplicate.version || k.unknownVersion,
+        copyName: duplicate.copyName,
+      }),
+      hold: null,
+      actions: [
+        { id: 'import', label: k.importCopy, primary: true },
+        { id: 'cancel', label: k.cancel },
+      ],
+      onAction: async (id) => {
+        if (busy) return;
+        busy = true;
+        if (id !== 'import') {
+          cancel();
+          panel.hide();
+          return;
+        }
+        let result;
+        try {
+          result = await host.modsImportConfirm(token);
+        } catch (error) {
+          result = { ok: false, error: error?.message || String(error) };
+        }
+        finished = true;
+        panel.hide();
+        if (result?.ok) {
+          panel.say({ kind: 'done', face: 'grin', line: fmt(k.imported, { name: result.mod?.name || duplicate.copyName }), hold: 6000 });
+        } else {
+          panel.say({ kind: 'error', face: 'wide', line: fmt(k.importFailed, { error: result?.error || 'The mod could not be imported.' }), hold: 8000 });
+        }
+      },
+      onLeave: cancel,
+    });
+    if (!shown) cancel();
+  }
+
   async function runCommand(cmd) {
     const t = brain.t;
     switch (cmd.name) {
+      case 'modsDuplicatePrompt':
+        await showModsDuplicatePrompt(cmd);
+        break;
+      case 'modsImportDone': {
+        const k = lifeLines(brain.lang).ring.mods;
+        await wakeForModMessage();
+        panel.say({ kind: 'done', face: 'grin', line: fmt(k.imported, { name: String(cmd.modName || 'mod') }), hold: 6000 });
+        break;
+      }
+      case 'modsImportFailed':
+      case 'modsActionFailed': {
+        const k = lifeLines(brain.lang).ring.mods;
+        await wakeForModMessage();
+        panel.say({ kind: 'error', face: 'wide', line: fmt(k.operationFailed, { error: String(cmd.error || 'Unknown error').slice(0, 300) }), hold: 8000 });
+        break;
+      }
       case 'handstand':
         if (cmd.win) capri.handstandOn(cmd.win);
         break;

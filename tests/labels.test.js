@@ -34,6 +34,24 @@ test('she speaks Russian, English and French', async () => {
   assert.match(files, /\bfr:/, 'French voice support');
 });
 
+test('mod menus and in-app duplicate confirmation are localized in every language', async () => {
+  const path = require('node:path');
+  const { pathToFileURL } = require('node:url');
+  const { lifeLines } = await import(pathToFileURL(path.join(__dirname, '..', 'src', 'renderer', 'js', 'lines-life.js')).href);
+  for (const lang of LANGS) {
+    const ring = lifeLines(lang).ring;
+    assert.ok(ring.tabs.mods, `${lang}: circular-menu Mods tab`);
+    assert.ok(ring.mods.importMod, `${lang}: circular-menu import label`);
+    assert.ok(ring.mods.duplicatePrompt.includes('{copyName}'), `${lang}: duplicate prompt copy name`);
+    assert.ok(ring.mods.importCopy, `${lang}: duplicate confirmation action`);
+    assert.ok(ring.mods.cancel, `${lang}: duplicate cancellation action`);
+    assert.ok(TRAY[lang].mods, `${lang}: system-menu Mods section`);
+    assert.ok(TRAY[lang].importMod, `${lang}: system-menu import label`);
+    assert.equal(ring.colours.importMod, undefined, `${lang}: Colours must not import mods`);
+  }
+  assert.match(lifeLines('fr').ring.mods.duplicatePrompt, /déjà/);
+});
+
 test('every voice engine has its name in the tray menu, in every language', () => {
   for (const lang of LANGS) {
     for (const engine of Object.keys(tts.ENGINES)) {

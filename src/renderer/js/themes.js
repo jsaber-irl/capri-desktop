@@ -71,6 +71,57 @@ export function applyTheme(id, { capri, root = document.documentElement } = {}) 
   return key;
 }
 
+export function applyDataModPalette(palette, { capri, root = document.documentElement } = {}) {
+  if (!palette || typeof palette !== 'object') return false;
+  const css = palette.css && typeof palette.css === 'object' ? palette.css : {};
+  for (const [key, value] of Object.entries(css)) {
+    if (key.startsWith('--') && typeof value === 'string') root.style.setProperty(key, value);
+  }
+  if (palette.fx && typeof palette.fx === 'object') {
+    if (typeof palette.fx.red === 'string') COLORS.red = palette.fx.red;
+    if (typeof palette.fx.violet === 'string') COLORS.violet = palette.fx.violet;
+  }
+  const theme = {
+    hue: Number.isFinite(palette.hue) ? palette.hue : 0.968,
+    mix: Number.isFinite(palette.mix) ? palette.mix : 0.6,
+    sat: Number.isFinite(palette.sat) ? palette.sat : 1,
+    val: Number.isFinite(palette.val) ? palette.val : 1,
+    rim: Array.isArray(palette.rim) ? palette.rim : [0.48, 0.24, 1],
+  };
+  capri?.setTheme(theme);
+  root.dataset.theme = 'data-mod';
+  return true;
+}
+
+export function applyDataModAppearance(appearance, { capriRoot } = {}) {
+  if (!capriRoot) return false;
+  let accessory = capriRoot.querySelector('.capri__accessory');
+  if (!appearance?.appearance) {
+    accessory?.remove();
+    return true;
+  }
+  const mod = appearance.appearance;
+  if (!accessory) {
+    accessory = document.createElement('img');
+    accessory.className = 'capri__accessory';
+    accessory.alt = '';
+    accessory.setAttribute('aria-hidden', 'true');
+    accessory.referrerPolicy = 'no-referrer';
+    capriRoot.append(accessory);
+  }
+  const anchor = mod.anchor === 'top-left' ? 0 : 0.5;
+  const imageSource = mod.data || mod.src;
+  if (accessory.getAttribute('src') !== imageSource) accessory.src = imageSource;
+  // Capri.place() updates the accessory in the sprite's padded logical canvas,
+  // applying the same scale, mirror and turn as the canvas itself.
+  accessory.dataset.modX = String(mod.x ?? 118);
+  accessory.dataset.modY = String(mod.y ?? 20);
+  accessory.dataset.modWidth = String(mod.width || 120);
+  accessory.dataset.modHeight = String(mod.height || 70);
+  accessory.dataset.modAnchor = String(anchor);
+  return true;
+}
+
 export function applyWindowTheme(id, { root = document.documentElement } = {}) {
     const key = WINDOW_THEME_IDS.includes(id) ? id : 'classic';
     root.dataset.windowTheme = key;

@@ -36,6 +36,7 @@ capri-desktop/
 ├── src/
 │   ├── main/               Electron Main process and platform/service adapters
 │   │   ├── main.js          Startup, windows, IPC registration, tray, lifecycle
+│   │   ├── data-mods.js     Validated local palette/accessory mods and saved-version history
 │   │   ├── chess-game.js    Chess rules, SAN and in-memory position snapshots
 │   │   ├── chess-window.js  Chess window, guarded commands and state publication
 │   │   ├── music-player.js Mini-player window, local-track requests and playback IPC
@@ -108,6 +109,23 @@ capri-desktop/
 
 Some platform helpers are JavaScript, PowerShell, or Python. Files are grouped by service and
 feature rather than by UI screen alone.
+
+### Data mods and mode editing
+
+`data-mods.js` validates `.capri-mod` data, stores the active mod manifest, applies edits, and keeps
+up to 50 previous file versions per mod under the user's `mods/.history/<id>/` directory. Its
+history API validates a selected snapshot before restoring it and snapshots the replaced version as
+well. Main exposes update/history/restore through sender-checked IPC and refreshes the overlay
+configuration after a successful change. It also supports `kind: "music"` modes with local-home
+relative paths or direct HTTPS media URLs. Main turns local track IDs into a guarded
+`capri://music/<mode>__<track>` source; the circular Mods tab and system menu can create a music
+mode from a user-selected folder beneath home. The mini-player catalog merges active music modes with its
+bundled tracks and can refresh when a mode is enabled or removed. The circular menu's Mods tab contains the editor; the
+system tray's **General settings → Mods → Edit modes…** opens that same tab. Palette values have
+colour pickers for effect colours and numeric controls for hue, mix, saturation, and brightness.
+Accessory editing includes a scaled Capri preview that can be dragged, pixel-exact X/Y inputs, and
+size sliders. The card is wider than other circular-menu cards, stays vertically centered after
+asynchronous content loads, and its body scrolls when the content exceeds the viewport.
 
 ## Main flows
 

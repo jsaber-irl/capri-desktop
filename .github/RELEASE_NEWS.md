@@ -1,14 +1,15 @@
-## New Features & Improvements
-
-### OpenCode Assistant Integration
-- Added OpenCode as a monitored coding assistant with a dedicated global-plugin installer and uninstaller.
-- OpenCode prompts, tool activity, permission prompts, completion, failures, and session shutdown now map to existing Capri states.
-- Installation preserves unrelated OpenCode plugins and refuses to replace an existing unrecognized plugin file.
-- Reinstallation is idempotent, existing Capri plugin versions are backed up before upgrade, and uninstall removes only the Capri plugin.
-- OpenCode 1.18.29 or later is recommended; the integration observes only and never approves permissions or blocks actions.
-
-### Capability and Diagnostics Consolidation
-- Added a maintained platform capability matrix covering support status, OS limits, dependencies, permissions, implementation links, and tests.
-- Added the shared P0 quality criteria for offline behavior, immediate desktop-action stop, visible errors, unexpected-network safeguards, and local-data regression coverage.
-- Preparation reports now include a non-sensitive diagnostics section for AI provider selection, voice, microphone, vision, desktop control, and macOS accessibility status.
-- Diagnostic reports explicitly omit API keys and private provider URLs.
+### Mod menu and accessory improvements
+- Added a dedicated, translated **Mods** section to the circular menu and **General settings → Mods** to the system menu; Colours now contains built-in themes only.
+- Duplicate name/version imports now use a localized in-app Capri confirmation and keep the existing unique-copy naming behavior.
+- Appearance mods can add a validated PNG accessory from embedded data, a relative image file, or an optional HTTPS URL, independently from active palette mods.
+- Accessory source images up to 2048 × 2048 pixels are proportionally scaled to fit their configured display box.
+- Added safe `.capri-mod` palette imports with strict JSON schema validation, platform checks, appearance-only permissions, idempotent activation, timestamped upgrades, rollback/uninstall, and one-active-mod behavior.
+- Added in-app editing and local saved-version restore for installed palette and accessory modes, accessible from the circular menu and the system menu.
+- Palette mods now expose primary and secondary effect colour pickers. Accessory placement is easier with a draggable Capri preview and pixel-exact X/Y controls; the wider Mods card stays centered after loading and scrolls when needed.
+- Added music modes: choose a local music folder or import a mode with direct HTTPS audio sources, then play its tracks alongside Capri's bundled songs in the integrated mini-player.
+- Fixed mod management so invalid or misnamed files remain visible and removable, and surfaced activation, import, and uninstall errors in the Mods menu.
+- Importing refreshes only the mod list, keeping the circular menu responsive.
+- Data mods execute no code and cannot start processes or access files at runtime; only explicitly configured HTTPS accessory images contact the network while enabled.
+- Updated the English documentation for the Mods menus and accessory image sizing.
+- Completed the Capri Remote P1 design study with threat boundaries, pairing, relay metadata, end-to-end envelope expectations, revocation, and separate opt-in phases for text, capture, voice, and desktop control.
+- Remote implementation remains deferred until the documented security and review gates are accepted.

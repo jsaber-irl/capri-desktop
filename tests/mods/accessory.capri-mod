@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "id": "party-hat",
+  "name": "Party Hat",
+  "version": "1.0",
+  "kind": "appearance",
+  "permissions": ["appearance"],
+  "appearance": {
+    "type": "accessory",
+    "src": "./party-hat.png",
+    "x": 118,
+    "y": 18,
+    "width": 120,
+    "height": 70,
+    "anchor": "center"
+  }
+}

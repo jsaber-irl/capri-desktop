@@ -4,10 +4,11 @@ const { DEV, devLog } = require('./logger');
 const { randomUUID } = require('node:crypto');
 const tracks = require('../renderer/music-library.js');
 
-function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang = () => 'fr', playTrack, media, listMedia, tabAction = async () => ({ ok: false, error: 'Action indisponible.' }) }) {
+function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang = () => 'fr', playTrack, media, listMedia, getLibrary = () => [], tabAction = async () => ({ ok: false, error: 'Action indisponible.' }) }) {
   let win = null;
   const pendingLocal = new Map();
   let rendererReady = false;
+  const catalog = () => [...tracks, ...(getLibrary() || [])];
   const owns = (event) => Boolean(
     win && !win.isDestroyed()
       && event.sender === win.webContents
@@ -95,7 +96,7 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
   };
   const playLocal = (rawId) => {
     const id = String(rawId || '');
-    const track = tracks.find((item) => item.id === id);
+    const track = catalog().find((item) => item.id === id);
     if (!track) return Promise.resolve({ ok: false, error: 'Morceau Capri introuvable.' });
     devLog('[music-player:local] requête de lecture validée', { id, title: track.title });
     show();
@@ -108,9 +109,10 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
   };
   ipcMain.handle('music-player:library', (event) => {
     const owned = owns(event);
-    devLog('[music-player:catalog] demande du lecteur', { owned, count: tracks.length });
+    const items = catalog();
+    devLog('[music-player:catalog] demande du lecteur', { owned, count: items.length });
     return owned
-      ? { ok: true, tracks: tracks.map(({ id, title, file, src, artist, album, artwork }) => ({ id, title, file, src, artist, album, artwork })) }
+      ? { ok: true, tracks: items.map(({ id, title, file, src, artist, album, artwork, mode }) => ({ id, title, file, src, artist, album, artwork, mode })) }
       : { ok: false, error: 'Accès refusé.' };
   });
   ipcMain.handle('music-player:ready', (event, result = {}) => {
@@ -121,7 +123,7 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
       return { ok: false, error };
     }
     rendererReady = true;
-    devLog('[music-player:catalog] lecteur prêt', { count: tracks.length, waiting: pendingLocal.size });
+    devLog('[music-player:catalog] lecteur prêt', { count: catalog().length, waiting: pendingLocal.size });
     for (const [requestId, request] of pendingLocal) dispatchLocal(requestId, request.id);
     return { ok: true };
   });
@@ -130,7 +132,7 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
     const requestId = String(result.requestId || '');
     const pending = pendingLocal.get(requestId);
     if (!pending || pending.id !== String(result.id || '')) return { ok: false, error: 'Demande de lecture inconnue.' };
-    const title = tracks.find((track) => track.id === pending.id).title;
+    const title = catalog().find((track) => track.id === pending.id)?.title || 'Morceau';
     finishLocal(requestId, result.ok === true
       ? { ok: true, title }
       : { ok: false, error: String(result.error || 'La lecture du morceau a échoué.').slice(0, 200) });
@@ -161,7 +163,10 @@ function createMusicPlayer({ BrowserWindow, ipcMain, preload, protocolUrl, lang 
     devLog('[music-player:close] main: win.close() appelé');
     return { ok: true };
   });
-  return { show, playLocal, close: () => win?.close(), isOpen: () => Boolean(win && !win.isDestroyed()) };
+  const refreshLibrary = () => {
+    if (win && !win.isDestroyed()) win.webContents.send('music-player:library-changed');
+  };
+  return { show, playLocal, refreshLibrary, close: () => win?.close(), isOpen: () => Boolean(win && !win.isDestroyed()) };
 }
 
 module.exports = { createMusicPlayer };

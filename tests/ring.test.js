@@ -37,12 +37,26 @@ test('the ring and its card are put where there is room, on either side of her',
   assert.ok(at.top >= 8 && at.top + at.size <= 500);
 });
 
-test('nine sectors are drawn as closed annular shapes with a gap between them', async () => {
+test('the Mods card can grow to 500 pixels and still fit on the available screen side', async () => {
+  const { place } = await load('ring.js');
+  const at = place({ cx: 800, cy: 500, size: 460, vw: 1440, vh: 900, cardW: 500 });
+  // A 500 px card plus ring and gap cannot fit to the right of this centred ring.
+  assert.equal(at.side, 'left');
+  assert.ok(at.cardLeft >= 8);
+  assert.ok(at.cardLeft + 500 <= at.left - 18);
+  const edge = place({ cx: 1360, cy: 500, size: 460, vw: 1440, vh: 900, cardW: 500 });
+  assert.equal(edge.side, 'left');
+  assert.ok(edge.cardLeft >= 8);
+  assert.ok(edge.cardLeft + 500 <= edge.left - 18);
+});
+
+test('ten sectors are drawn as closed annular shapes with a gap between them', async () => {
   const { sectorPath, sectorMid, polar } = await load('ring.js');
   const { ORDER } = await load('ring-tabs.js');
-  assert.equal(ORDER.length, 9);
+  assert.equal(ORDER.length, 10);
   assert.equal(ORDER[0], 'bond');
   assert.equal(ORDER[1], 'brain');
+  assert.ok(ORDER.includes('mods'));
   const d = sectorPath(0);
   assert.match(d, /^M [\d. ]+ A 222 222 0 0 1 [\d. ]+ L [\d. ]+ L [\d. ]+ A 142 142 0 0 0 [\d. ]+ L [\d. ]+ Z$/);
   assert.notEqual(sectorPath(0), sectorPath(1));
@@ -503,6 +517,55 @@ test('every sector has a title in the languages that have her menu, and all the 
   assert.deepEqual(shape(ru).sort(), shape(en).sort(), 'the same strings in both languages');
   for (const key of ['hearing', 'quiet', 'sensitivity', 'device', 'level']) assert.ok(ru.mic[key] && en.mic[key], key);
   assert.equal(ru.bond.tune.short.length, 2);
+});
+
+test('mod import and management are in the Mods tab, not Colours', async () => {
+  const previousDocument = globalThis.document;
+  try {
+    globalThis.document = {
+      createElement: (tag) => ({
+        tagName: tag.toUpperCase(),
+        className: '',
+        textContent: '',
+        children: [],
+        attributes: {},
+        dataset: {},
+        style: { setProperty() {} },
+        append(...nodes) { this.children.push(...nodes); },
+        replaceChildren(...nodes) { this.children = nodes; },
+        addEventListener() {},
+        setAttribute(name, value) { this.attributes[name] = value; },
+      }),
+      createTextNode: (text) => ({ textContent: text }),
+    };
+    const { TABS } = await load('ring-tabs.js');
+    const { lifeLines } = await load('lines-life.js');
+    const ctx = {
+      t: lifeLines('en').ring,
+      cfg: { colourTheme: 'classic' },
+      state: {},
+      host: {
+        modsList: async () => ({ ok: true, mods: [{ id: 'party-hat', name: 'Party Hat', kind: 'appearance', enabled: false }] }),
+      },
+      actions: { run() {} },
+      set() {},
+      refresh() {},
+      hide() {},
+    };
+    const textOf = (node) => [node.textContent || '', ...(node.children || []).map(textOf)].join(' ');
+    const colours = TABS.colours.render(ctx);
+    assert.doesNotMatch(textOf(colours), /Import \.capri-mod|Appearance mods/);
+
+    const mods = TABS.mods.render(ctx);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.match(textOf(mods), /Import \.capri-mod/);
+    assert.match(textOf(mods), /Create colour mode/);
+    assert.match(textOf(mods), /Create accessory mode/);
+    assert.match(textOf(mods), /Appearance mods/);
+    assert.match(textOf(mods), /Party Hat/);
+  } finally {
+    globalThis.document = previousDocument;
+  }
 });
 
 test('circular menu character tab renders explicit emotional log and supports independent cancellation', async () => {

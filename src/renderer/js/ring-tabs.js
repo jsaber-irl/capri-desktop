@@ -4,6 +4,7 @@
 // ring.js (settings, `set` to change one, the bond, the ears...).
 
 import { THEMES, THEME_IDS, WINDOW_THEME_IDS } from './themes.js';
+import { accessoryLayout } from './accessory-layout.js';
 import { lifeLines } from './lines-life.js';
 import { fmt } from './util.js';
 import { plural, dateOf } from './bond.js';
@@ -12,7 +13,7 @@ import { el, heading, note, row, button, buttons, toggle, pick, seg, slider, chi
 import { PROVIDERS, GROUPS, needsKey, isLocal } from './brain-providers.js';
 import { zonedTimeToEpoch } from './reminders.mjs';
 
-export const ORDER = ['bond', 'brain', 'mic', 'senses', 'character', 'colours', 'voice', 'more', 'chat'];
+export const ORDER = ['bond', 'brain', 'mic', 'senses', 'character', 'colours', 'mods', 'voice', 'more', 'chat'];
 
 const isWindows = (host) => (host.platform ? host.platform === 'win32' : /win/i.test(globalThis.navigator?.platform || ''));
 const prettyKey = (key) => String(key || 'Control+Alt+Space').replace(/\bControl\b/g, 'Ctrl').replace(/\bCommandOrControl\b/g, 'Ctrl');
@@ -53,6 +54,101 @@ function formatReason(tag, detail, j) {
   if (base) return base;
   if (detail) return detail;
   return j?.reasons?.none || '—';
+}
+
+function normalizedColor(value) {
+  const text = String(value || '').trim();
+  const hex = text.match(/^#?([\da-f]{3}|[\da-f]{6})$/i);
+  if (hex) {
+    const raw = hex[1].length === 3 ? [...hex[1]].map((part) => part + part).join('') : hex[1];
+    return `#${raw.toLowerCase()}`;
+  }
+  const rgb = text.match(/^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i);
+  if (!rgb) return '';
+  const channels = rgb.slice(1).map(Number);
+  if (channels.some((channel) => channel > 255)) return '';
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function hueOf(hex) {
+  const color = normalizedColor(hex) || '#ff2152';
+  const [r, g, b] = [1, 3, 5].map((index) => parseInt(color.slice(index, index + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  if (!delta) return 0;
+  const hue = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
+  return Math.round(((hue * 60 + 360) % 360));
+}
+
+function applyPrimaryToPalette(palette, hex) {
+  const color = normalizedColor(hex);
+  if (!color) return;
+  const [r, g, b] = [1, 3, 5].map((index) => parseInt(color.slice(index, index + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  palette.hue = hueOf(color) / 360;
+  palette.sat = max ? (max - min) / max : 0;
+  palette.val = max;
+}
+
+function colorFromHue(degrees) {
+  const hue = ((Number(degrees) % 360) + 360) % 360;
+  const chroma = 0.9;
+  const x = chroma * (1 - Math.abs((hue / 60) % 2 - 1));
+  const rgb = hue < 60 ? [chroma, x, 0] : hue < 120 ? [x, chroma, 0]
+    : hue < 180 ? [0, chroma, x] : hue < 240 ? [0, x, chroma]
+      : hue < 300 ? [x, 0, chroma] : [chroma, 0, x];
+  const lift = 0.1;
+  return `#${rgb.map((channel) => Math.round((channel + lift) * 255).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function colorControls({ label, value, onChange, k }) {
+  const wrap = el('div', 'ring__color-controls');
+  const preview = el('i', 'ring__color-preview');
+  const range = el('input', 'ring__color-hue');
+  range.type = 'range';
+  range.min = '0';
+  range.max = '359';
+  range.step = '1';
+  range.setAttribute('aria-label', `${label} · ${k.hue || 'Hue'}`);
+  const text = el('input', 'ring__input ring__color-value');
+  text.type = 'text';
+  text.autocomplete = 'off';
+  text.spellcheck = false;
+  text.maxLength = 24;
+  text.placeholder = '#RRGGBB or rgb(255, 0, 0)';
+  text.setAttribute('aria-label', `${label} · ${k.hexOrRgb || 'HEX or RGB'}`);
+  const setColor = (color, updateText = true) => {
+    const safe = normalizedColor(color);
+    if (!safe) return false;
+    preview.style.setProperty('--chosen-color', safe);
+    range.value = String(hueOf(safe));
+    if (updateText) text.value = safe;
+    text.setCustomValidity('');
+    onChange(safe);
+    return true;
+  };
+  const initial = normalizedColor(value) || '#ff2152';
+  preview.style.setProperty('--chosen-color', initial);
+  range.value = String(hueOf(initial));
+  text.value = initial;
+  range.addEventListener('input', () => setColor(colorFromHue(range.value)));
+  text.addEventListener('input', () => {
+    const safe = normalizedColor(text.value);
+    text.setCustomValidity(safe || !text.value.trim() ? '' : (k.invalidColor || 'Use #RRGGBB or rgb(255, 0, 0).'));
+    if (safe) setColor(safe, false);
+  });
+  text.addEventListener('blur', () => {
+    const safe = normalizedColor(text.value);
+    if (safe) text.value = safe;
+  });
+  text.addEventListener('click', (event) => event.stopPropagation());
+  text.addEventListener('pointerdown', (event) => { event.stopPropagation(); });
+  range.addEventListener('click', (event) => event.stopPropagation());
+  range.addEventListener('pointerdown', (event) => { event.stopPropagation(); });
+  wrap.append(preview, range, text);
+  return wrap;
 }
 
 // ---------- Bond ----------
@@ -245,7 +341,7 @@ const brain = {
       Promise.resolve(host.chatModels?.()).catch(() => null).then((info) => {
         state.loading = false;
         state.info = { ...(info || { models: [], error: '' }), provider }; // (for the one that was asked about)
-        if (c.open) c.refresh();
+        c.refresh();
       });
     }
     if (state.codeFound === undefined) {
@@ -751,7 +847,7 @@ const colours = {
     const root = el('div');
     root.append(note(k.hint, true));
     const grid = el('div', 'ring__swatches');
-    const current = cfg.colourTheme || 'classic';
+    const current = cfg.dataMod?.id ? '' : (cfg.colourTheme || 'classic');
     for (const id of THEME_IDS) {
       const b = el('button', `ring__swatch${id === current ? ' is-on' : ''}`);
       b.type = 'button';
@@ -762,11 +858,653 @@ const colours = {
       b.append(el('span', 'ring__swatch-chip'), document.createTextNode(k.themes[id] || id));
       b.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (id !== current) c.set({ colourTheme: id });
+        if (id !== current) {
+          (async () => {
+            if (cfg.dataMod?.id) {
+              const result = await c.host.modsSetEnabled?.(cfg.dataMod.id, false);
+              if (!result?.ok) throw new Error(result?.error || 'The active mod could not be disabled.');
+            }
+            c.set({ colourTheme: id, activeDataMod: '' });
+          })().catch((error) => {
+            c.state.coloursError = error?.message || String(error);
+            c.refresh();
+          });
+        }
       });
       grid.append(b);
     }
     root.append(grid);
+    if (c.state.coloursError) {
+      root.append(note(c.state.coloursError, true));
+      c.state.coloursError = '';
+    }
+    return root;
+  },
+};
+
+// ---------- Mods ----------
+
+function modAccessoryEditor(c, draft, labels) {
+  const mod = draft.appearance;
+  const root = el('section', 'ring__mod-editor');
+  const inputs = new Map();
+  // Work in the sprite's unscaled coordinate space: x/y and accessory dimensions
+  // are CSS pixels on Capri's 352×532 canvas, before the pet window scales it.
+  const ratio = Math.min(0.46, 172 / 352, 244 / 532);
+  const preview = el('div', 'ring__accessory-preview');
+  preview.style.width = `${352 * ratio}px`;
+  preview.style.height = `${532 * ratio}px`;
+  const base = el('img', 'ring__accessory-base');
+  base.src = '../../assets/capri/capri-full.png';
+  base.alt = '';
+  base.draggable = false;
+  base.style.width = `${240 * ratio}px`;
+  base.style.height = `${420 * ratio}px`;
+  base.style.left = `${56 * ratio}px`;
+  base.style.top = `${56 * ratio}px`;
+  const accessory = el('img', 'ring__accessory-item');
+  accessory.src = mod.data || mod.src || '';
+  accessory.alt = labels.accessoryPosition;
+  accessory.draggable = false;
+  const paint = () => {
+    const layout = accessoryLayout(mod, ratio);
+    accessory.style.width = `${layout.width}px`;
+    accessory.style.height = `${layout.height}px`;
+    accessory.style.left = `${layout.left}px`;
+    accessory.style.top = `${layout.top}px`;
+  };
+  const addRange = (key, min, max, step) => {
+    const control = slider({
+      left: labels[key], min, max, step, value: Number.isFinite(mod[key]) ? mod[key] : ({ x: 118, y: 20, width: 120, height: 70 })[key],
+      show: (value) => Number(value).toFixed(step < 1 ? 1 : 0),
+      onInput: (value) => { mod[key] = value; paint(); },
+    });
+    inputs.set(key, control.querySelector('input'));
+    root.append(control);
+  };
+  const addCoordinate = (key, min, max) => {
+    const row = el('label', 'ring__coordinate');
+    row.append(el('span', '', labels[key]));
+    const input = el('input');
+    input.type = 'number';
+    input.min = String(min);
+    input.max = String(max);
+    input.step = '1';
+    input.value = String(Math.round(Number.isFinite(mod[key]) ? mod[key] : (key === 'x' ? 118 : 20)));
+    input.setAttribute('aria-label', labels[key]);
+    input.addEventListener('input', () => {
+      const value = Number(input.value);
+      if (!Number.isFinite(value)) return;
+      mod[key] = Math.max(min, Math.min(max, Math.round(value)));
+      input.value = String(mod[key]);
+      paint();
+    });
+    inputs.set(key, input);
+    row.append(input);
+    root.append(row);
+  };
+  preview.append(base, accessory);
+  const hint = note(labels.dragHint, true);
+  root.append(heading(labels.accessoryPosition), hint, preview);
+  let drag = null;
+  accessory.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, modX: mod.x ?? 118, modY: mod.y ?? 20 };
+    accessory.setPointerCapture(event.pointerId);
+    accessory.classList.add('is-dragging');
+  });
+  accessory.addEventListener('pointermove', (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    event.preventDefault();
+    mod.x = Math.max(-200, Math.min(400, Math.round(drag.modX + (event.clientX - drag.x) / ratio)));
+    mod.y = Math.max(-200, Math.min(384, Math.round(drag.modY + (event.clientY - drag.y) / ratio)));
+    for (const key of ['x', 'y']) if (inputs.has(key)) inputs.get(key).value = String(mod[key]);
+    paint();
+  });
+  const stopDrag = () => { drag = null; accessory.classList.remove('is-dragging'); };
+  accessory.addEventListener('pointerup', stopDrag);
+  accessory.addEventListener('pointercancel', stopDrag);
+  addCoordinate('x', -200, 400);
+  addCoordinate('y', -200, 384);
+  addRange('width', 8, 320, 1);
+  addRange('height', 8, 320, 1);
+  paint();
+  return root;
+}
+
+const mods = {
+  render(c) {
+    const { t } = c;
+    const k = t.mods;
+    c.card?.querySelector('.ring__mode-dialog-backdrop')?.remove();
+    const root = el('div');
+    const modError = el('p', 'ring__note ring__mod-error');
+    modError.setAttribute('role', 'alert');
+    modError.hidden = !c.state.modsError;
+    modError.textContent = c.state.modsError || '';
+    const showModError = (error) => {
+      c.state.modsError = error?.message || String(error);
+      modError.textContent = c.state.modsError;
+      modError.hidden = false;
+    };
+    const runModAction = async (action) => {
+      c.state.modsError = '';
+      modError.hidden = true;
+      try {
+        const result = await action();
+        if (!result?.ok) throw new Error(result?.error || 'The mod action could not be completed.');
+        c.state.modsError = '';
+        c.refresh();
+        return result;
+      } catch (error) {
+        showModError(error);
+        return null;
+      }
+    };
+    root.append(heading(k.mods || 'Mods'));
+    root.append(button(k.importMod || 'Import .capri-mod', async () => {
+      try {
+        const result = await c.host.modsImport?.();
+        if (result?.canceled) return;
+        if (result?.needsConfirmation) {
+          c.hide();
+          c.actions.run?.('modsDuplicatePrompt', {
+            confirmationToken: result.confirmationToken,
+            duplicate: result.duplicate,
+          });
+          return;
+        }
+        if (!result?.ok) throw new Error(result?.error || 'The mod could not be imported.');
+        c.state.modsError = '';
+        modError.hidden = true;
+        await refreshMods();
+      } catch (error) {
+        showModError(error);
+      } finally {
+        c.host.setInteractive?.(true);
+      }
+    }, { primary: true }));
+    root.append(buttons(
+      button(k.createPaletteMode || 'Create colour mode', () => {
+        c.state.createModeType = 'palette';
+        c.state.createModeError = '';
+        c.refresh();
+      }, { primary: true }),
+      button(k.createAccessoryMode || 'Create accessory mode…', () => {
+        c.state.createModeType = 'appearance';
+        c.state.createModeError = '';
+        c.state.accessorySelection = null;
+        c.refresh();
+      }),
+      button(k.createMusicMode || 'Create music mode…', () => {
+        c.state.createModeType = 'music';
+        c.state.createModeError = '';
+        c.state.musicSelection = null;
+        c.refresh();
+      }),
+    ));
+    if (c.state.createModeType) {
+      const type = c.state.createModeType;
+      const backdrop = el('div', 'ring__mode-dialog-backdrop');
+      const dialog = el('section', 'ring__mode-dialog');
+      dialog.setAttribute('role', 'dialog');
+      dialog.setAttribute('aria-modal', 'true');
+      const dialogTitle = type === 'palette' ? (k.createPaletteMode || 'Create colour mode')
+        : type === 'appearance' ? (k.createAccessoryMode || 'Create accessory mode')
+          : (k.createMusicMode || 'Create music mode');
+      dialog.setAttribute('aria-label', dialogTitle);
+      const closeDialog = () => {
+        c.state.createModeType = '';
+        c.state.activeColorField = '';
+        c.state.createModeError = '';
+        c.state.createModeDraftName = '';
+        c.state.createModeColors = null;
+        c.state.accessorySelection = null;
+        c.state.createAccessoryLayout = null;
+        c.state.accessoryUrl = '';
+        c.state.musicSelection = null;
+        c.state.musicUrl = '';
+        c.state.musicTitle = '';
+        c.state.musicArtist = '';
+        c.refresh();
+      };
+      const dialogHeader = el('header', 'ring__mode-dialog-header');
+      dialogHeader.append(heading(dialogTitle));
+      const closeButton = el('button', 'ring__mode-close', '×');
+      closeButton.type = 'button';
+      closeButton.setAttribute('aria-label', k.closeMode || 'Close mode creator');
+      closeButton.title = k.closeMode || 'Close';
+      closeButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        closeDialog();
+      });
+      dialogHeader.append(closeButton);
+      dialog.append(dialogHeader);
+      let colors = { primary: '#ff2152', secondary: '#7b3dff' };
+      if (type === 'palette') {
+        const colorFields = el('div', 'ring__mod-colors');
+        for (const [key, label, value] of [['primary', k.primaryColor || 'Primary colour', colors.primary], ['secondary', k.secondaryColor || 'Secondary colour', colors.secondary]]) {
+          const row = el('label', 'ring__mod-color');
+          row.append(el('span', '', label));
+          const color = el('button', 'ring__color-choice');
+          color.type = 'button';
+          color.setAttribute('aria-label', `${label}: ${c.state.createModeColors?.[key] || value}`);
+          color.title = c.state.createModeColors?.[key] || value;
+          color.style.setProperty('--chosen-color', c.state.createModeColors?.[key] || value);
+          color.addEventListener('click', (event) => {
+            event.stopPropagation();
+            c.state.activeColorField = key;
+            c.refresh();
+          });
+          row.append(color);
+          colorFields.append(row);
+        }
+        dialog.append(colorFields);
+      } else if (type === 'appearance') {
+        const sourceType = c.state.accessorySourceType || 'file';
+        dialog.append(seg([
+          { id: 'file', label: k.accessoryFile || 'PNG file' },
+          { id: 'url', label: k.accessoryUrl || 'HTTPS URL' },
+        ], sourceType, (id) => { c.state.accessorySourceType = id; c.refresh(); }));
+        if (sourceType === 'url') {
+          const url = el('input', 'ring__input ring__mode-source');
+          url.type = 'url';
+          url.maxLength = 2048;
+          url.autocomplete = 'off';
+          url.spellcheck = false;
+          url.placeholder = k.accessoryUrlPlaceholder || 'https://…/accessory.png';
+          url.value = c.state.accessoryUrl || '';
+          url.setAttribute('aria-label', k.accessoryUrl || 'Accessory image URL');
+          url.addEventListener('input', () => { c.state.accessoryUrl = url.value; });
+          url.addEventListener('pointerdown', (event) => { event.stopPropagation(); c.host.setInteractive?.(true); c.host.focusOverlay?.(true); });
+          url.addEventListener('click', (event) => event.stopPropagation());
+          dialog.append(url, note(k.accessoryUrlHint || 'Use a direct HTTPS image URL.', true));
+        } else {
+          dialog.append(button(k.chooseAccessory || 'Choose a PNG accessory…', async () => {
+            try {
+              const selected = await c.host.modsChooseAccessory?.();
+              if (selected?.canceled) return;
+              if (!selected?.ok || !selected.token) {
+                c.state.createModeError = selected?.error || (k.accessoryChooseFailed || 'The image could not be selected.');
+              } else {
+                c.state.accessorySelection = { token: selected.token, name: selected.name || '' };
+                c.state.createModeError = '';
+              }
+            } catch (error) { c.state.createModeError = error?.message || (k.accessoryChooseFailed || 'The image could not be selected.'); }
+            c.refresh();
+          }));
+          if (c.state.accessorySelection?.name) dialog.append(note(c.state.accessorySelection.name, true));
+        }
+        const layout = c.state.createAccessoryLayout || { x: 118, y: 20, width: 120, height: 70 };
+        const fields = el('div', 'ring__accessory-fields');
+        for (const [key, min, max] of [['x', -200, 400], ['y', -200, 384], ['width', 8, 320], ['height', 8, 320]]) {
+          const coordinate = el('label', 'ring__coordinate');
+          coordinate.append(el('span', '', k[key] || key));
+          const input = el('input');
+          input.type = 'number';
+          input.min = String(min);
+          input.max = String(max);
+          input.step = '1';
+          input.value = String(layout[key] ?? ({ x: 118, y: 20, width: 120, height: 70 })[key]);
+          input.setAttribute('aria-label', k[key] || key);
+          input.addEventListener('pointerdown', (event) => {
+            event.stopPropagation();
+            c.host.setInteractive?.(true);
+          });
+          input.addEventListener('click', (event) => event.stopPropagation());
+          input.addEventListener('input', () => {
+            const value = Number(input.value);
+            if (!Number.isFinite(value)) return;
+            const clamped = Math.max(min, Math.min(max, Math.round(value)));
+            c.state.createAccessoryLayout = {
+              ...(c.state.createAccessoryLayout || layout),
+              [key]: clamped,
+            };
+            input.value = String(clamped);
+          });
+          coordinate.append(input);
+          fields.append(coordinate);
+        }
+        dialog.append(heading(k.accessoryPosition || 'Accessory position'), fields);
+      } else {
+        const sourceType = c.state.musicSourceType || 'folder';
+        dialog.append(seg([
+          { id: 'folder', label: k.musicFolder || 'Folder' },
+          { id: 'url', label: k.musicUrl || 'HTTPS URL' },
+        ], sourceType, (id) => { c.state.musicSourceType = id; c.refresh(); }));
+        if (sourceType === 'url') {
+          const url = el('input', 'ring__input ring__mode-source');
+          url.type = 'url';
+          url.maxLength = 2048;
+          url.autocomplete = 'off';
+          url.spellcheck = false;
+          url.placeholder = k.musicUrlPlaceholder || 'https://…/track.mp3';
+          url.value = c.state.musicUrl || '';
+          url.setAttribute('aria-label', k.musicUrl || 'Music URL');
+          url.addEventListener('input', () => { c.state.musicUrl = url.value; });
+          url.addEventListener('pointerdown', (event) => { event.stopPropagation(); c.host.setInteractive?.(true); c.host.focusOverlay?.(true); });
+          url.addEventListener('click', (event) => event.stopPropagation());
+          dialog.append(url, note(k.musicUrlHint || 'Use a direct HTTPS audio URL, not a web page link.', true));
+          for (const [key, label, placeholder, maxLength] of [
+            ['musicTitle', k.trackTitle || 'Track title', k.trackTitlePlaceholder || 'Track title', 160],
+            ['musicArtist', k.artist || 'Artist (optional)', k.artistPlaceholder || 'Artist (optional)', 160],
+          ]) {
+            const input = el('input', 'ring__input ring__mode-source');
+            input.type = 'text';
+            input.maxLength = maxLength;
+            input.autocomplete = 'off';
+            input.spellcheck = false;
+            input.placeholder = placeholder;
+            input.value = c.state[key] || '';
+            input.setAttribute('aria-label', label);
+            input.addEventListener('input', () => { c.state[key] = input.value; });
+            input.addEventListener('pointerdown', (event) => { event.stopPropagation(); c.host.setInteractive?.(true); c.host.focusOverlay?.(true); });
+            input.addEventListener('click', (event) => event.stopPropagation());
+            dialog.append(input);
+          }
+        } else {
+          dialog.append(button(k.chooseMusicFolder || 'Choose a music folder…', async () => {
+            try {
+              const selected = await c.host.modsChooseMusicFolder?.();
+              if (selected?.canceled) return;
+              if (!selected?.ok || !selected.token) {
+                c.state.createModeError = selected?.error || (k.musicFolderChooseFailed || 'The music folder could not be selected.');
+              } else {
+                c.state.musicSelection = { token: selected.token, name: selected.name || '' };
+                c.state.createModeError = '';
+              }
+            } catch (error) { c.state.createModeError = error?.message || (k.musicFolderChooseFailed || 'The music folder could not be selected.'); }
+            c.refresh();
+          }));
+          if (c.state.musicSelection?.name) dialog.append(note(c.state.musicSelection.name, true));
+          dialog.append(note(k.musicFolderHint || 'Audio files in the selected folder will be added to Capri’s music library.', true));
+        }
+      }
+      const nameInput = el('input', 'ring__input');
+      nameInput.classList.add('ring__mode-name');
+      nameInput.type = 'text';
+      nameInput.maxLength = 80;
+      nameInput.autocomplete = 'off';
+      nameInput.spellcheck = false;
+      nameInput.placeholder = k.newModeName || 'Name of the new mode';
+      nameInput.setAttribute('aria-label', nameInput.placeholder);
+      nameInput.value = c.state.createModeDraftName || '';
+      nameInput.addEventListener('input', () => { c.state.createModeDraftName = nameInput.value; });
+      nameInput.addEventListener('pointerdown', (event) => {
+        event.stopPropagation();
+        c.host.setInteractive?.(true);
+      });
+      nameInput.addEventListener('click', (event) => event.stopPropagation());
+      dialog.append(nameInput);
+      // Take keyboard focus; the desktop overlay normally ignores mouse input and is not focusable.
+      c.focus?.(nameInput);
+      if (c.state.createModeError) {
+        const error = note(c.state.createModeError);
+        error.classList.add('ring__mode-dialog-error');
+        error.setAttribute('role', 'alert');
+        dialog.append(error);
+      }
+      dialog.append(buttons(
+        button(k.createMode || 'Create mode', async () => {
+          c.state.createModeError = '';
+          let result;
+          try {
+            result = type === 'palette'
+              ? await c.host.modsCreatePalette?.(nameInput.value, c.state.createModeColors || colors)
+              : type === 'appearance'
+                ? (c.state.accessorySourceType || 'file') === 'url'
+                  ? await c.host.modsCreateAccessoryUrl?.(c.state.accessoryUrl || '', nameInput.value, c.state.createAccessoryLayout || { x: 118, y: 20, width: 120, height: 70 })
+                  : c.state.accessorySelection?.token
+                    ? await c.host.modsCreateAccessory?.(c.state.accessorySelection.token, nameInput.value, c.state.createAccessoryLayout || { x: 118, y: 20, width: 120, height: 70 })
+                    : { ok: false, error: k.chooseAccessoryFirst || 'Choose an accessory image first.' }
+                : (c.state.musicSourceType || 'folder') === 'url'
+                  ? await c.host.modsCreateMusicUrl?.({
+                    name: nameInput.value, title: c.state.musicTitle || '', artist: c.state.musicArtist || '', url: c.state.musicUrl || '',
+                  })
+                  : c.state.musicSelection?.token
+                    ? await c.host.modsCreateMusic?.(c.state.musicSelection.token, nameInput.value)
+                    : { ok: false, error: k.chooseMusicFolderFirst || 'Choose a music folder first.' };
+          } catch (error) { result = { ok: false, error: error?.message || String(error) }; }
+          if (!result?.ok) {
+            c.state.createModeError = result?.code === 'MOD_NAME_TAKEN'
+              ? (k.nameTaken || 'That mode name is already taken.')
+              : String(result?.error || k.modeCreateFailed || 'The mode could not be created.');
+            c.refresh();
+            return;
+          }
+          c.state.createModeType = '';
+          c.state.activeColorField = '';
+          c.state.createModeError = '';
+          c.state.createModeDraftName = '';
+          c.state.createModeColors = null;
+          c.state.accessorySelection = null;
+          c.state.createAccessoryLayout = null;
+          c.state.musicSelection = null;
+          c.state.accessoryUrl = '';
+          c.state.musicUrl = '';
+          c.state.musicTitle = '';
+          c.state.musicArtist = '';
+          c.refresh();
+        }, { primary: true }),
+        button(k.cancelEdit || 'Cancel', closeDialog),
+      ));
+      if (type === 'palette' && c.state.activeColorField) {
+        const field = c.state.activeColorField;
+        const fieldLabel = field === 'primary' ? (k.primaryColor || 'Primary colour') : (k.secondaryColor || 'Secondary colour');
+        const palette = el('section', 'ring__color-palette');
+        palette.setAttribute('role', 'dialog');
+        palette.setAttribute('aria-label', `${fieldLabel} ${k.paletteColors || 'palette'}`);
+        const header = el('header', 'ring__color-palette-header');
+        header.append(el('b', '', fieldLabel));
+        const close = el('button', 'ring__mode-close', '×');
+        close.type = 'button';
+        close.setAttribute('aria-label', k.closePalette || 'Close colour palette');
+        close.addEventListener('click', (event) => {
+          event.stopPropagation();
+          c.state.activeColorField = '';
+          c.refresh();
+        });
+        header.append(close);
+        palette.append(header);
+        palette.append(colorControls({
+          label: fieldLabel,
+          value: c.state.createModeColors?.[field] || colors[field],
+          k,
+          onChange: (color) => {
+            c.state.createModeColors = { ...(c.state.createModeColors || colors), [field]: color };
+          },
+        }));
+        const swatches = el('div', 'ring__color-swatches');
+        const choices = [
+          '#ff2152', '#ff4f87', '#ff8fc4', '#ffb347', '#ffc531', '#f4f2ff',
+          '#b6ff2e', '#62e6a7', '#22e4ff', '#1fd6ff', '#559dff', '#7b3dff',
+          '#a45bff', '#d4134a', '#ffffff', '#22283a',
+        ];
+        for (const hex of choices) {
+          const swatch = el('button', 'ring__color-swatch');
+          swatch.type = 'button';
+          swatch.style.setProperty('--swatch-color', hex);
+          swatch.setAttribute('aria-label', `${fieldLabel} ${hex}`);
+          swatch.title = hex;
+          swatch.addEventListener('click', (event) => {
+            event.stopPropagation();
+            c.state.createModeColors = { ...(c.state.createModeColors || colors), [field]: hex };
+            c.state.activeColorField = '';
+            c.refresh();
+          });
+          swatches.append(swatch);
+        }
+        palette.append(swatches);
+        backdrop.append(palette);
+      }
+      backdrop.append(dialog);
+      (c.card || root).append(backdrop);
+    }
+    root.append(button(k.addMusicFolder || 'Add music folder…', async () => {
+      try {
+        const result = await c.host.modsImportMusicFolder?.();
+        if (result?.canceled) return;
+        if (!result?.ok) throw new Error(result?.error || 'The music folder could not be added.');
+        c.state.modsError = '';
+        await refreshMods();
+      } catch (error) {
+        showModError(error);
+      } finally {
+        c.host.setInteractive?.(true);
+      }
+    }));
+    root.append(note(k.importHint || 'Import palette or accessory mods here.', true));
+    root.append(modError);
+    const modsRoot = el('div', 'ring__mods');
+    root.append(modsRoot);
+    const refreshMods = async () => {
+      modsRoot.replaceChildren();
+      let mods;
+      try {
+        const result = await c.host.modsList?.();
+        if (!result?.ok) throw new Error(result?.error || 'Installed mods could not be loaded.');
+        mods = result.mods || [];
+      } catch (error) {
+        showModError(error);
+        modsRoot.append(note(k.noMods || 'No mods installed', true));
+        c.fit?.();
+        return;
+      }
+      const paletteMods = mods.filter((mod) => !mod.problem && mod.kind === 'palette');
+      const appearanceMods = mods.filter((mod) => !mod.problem && mod.kind === 'appearance');
+      const musicMods = mods.filter((mod) => !mod.problem && mod.kind === 'music');
+      const renderEditor = (mod) => {
+        const draft = c.state.modDraft?.id === mod.id ? c.state.modDraft : null;
+        if (!draft) return note(k.loadingEdit || 'Loading mode…', true);
+        const editor = el('section', 'ring__mod-editor');
+        editor.append(heading(`${k.edit || 'Edit'} · ${mod.name}`));
+        if (draft.palette) {
+          const defaults = { hue: 0.968, mix: 0.6, sat: 1, val: 1 };
+          const paletteColors = el('div', 'ring__mod-colors');
+          for (const [key, label, fallback] of [
+            ['red', k.primaryColor || 'Primary colour', '#ff2152'],
+            ['violet', k.secondaryColor || 'Secondary colour', '#7b3dff'],
+          ]) {
+            const row = el('label', 'ring__mod-color');
+            row.append(el('span', '', label));
+            const selected = normalizedColor(draft.palette.fx?.[key]) || fallback;
+            row.append(colorControls({
+              label, value: selected, k,
+              onChange: (color) => {
+                draft.palette.fx = { ...(draft.palette.fx || {}), [key]: color };
+                if (key === 'red') applyPrimaryToPalette(draft.palette, color);
+              },
+            }));
+            paletteColors.append(row);
+          }
+          editor.append(heading(k.paletteColors || 'Palette colours'), paletteColors);
+          for (const [field, min, max, step] of [['hue', 0, 1, 0.01], ['mix', 0, 1, 0.01], ['saturation', 0, 1.5, 0.01], ['brightness', 0, 1.5, 0.01]]) {
+            const key = field === 'saturation' ? 'sat' : field === 'brightness' ? 'val' : field;
+            editor.append(slider({ left: k[field] || field, min, max, step, value: draft.palette[key] ?? defaults[key], show: (value) => Number(value).toFixed(2), onInput: (value) => { draft.palette[key] = value; } }));
+          }
+        } else if (draft.appearance) {
+          editor.append(modAccessoryEditor(c, draft, k));
+        }
+        editor.append(buttons(
+          button(k.saveChanges || 'Save changes', async () => {
+            const changes = draft.palette ? { palette: draft.palette } : { appearance: draft.appearance };
+            c.state.modDraft = null;
+            c.state.editModId = '';
+            await runModAction(() => c.host.modsUpdate?.(mod.id, changes));
+          }, { primary: true }),
+          button(k.cancelEdit || 'Cancel', () => { c.state.modDraft = null; c.state.editModId = ''; c.refresh(); }),
+        ));
+        const versions = el('div', 'ring__mod-history');
+        versions.append(heading(k.restoreVersion?.split('{')[0].trim() || 'Saved versions'));
+        Promise.resolve(c.host.modsHistory?.(mod.id)).then((result) => {
+          if (!result) return;
+          if (!result?.ok || !result.versions?.length) { versions.append(note(k.noHistory || 'No earlier versions saved.', true)); c.fit?.(); return; }
+          for (const version of result.versions) {
+            const date = new Intl.DateTimeFormat(c.lang, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(version.savedAt));
+            const label = fmt(k.restoreVersion || 'Restore {date}', { date: `${date}${version.version ? ` · ${version.version}` : ''}` });
+            versions.append(button(label, async () => {
+              c.state.modDraft = null;
+              c.state.editModId = '';
+              await runModAction(() => c.host.modsRestore?.(mod.id, version.id));
+            }));
+          }
+          c.fit?.();
+        }).catch((error) => showModError(error));
+        editor.append(versions);
+        return editor;
+      };
+      const beginEdit = async (mod) => {
+        c.state.editModId = mod.id;
+        c.state.modDraft = null;
+        c.refresh();
+        try {
+          const result = await c.host.modsGet?.(mod.id);
+          if (!result?.ok || !result.mod) throw new Error(result?.error || 'This mode could not be loaded for editing.');
+          c.state.modDraft = {
+            id: mod.id,
+            palette: result.mod.palette ? JSON.parse(JSON.stringify(result.mod.palette)) : null,
+            appearance: result.mod.appearance ? JSON.parse(JSON.stringify(result.mod.appearance)) : null,
+          };
+        } catch (error) {
+          c.state.editModId = '';
+          showModError(error);
+        }
+        if (c.open) c.refresh();
+      };
+      if (paletteMods.length) {
+        modsRoot.append(heading(k.paletteMods || 'Palette mods'));
+        for (const mod of paletteMods) {
+          modsRoot.append(toggle(mod.name + (mod.version ? ` · ${mod.version}` : ''), mod.enabled, async (on) => {
+            await runModAction(() => c.host.modsSetEnabled?.(mod.id, on));
+          }));
+          modsRoot.append(button(k.edit || 'Edit', () => beginEdit(mod)));
+          if (c.state.editModId === mod.id) modsRoot.append(renderEditor(mod));
+          modsRoot.append(button(k.removeMod || 'Remove', async () => {
+            await runModAction(() => c.host.modsUninstall?.(mod.id));
+          }, { danger: true }));
+        }
+      }
+      if (appearanceMods.length) {
+        modsRoot.append(heading(k.appearanceMods || 'Appearance mods'));
+        for (const mod of appearanceMods) {
+          if (mod.remoteImageHost) {
+            modsRoot.append(note(fmt(k.remoteImage || 'Remote image from {host}; loaded while this mod is enabled.', { host: mod.remoteImageHost }), true));
+          }
+          modsRoot.append(toggle(mod.name + (mod.version ? ` · ${mod.version}` : ''), mod.enabled, async (on) => {
+            await runModAction(() => c.host.modsSetEnabled?.(mod.id, on));
+          }));
+          modsRoot.append(button(k.edit || 'Edit', () => beginEdit(mod)));
+          if (c.state.editModId === mod.id) modsRoot.append(renderEditor(mod));
+          modsRoot.append(button(k.removeMod || 'Remove', async () => {
+            await runModAction(() => c.host.modsUninstall?.(mod.id));
+          }, { danger: true }));
+        }
+      }
+      if (musicMods.length) {
+        modsRoot.append(heading(k.musicModes || 'Music modes'));
+        for (const mod of musicMods) {
+          modsRoot.append(toggle(`${mod.name} · ${fmt(k.trackCount || '{count} tracks', { count: mod.trackCount || 0 })}`, mod.enabled, async (on) => {
+            await runModAction(() => c.host.modsSetEnabled?.(mod.id, on));
+          }));
+          modsRoot.append(button(k.removeMod || 'Remove', async () => {
+            await runModAction(() => c.host.modsUninstall?.(mod.id));
+          }, { danger: true }));
+        }
+      }
+      const brokenMods = mods.filter((mod) => mod.problem);
+      for (const mod of brokenMods) {
+        modsRoot.append(note(`${mod.name}: ${mod.problem}`, true));
+        modsRoot.append(button(k.removeMod || 'Remove', async () => {
+          await runModAction(() => c.host.modsUninstall?.(mod.fileName || mod.id));
+        }, { danger: true }));
+      }
+      if (!paletteMods.length && !appearanceMods.length && !musicMods.length && !brokenMods.length) {
+        modsRoot.append(note(k.noMods || 'No mods installed', true));
+      }
+      c.fit?.();
+    };
+    refreshMods();
     return root;
   },
 };
@@ -1106,4 +1844,4 @@ const more = {
   },
 };
 
-export const TABS = { bond, brain, mic, senses, character, colours, voice, more, chat: { render: () => el('div') } };
+export const TABS = { bond, brain, mic, senses, character, colours, mods, voice, more, chat: { render: () => el('div') } };

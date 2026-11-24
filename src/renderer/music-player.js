@@ -14,6 +14,7 @@ const host = window.host;
 const devLog = (...args) => { if (host?.isDev) console.log(...args); };
 const track = document.getElementById('track');
 const localTrackGroup = document.getElementById('local-tracks');
+const modeTrackGroup = document.getElementById('mode-tracks');
 const detectedTrackGroup = document.getElementById('detected-tracks');
 const service = document.getElementById('service');
 const title = document.getElementById('title');
@@ -25,6 +26,7 @@ const duration = document.getElementById('duration');
 const playbackState = document.getElementById('playback-state');
 const mediaTabs = document.getElementById('media-tabs');
 const audio = document.getElementById('library-audio');
+audio.referrerPolicy = 'no-referrer';
 let index = 0;
 let playing = false;
 let localPlayback = false;
@@ -35,19 +37,47 @@ let playbackRequest = 0;
 const DEFAULT_ART = '../../assets/capri/capri-face.png';
 
 function installLibrary(items) {
+  const validSource = (src) => typeof src === 'string' && (
+    /^capri:\/\/app\/assets\/songs\/[^/]+\.mp3$/iu.test(src)
+    || /^capri:\/\/music\/[a-z0-9-]{1,48}__[a-z0-9-]{1,48}$/iu.test(src)
+    || /^https:\/\//iu.test(src)
+  );
   const safeItems = Array.isArray(items) ? items.filter((song) => song
     && typeof song.id === 'string' && typeof song.title === 'string'
-    && typeof song.src === 'string' && /^capri:\/\/app\/assets\/songs\/[^/]+\.mp3$/iu.test(song.src)) : [];
+    && validSource(song.src)) : [];
   if (!safeItems.length) return false;
+  const previousSelection = track.value;
+  const currentSource = audio.currentSrc || audio.src;
+  if (currentSource && library.some((song) => song.src === currentSource)
+    && !safeItems.some((song) => song.src === currentSource)) {
+    playbackRequest += 1;
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    playing = false;
+    localPlayback = false;
+    localTrackActive = false;
+  }
   library = safeItems;
-  songs = library.map((song) => song.title);
-  availableSongs = [...songs];
+  songs = library.map((song) => `local:${song.id}`);
+  availableSongs = [...songs, ...[...(detectedTrackGroup?.options || [])].map((option) => option.value)];
   localTrackGroup?.replaceChildren();
-  for (const song of songs) {
+  modeTrackGroup?.replaceChildren();
+  for (const song of library) {
     const option = document.createElement('option');
-    option.value = song;
-    option.textContent = song;
-    localTrackGroup?.append(option);
+    option.value = `local:${song.id}`;
+    option.textContent = song.title;
+    if (song.mode) {
+      option.label = `${song.title} — ${song.mode}`;
+      modeTrackGroup?.append(option);
+    } else localTrackGroup?.append(option);
+  }
+  if (availableSongs.includes(previousSelection)) {
+    track.value = previousSelection;
+    index = availableSongs.indexOf(previousSelection);
+  } else {
+    index = 0;
+    track.value = songs[0] || '';
   }
   devLog(`[music-player] catalogue local chargé (${songs.length} titres)`);
   return true;
@@ -56,11 +86,9 @@ installLibrary(bundledLibrary);
 
 async function initializeLibrary() {
   devLog('[music-player] initialisation du catalogue', { bundled: bundledLibrary.length, hostAvailable: Boolean(host), groupAvailable: Boolean(localTrackGroup) });
-  if (!library.length) {
-    const result = await host?.musicPlayerLibrary?.();
-    devLog('[music-player] résultat du catalogue Main', { ok: result?.ok, count: result?.tracks?.length, error: result?.error });
-    if (result?.ok) installLibrary(result.tracks);
-  }
+  const catalogResult = await host?.musicPlayerLibrary?.();
+  devLog('[music-player] résultat du catalogue Main', { ok: catalogResult?.ok, count: catalogResult?.tracks?.length, error: catalogResult?.error });
+  if (catalogResult?.ok) installLibrary(catalogResult.tracks);
   const result = await host?.musicPlayerReady?.({ ok: library.length > 0, error: 'La bibliothèque des morceaux intégrés est indisponible.' });
   devLog('[music-player] accusé prêt', { count: library.length, ok: result?.ok });
   if (!library.length || !result?.ok) {
@@ -70,10 +98,11 @@ async function initializeLibrary() {
 }
 
 function addTrack(song) {
-  if (availableSongs.includes(song)) return;
-  availableSongs.push(song);
+  const value = `session:${song}`;
+  if (availableSongs.includes(value)) return;
+  availableSongs.push(value);
   const option = document.createElement('option');
-  option.value = song;
+  option.value = value;
   option.textContent = song;
   detectedTrackGroup.append(option);
 }
@@ -83,15 +112,16 @@ async function detectSessions() {
   const detected = (result.sessions || [])
     .filter((session) => session.title)
     .map((session) => session.playlist ? `${session.title} — ${session.playlist}` : session.title);
-  for (const song of detected) if (![...track.options].some((option) => option.value === song)) addTrack(song);
+  for (const song of detected) if (![...track.options].some((option) => option.value === `session:${song}`)) addTrack(song);
   renderTabs(result.sessions || []);
   if (isLocalPlayback()) return;
   const active = result.sessions?.find((session) => session.playing) || result.sessions?.[0];
   if (!active) { renderSession(null); return; }
   const detectedTitle = active.playlist ? `${active.title} — ${active.playlist}` : active.title;
-  const detectedIndex = availableSongs.indexOf(detectedTitle);
+  const detectedValue = `session:${detectedTitle}`;
+  const detectedIndex = availableSongs.indexOf(detectedValue);
   if (detectedIndex >= 0) index = detectedIndex;
-  track.value = detectedTitle;
+  track.value = detectedValue;
   title.textContent = active.title;
   artist.textContent = [active.artist, active.album, active.playlist].filter(Boolean).join(' · ') || active.service;
   service.value = ['deezer', 'spotify', 'youtube'].includes(active.service) ? active.service : 'auto';
@@ -102,6 +132,14 @@ async function detectSessions() {
 
 function selected() {
   return availableSongs[index];
+}
+function localForValue(value) {
+  if (!String(value || '').startsWith('local:')) return null;
+  return library.find((song) => `local:${song.id}` === value) || null;
+}
+function selectedTitle() {
+  const local = localForValue(selected());
+  return local?.title || String(selected() || '').replace(/^session:/, '');
 }
 function hasBundledAudioSource() {
   const source = audio.currentSrc || audio.src;
@@ -205,7 +243,7 @@ function startProgressPolling() {
   }, 2000);
 }
 async function openSelected() {
-  const local = library.find((song) => song.title === selected());
+  const local = localForValue(selected());
   if (local) {
     const request = ++playbackRequest;
     const pauseExternal = !isLocalPlayback() && activeSession?.playing && typeof host.musicPlayerMedia === 'function';
@@ -251,9 +289,9 @@ async function openSelected() {
   audio.pause();
   audio.removeAttribute('src');
   audio.load();
-  const result = await host.musicPlayerPlay({ title: selected(), service: service.value });
+  const result = await host.musicPlayerPlay({ title: selectedTitle(), service: service.value });
   if (result?.ok) {
-    title.textContent = selected();
+    title.textContent = selectedTitle();
     artist.textContent = `Recherche ouverte sur ${String(result.service || service.value).toUpperCase()} · lance le morceau dans le navigateur ou l’application.`;
   }
   else artist.textContent = result?.error || 'La recherche musicale n’a pas pu être ouverte.';
@@ -285,8 +323,8 @@ window.addEventListener('capri:music-local-play', async (event) => {
     await host.musicPlayerLocalResult?.({ id, requestId, ok: false, error: 'Morceau Capri introuvable.' });
     return;
   }
-  index = songs.indexOf(local.title);
-  track.value = local.title;
+  track.value = `local:${local.id}`;
+  index = songs.indexOf(track.value);
   const ok = await openSelected();
   await host.musicPlayerLocalResult?.({ id, requestId, ok, error: ok ? '' : 'Le navigateur n’a pas pu démarrer la lecture audio.' });
 });
@@ -298,9 +336,9 @@ document.getElementById('toggle').addEventListener('click', async () => {
     else audio.pause();
     return;
   }
-  const selectedLocal = library.find((song) => song.title === track.value);
+  const selectedLocal = localForValue(track.value);
   if (selectedLocal) {
-    index = songs.indexOf(selectedLocal.title);
+    index = songs.indexOf(`local:${selectedLocal.id}`);
     void openSelected();
     return;
   }
@@ -395,6 +433,7 @@ const closeButton = document.getElementById('close');
 // Keep click for keyboard activation; closeRequested prevents the pointer click firing twice.
 closeButton.addEventListener('click', closePlayer);
 render();
+host.onMusicLibraryChanged?.(() => initializeLibrary().catch((error) => devLog('[music-player] actualisation catalogue échouée', error)));
 initializeLibrary().catch((error) => {
   devLog('[music-player] initialisation de la bibliothèque échouée', error);
   host.musicPlayerReady?.({ ok: false, error: 'La bibliothèque des morceaux intégrés n’a pas pu être chargée.' });

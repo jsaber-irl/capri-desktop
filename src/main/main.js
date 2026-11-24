@@ -3,6 +3,7 @@
 const path = require('node:path');
 const os = require('node:os');
 const fs = require('node:fs');
+const { randomUUID } = require('node:crypto');
 const { spawn: spawnProgram, execFile } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 const {
@@ -50,6 +51,7 @@ const { createDataWindow } = require('./data-window');
 const { createPrivacyTools } = require('./privacy-tools');
 const { createMusicPlayer } = require('./music-player');
 const { createTranslationWindow } = require('./translation-window');
+const { createDataMods } = require('./data-mods');
 const { createVersionWindow } = require('./version-window');
 const { createUpdateManager } = require('./update-manager');
 const { runUpdateHelper, recordFailure } = require('./update-helper');
@@ -140,6 +142,68 @@ let terminalBounds = null;
 let terminalExpandedBounds = null;
 let terminalIsCompact = false;
 let macPermissions = null;
+let dataMods = null;
+const pendingModImports = new Map();
+const pendingAccessorySelections = new Map();
+const pendingMusicSelections = new Map();
+const MOD_IMPORT_CONFIRMATION_TTL = 5 * 60 * 1000;
+const ACCESSORY_SELECTION_TTL = 5 * 60 * 1000;
+function dataModsNow() {
+  return dataMods ||= createDataMods({
+    userData: app.getPath('userData'),
+    platform: process.platform,
+    projectModsDir: app.isPackaged ? null : path.join(app.getAppPath(), 'mods'),
+  });
+}
+function stageDataModImport(file) {
+  const manager = dataModsNow();
+  const duplicate = manager.findDuplicate(file);
+  if (!duplicate) return { ok: true, mod: modSummary(manager.import(file)) };
+  const now = Date.now();
+  for (const [token, pending] of pendingModImports) {
+    if (pending.expiresAt <= now) pendingModImports.delete(token);
+  }
+  while (pendingModImports.size >= 16) pendingModImports.delete(pendingModImports.keys().next().value);
+  const confirmationToken = randomUUID();
+  pendingModImports.set(confirmationToken, { file, expiresAt: now + MOD_IMPORT_CONFIRMATION_TTL });
+  const { name, version, copyName } = duplicate;
+  return { ok: false, needsConfirmation: true, confirmationToken, duplicate: { name, version, copyName } };
+}
+function confirmDataModImport(token) {
+  if (typeof token !== 'string' || !/^[0-9a-f-]{36}$/i.test(token)) {
+    return { ok: false, error: 'The duplicate import confirmation is invalid.' };
+  }
+  const pending = pendingModImports.get(token);
+  pendingModImports.delete(token);
+  if (!pending || pending.expiresAt <= Date.now()) {
+    return { ok: false, error: 'The duplicate import confirmation has expired.' };
+  }
+  try {
+    const mod = dataModsNow().import(pending.file, { allowDuplicate: true });
+    rebuildTray();
+    toOverlay('mods:changed', rendererConfig());
+    return { ok: true, mod: modSummary(mod) };
+  } catch (error) {
+    return { ok: false, error: error?.message || String(error) };
+  }
+}
+function cancelDataModImport(token) {
+  if (typeof token === 'string') pendingModImports.delete(token);
+  return { ok: true };
+}
+function modSummary(mod, includeDetails = false) {
+  if (!mod) return null;
+  const { palette: _palette, appearance, music: _music, source: _source, ...summary } = mod;
+  const result = {
+    ...summary,
+    remoteImageHost: appearance?.src?.startsWith('https://') ? new URL(appearance.src).host : '',
+  };
+  if (includeDetails) {
+    if (mod.palette) result.palette = mod.palette;
+    if (appearance) result.appearance = appearance;
+  }
+  return result;
+}
 const farewell = createFarewell({
   sendCommand,
   quit: () => app.quit(),
@@ -175,7 +239,19 @@ const drawWindow = createDrawWindow({ BrowserWindow, ipcMain, dialog, preload: p
   sendCommand('drawingFailure', { message, code });
   return true;
 } });
-const computerControlWindow = createComputerControl({ BrowserWindow, ipcMain, desktopCapturer, screen, systemPreferences, config: { load: () => llmConfig(config.load()) }, llm, macAutomationGranted: () => macPermissions?.computerControlGranted() === true, preload: path.join(__dirname, '..', 'computer-control-preload.js'), confirmPreload: path.join(__dirname, '..', 'computer-control-confirm-preload.js') });
+const computerControlWindow = createComputerControl({
+  BrowserWindow,
+  ipcMain,
+  desktopCapturer,
+  screen,
+  systemPreferences,
+  config: { load: () => llmConfig(config.load()) },
+  llm,
+  macAutomationGranted: () => macPermissions?.computerControlGranted() === true,
+  preload: path.join(__dirname, '..', 'computer-control-preload.js'),
+  confirmPreload: path.join(__dirname, '..', 'computer-control-confirm-preload.js'),
+  onPreviewClosed: () => updateConfig({ computerControlPreview: false }),
+});
 let dataWindow = null;
 // the recording she was given as her voice, if any (voice-sample.js): in her own data folder
 const voiceSample = createSample({ dir: () => path.join(app.getPath('userData'), 'voices') });
@@ -357,6 +433,7 @@ const musicPlayer = createMusicPlayer({
   playTrack: playMusicTrack,
   media: (request) => musicControl.command(request),
   listMedia: () => musicControl.list(),
+  getLibrary: () => dataModsNow().musicLibrary(),
   tabAction: mediaTabAction,
 });
 const translationWindow = createTranslationWindow({
@@ -465,6 +542,14 @@ privacyTools.applyRetention();
 function serveProtocol() {
   protocol.handle('capri', async (request) => {
     const url = new URL(request.url);
+    if (url.host === 'music') {
+      let id = '';
+      try { id = decodeURIComponent(url.pathname.slice(1)); } catch {}
+      const target = dataModsNow().musicSourceForId(id);
+      if (!target) return new Response('not found', { status: 404 });
+      try { return await net.fetch(pathToFileURL(target).toString()); }
+      catch { return new Response('not found', { status: 404 }); }
+    }
     const base = url.host === 'usersounds' ? userSoundsDir() : ROOT;
     let target = path.resolve(base, '.' + decodeURIComponent(url.pathname));
     if (target !== base && !target.startsWith(base + path.sep)) {
@@ -899,7 +984,17 @@ function resolveLang(setting) {
 /** Produit la configuration Renderer sans transmettre les valeurs des clés API. */
 function rendererConfig() {
   const { apiKeys, ...cfg } = config.load(); // the keys stay here: the overlay only learns which ones are set
-  return { ...cfg, keys: Object.keys(apiKeys || {}), assistant: activeAssistant().id, lang: resolveLang(cfg.lang), langSetting: LANGS.includes(cfg.lang) ? cfg.lang : 'auto', floorGap: overlayArea().gap };
+  const active = dataModsNow().active();
+  return {
+    ...cfg,
+    dataMod: active?.palette ? { id: active.paletteId || active.id, palette: active.palette } : null,
+    appearanceMod: active?.appearance ? { id: active.appearanceId || active.id, appearance: active.appearance } : null,
+    keys: Object.keys(apiKeys || {}),
+    assistant: activeAssistant().id,
+    lang: resolveLang(cfg.lang),
+    langSetting: LANGS.includes(cfg.lang) ? cfg.lang : 'auto',
+    floorGap: overlayArea().gap,
+  };
 }
 
 // A setting changed (her menus, her ring, her setup). Only what really changed is acted on: the same
@@ -1214,12 +1309,106 @@ function buildTray() {
     { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     { label: t.generalSettings || text3('Paramètres généraux','General settings','Общие настройки'), submenu: [
       { label: t.cursor, type: 'checkbox', checked: cfg.capriCursor === true, click: (item) => updateConfig({ capriCursor: item.checked }) },
-      { label: text3('Autoriser le contrôle du bureau','Allow desktop control','Разрешить управление рабочим столом'), type: 'checkbox', checked: cfg.computerControl === true, click: (item) => { updateConfig({ computerControl: item.checked }); if (item.checked && config.load().computerControlPreview !== false) computerControlWindow.show(); else computerControlWindow.setCompactVisible(false); } },
-      { label: text3('Afficher l’aperçu compact en haut à droite','Show compact top-right preview','Показывать компактный предпросмотр справа вверху'), type: 'checkbox', enabled: cfg.computerControl === true, checked: cfg.computerControlPreview !== false, click: (item) => { updateConfig({ computerControlPreview: item.checked }); if (item.checked && config.load().computerControl === true) computerControlWindow.show(); else computerControlWindow.setCompactVisible(false); } },
+      { label: text3('Autoriser le contrôle du bureau','Allow desktop control','Разрешить управление рабочим столом'), type: 'checkbox', checked: cfg.computerControl === true, click: (item) => { updateConfig({ computerControl: item.checked }); if (item.checked && config.load().computerControlPreview === true) computerControlWindow.show(); else computerControlWindow.setCompactVisible(false); } },
+      { label: text3('Afficher l’aperçu compact en haut à droite','Show compact top-right preview','Показывать компактный предпросмотр справа вверху'), type: 'checkbox', enabled: cfg.computerControl === true, checked: cfg.computerControlPreview === true, click: (item) => { updateConfig({ computerControlPreview: item.checked }); if (item.checked && config.load().computerControl === true) computerControlWindow.show(); else computerControlWindow.setCompactVisible(false); } },
       { label: `${text3('Gaming Mode','Gaming Mode','Игровой режим')}${cfg.gamingMode ? text3(' — activé',' — on',' — включён') : ''}`, type: 'checkbox', checked: cfg.gamingMode === true, click: (item) => updateConfig({ gamingMode: item.checked }) },
       { type: 'separator' },
       { label: text3('Données et confidentialité…','Data and privacy…','Данные и конфиденциальность…'), click: () => dataWindow.show() },
       { label: t.updates, click: () => versionWindow.show() },
+      {
+        label: t.mods,
+        submenu: [
+          { label: text3('Modifier les mods…','Edit modes…','Изменить моды…'), click: () => sendCommand('ring', { tab: 'mods' }) },
+          { label: text3('Ajouter un dossier de musique…','Add a music folder…','Добавить папку с музыкой…'), click: async () => {
+            const { canceled, filePaths } = await dialog.showOpenDialog(overlay || undefined, {
+              title: text3('Ajouter un dossier de musique','Add a music folder','Добавить папку с музыкой'),
+              properties: ['openDirectory'],
+            });
+            if (canceled || !filePaths[0]) return;
+            try {
+              const mod = dataModsNow().importMusicFolder(filePaths[0]);
+              musicPlayer.refreshLibrary();
+              toOverlay('mods:changed', rendererConfig());
+              sendCommand('modsImportDone', { modName: mod.name });
+            } catch (error) {
+              sendCommand('modsImportFailed', { error: error?.message || String(error) });
+            }
+          } },
+          { type: 'separator' },
+          {
+            label: t.importMod,
+            click: () => {
+              dialog.showOpenDialog(overlay || undefined, {
+                title: t.importMod,
+                properties: ['openFile'],
+                filters: [{ name: 'Capri data mod', extensions: ['capri-mod'] }],
+              }).then(({ canceled, filePaths }) => {
+                if (canceled || !filePaths[0]) return;
+                try {
+                  const result = stageDataModImport(filePaths[0]);
+                  if (result.needsConfirmation) sendCommand('modsDuplicatePrompt', result);
+                  else {
+                    rebuildTray();
+                    toOverlay('mods:changed', rendererConfig());
+                    sendCommand('modsImportDone', { modName: result.mod.name });
+                  }
+                } catch (error) {
+                  sendCommand('modsImportFailed', { error: error?.message || String(error) });
+                }
+              }).catch((error) => sendCommand('modsImportFailed', { error: error?.message || String(error) }));
+            },
+          },
+          { type: 'separator' },
+          ...dataModsNow().list().flatMap((mod) => {
+            if (mod.problem) {
+              return [
+                { label: `${mod.name}: ${mod.problem}`, enabled: false },
+                {
+                  label: `${t.removeMod}: ${mod.name}`,
+                  click: () => {
+                    try {
+                      dataModsNow().uninstall(mod.fileName || mod.id);
+                      rebuildTray();
+                      toOverlay('mods:changed', rendererConfig());
+                    } catch (error) {
+                      sendCommand('modsActionFailed', { error: error?.message || String(error) });
+                    }
+                  },
+                },
+              ];
+            }
+            return [{
+              label: mod.name + (mod.version ? ` (${mod.version})` : ''),
+              type: 'checkbox',
+              checked: mod.enabled,
+              click: (item) => {
+                try {
+                  dataModsNow().setEnabled(mod.id, item.checked);
+                  if (mod.kind === 'appearance') updateConfig({ activeAppearanceMod: item.checked ? mod.id : '' });
+                  else updateConfig({ activeDataMod: item.checked ? mod.id : '' });
+                  toOverlay('mods:changed', rendererConfig());
+                  rebuildTray();
+                } catch (error) {
+                  sendCommand('modsActionFailed', { error: error?.message || String(error) });
+                }
+              },
+            }, {
+              label: `${t.removeMod}: ${mod.name}`,
+              click: () => {
+                try {
+                  dataModsNow().uninstall(mod.id);
+                  if (config.load().activeAppearanceMod === mod.id) updateConfig({ activeAppearanceMod: '' });
+                  if (config.load().activeDataMod === mod.id) updateConfig({ activeDataMod: '' });
+                  toOverlay('mods:changed', rendererConfig());
+                  rebuildTray();
+                } catch (error) {
+                  sendCommand('modsActionFailed', { error: error?.message || String(error) });
+                }
+              },
+            }];
+          }),
+        ],
+      },
     { type: 'separator' },
     {
       label: t.discord,
@@ -1236,8 +1425,12 @@ function buildTray() {
     {
       label: t.colors,
       submenu: THEMES.map((theme) => ({
-        label: t.themes[theme], type: 'radio', checked: (cfg.colourTheme || 'classic') === theme, click: () => updateConfig({ colourTheme: theme }),
-      })),
+          label: t.themes[theme], type: 'radio', checked: !cfg.activeDataMod && (cfg.colourTheme || 'classic') === theme,
+          click: () => {
+            if (cfg.activeDataMod) dataModsNow().setEnabled(cfg.activeDataMod, false);
+            updateConfig({ activeDataMod: '', colourTheme: theme });
+          },
+        })),
     },
     {
       label: t.voice,
@@ -1971,6 +2164,221 @@ function registerIpc() {
     else terminalWin.setResizable(true);
   });
   ipcMain.handle('hooks:status', () => activeHooks().status());
+  ipcMain.handle('mods:list', () => ({
+    ok: true,
+    mods: dataModsNow().list().map(modSummary),
+  }));
+  ipcMain.handle('mods:get', (event, id) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    try {
+      const modId = String(id || '');
+      if (!/^[a-z0-9][a-z0-9-]{0,47}$/.test(modId)) throw new Error('Invalid mod id.');
+      const mod = dataModsNow().list().find((item) => item.id === modId);
+      if (!mod || mod.problem) throw new Error(mod?.problem || 'The mod is not available for editing.');
+      return { ok: true, mod: modSummary(mod, true) };
+    } catch (err) { return { ok: false, error: err?.message || String(err) }; }
+  });
+  ipcMain.handle('mods:create-palette', (event, name, colors) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    try {
+      const safeColors = colors && typeof colors === 'object' && !Array.isArray(colors)
+        ? { primary: String(colors.primary || '').slice(0, 20), secondary: String(colors.secondary || '').slice(0, 20) }
+        : {};
+      const mod = dataModsNow().createPaletteMode(String(name || '').slice(0, 80), safeColors);
+      updateConfig({ activeDataMod: mod.id });
+      toOverlay('mods:changed', rendererConfig());
+      return { ok: true, mod: modSummary(mod) };
+    } catch (err) { return { ok: false, code: err?.code || '', error: err?.message || String(err) }; }
+  });
+  ipcMain.handle('mods:choose-accessory', async (event) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    const { canceled, filePaths } = await dialog.showOpenDialog(overlay || undefined, {
+      title: 'Choose an accessory PNG',
+      properties: ['openFile'],
+      filters: [{ name: 'PNG image', extensions: ['png'] }],
+    });
+    if (canceled || !filePaths[0]) return { ok: false, canceled: true };
+    const now = Date.now();
+    for (const [token, selection] of pendingAccessorySelections) {
+      if (selection.expiresAt <= now) pendingAccessorySelections.delete(token);
+    }
+    const token = randomUUID();
+    pendingAccessorySelections.set(token, { file: filePaths[0], expiresAt: now + ACCESSORY_SELECTION_TTL });
+    return { ok: true, token, name: path.basename(filePaths[0]) };
+  });
+  ipcMain.handle('mods:create-accessory', (event, token, name, layout) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    const selection = typeof token === 'string' ? pendingAccessorySelections.get(token) : null;
+    if (!selection || selection.expiresAt <= Date.now()) {
+      if (typeof token === 'string') pendingAccessorySelections.delete(token);
+      return { ok: false, error: 'Choose an accessory image again before creating the mode.' };
+    }
+    try {
+      const safeLayout = {};
+      if (layout && typeof layout === 'object' && !Array.isArray(layout)) {
+        for (const key of ['x', 'y', 'width', 'height']) {
+          if (Number.isFinite(layout[key])) safeLayout[key] = layout[key];
+        }
+      }
+      const mod = dataModsNow().createAccessoryMode(selection.file, String(name || '').slice(0, 80), safeLayout);
+      pendingAccessorySelections.delete(token);
+      updateConfig({ activeAppearanceMod: mod.id });
+      toOverlay('mods:changed', rendererConfig());
+      return { ok: true, mod: modSummary(mod) };
+    } catch (err) { return { ok: false, code: err?.code || '', error: err?.message || String(err) }; }
+  });
+  ipcMain.handle('mods:create-accessory-url', (event, imageUrl, name, layout) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    try {
+      const safeLayout = {};
+      if (layout && typeof layout === 'object' && !Array.isArray(layout)) {
+        for (const key of ['x', 'y', 'width', 'height']) {
+          if (Number.isFinite(layout[key])) safeLayout[key] = layout[key];
+        }
+      }
+      const mod = dataModsNow().createAccessoryUrlMode(
+        String(imageUrl || '').slice(0, 2048), String(name || '').slice(0, 80), safeLayout,
+      );
+      updateConfig({ activeAppearanceMod: mod.id });
+      toOverlay('mods:changed', rendererConfig());
+      return { ok: true, mod: modSummary(mod) };
+    } catch (err) { return { ok: false, code: err?.code || '', error: err?.message || String(err) }; }
+  });
+  ipcMain.handle('mods:choose-music-folder', async (event) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    const { canceled, filePaths } = await dialog.showOpenDialog(overlay || undefined, {
+      title: 'Choose a music folder for a Capri mode',
+      properties: ['openDirectory'],
+    });
+    if (canceled || !filePaths[0]) return { ok: false, canceled: true };
+    const now = Date.now();
+    for (const [token, selection] of pendingMusicSelections) {
+      if (selection.expiresAt <= now) pendingMusicSelections.delete(token);
+    }
+    const token = randomUUID();
+    pendingMusicSelections.set(token, { folder: filePaths[0], expiresAt: now + ACCESSORY_SELECTION_TTL });
+    return { ok: true, token, name: path.basename(filePaths[0]) };
+  });
+  ipcMain.handle('mods:create-music', (event, token, name) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    const selection = typeof token === 'string' ? pendingMusicSelections.get(token) : null;
+    if (!selection || selection.expiresAt <= Date.now()) {
+      if (typeof token === 'string') pendingMusicSelections.delete(token);
+      return { ok: false, error: 'Choose a music folder again before creating the mode.' };
+    }
+    try {
+      const mod = dataModsNow().importMusicFolder(selection.folder, String(name || '').slice(0, 80));
+      pendingMusicSelections.delete(token);
+      musicPlayer.refreshLibrary();
+      toOverlay('mods:changed', rendererConfig());
+      return { ok: true, mod: modSummary(mod) };
+    } catch (err) { return { ok: false, code: err?.code || '', error: err?.message || String(err) }; }
+  });
+  ipcMain.handle('mods:create-music-url', (event, request) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    try {
+      if (!request || typeof request !== 'object' || Array.isArray(request)) throw new Error('Invalid music mode details.');
+      const mod = dataModsNow().createMusicUrlMode(
+        String(request.name || '').slice(0, 80),
+        String(request.title || '').slice(0, 160),
+        String(request.url || '').slice(0, 2048),
+        String(request.artist || '').slice(0, 160),
+      );
+      musicPlayer.refreshLibrary();
+      toOverlay('mods:changed', rendererConfig());
+      return { ok: true, mod: modSummary(mod) };
+    } catch (err) { return { ok: false, code: err?.code || '', error: err?.message || String(err) }; }
+  });
+  ipcMain.handle('mods:music-import-folder', async (event) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    const { canceled, filePaths } = await dialog.showOpenDialog(overlay || undefined, {
+      title: 'Add a music folder to Capri',
+      properties: ['openDirectory'],
+    });
+    if (canceled || !filePaths[0]) return { ok: false, canceled: true };
+    try {
+      const mod = dataModsNow().importMusicFolder(filePaths[0]);
+      musicPlayer.refreshLibrary();
+      return { ok: true, mod: modSummary(mod) };
+    } catch (err) { return { ok: false, error: err?.message || String(err) }; }
+  });
+  ipcMain.handle('mods:import', async (event) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    const { canceled, filePaths } = await dialog.showOpenDialog(overlay || undefined, {
+      title: 'Import Capri data mod',
+      properties: ['openFile'],
+      filters: [{ name: 'Capri data mod', extensions: ['capri-mod'] }],
+    });
+    if (canceled || !filePaths[0]) return { ok: false, canceled: true };
+    try {
+      return stageDataModImport(filePaths[0]);
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
+    }
+  });
+  ipcMain.handle('mods:import-confirm', (event, token) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    return confirmDataModImport(token);
+  });
+  ipcMain.handle('mods:import-cancel', (event, token) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    return cancelDataModImport(token);
+  });
+  ipcMain.handle('mods:setEnabled', (event, id, enabled) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    try {
+      const mod = dataModsNow().setEnabled(String(id || ''), enabled === true);
+      const kind = mod?.kind;
+      const active = dataModsNow().active();
+      updateConfig({
+        activeDataMod: active?.paletteId || '',
+        activeAppearanceMod: active?.appearanceId || '',
+      });
+      if (kind === 'music') musicPlayer.refreshLibrary();
+      toOverlay('mods:changed', rendererConfig());
+      return { ok: true, mod: modSummary(mod) };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+  ipcMain.handle('mods:update', (event, id, changes) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    try {
+      const mod = dataModsNow().update(String(id || ''), changes);
+      toOverlay('mods:changed', rendererConfig());
+      if (overlay && !overlay.isDestroyed()) overlay.webContents.send('capri:config', rendererConfig());
+      rebuildTray();
+      return { ok: true, mod: modSummary(mod) };
+    } catch (err) { return { ok: false, error: err?.message || String(err) }; }
+  });
+  ipcMain.handle('mods:history', (event, id) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    try { return { ok: true, versions: dataModsNow().history(String(id || '')) }; }
+    catch (err) { return { ok: false, error: err?.message || String(err) }; }
+  });
+  ipcMain.handle('mods:restore', (event, id, versionId) => {
+    if (!trustedOverlay(event)) return { ok: false, error: 'Access denied.' };
+    try {
+      const mod = dataModsNow().restore(String(id || ''), String(versionId || ''));
+      toOverlay('mods:changed', rendererConfig());
+      if (overlay && !overlay.isDestroyed()) overlay.webContents.send('capri:config', rendererConfig());
+      rebuildTray();
+      return { ok: true, mod: modSummary(mod) };
+    } catch (err) { return { ok: false, error: err?.message || String(err) }; }
+  });
+  ipcMain.handle('mods:uninstall', (_e, id) => {
+    try {
+      const result = dataModsNow().uninstall(String(id || ''));
+      const removedId = String(id || '');
+      if (config.load().activeDataMod === removedId) updateConfig({ activeDataMod: '' });
+      if (config.load().activeAppearanceMod === removedId) updateConfig({ activeAppearanceMod: '' });
+      musicPlayer.refreshLibrary();
+      toOverlay('mods:changed', rendererConfig());
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
   ipcMain.handle('config:set', (_e, patch) => {
     if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return rendererConfig();
     const { apiKeys: _keys, ...safe } = patch; // (her keys only go in through setup:use and the voice and ears setups, sealed)
@@ -2577,7 +2985,7 @@ function main() {
     createOverlay();
     startFollowingPointer();
     createTray();
-    if (config.load().computerControl === true && config.load().computerControlPreview !== false) computerControlWindow.show();
+    if (config.load().computerControl === true && config.load().computerControlPreview === true) computerControlWindow.show();
     watchWindows();
     syncTitleWindowTracking();
     mover = createMover({

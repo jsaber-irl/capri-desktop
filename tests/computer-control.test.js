@@ -102,6 +102,40 @@ test('the compact preview can be shown or hidden without closing the control pan
   assert.equal(panel.visible, true);
 });
 
+test('closing the compact preview window unchecks and persists the preview setting', () => {
+  const frame = {};
+  let closedHandler = null;
+  let previewClosed = 0;
+  class FakeWindow {
+    constructor() { this.webContents = { mainFrame: frame, send() {} }; FakeWindow.instances.push(this); }
+    loadURL() {}
+    once() {}
+    on(name, handler) { if (name === 'closed') closedHandler = handler; }
+    isDestroyed() { return false; }
+    show() {}
+    showInactive() {}
+    hide() {}
+    setSize() {}
+    setPosition() {}
+  }
+  FakeWindow.instances = [];
+  const service = createComputerControl({
+    BrowserWindow: FakeWindow,
+    ipcMain: { handle() {} },
+    desktopCapturer: {},
+    screen: { getPrimaryDisplay: () => ({ workArea: bounds, bounds }) },
+    systemPreferences: {},
+    config: { load: () => ({ computerControl: true, computerControlPreview: true }) },
+    platform: 'win32',
+    preload: '',
+    onPreviewClosed: () => { previewClosed++; },
+  });
+  service.show();
+  assert.equal(previewClosed, 0);
+  closedHandler();
+  assert.equal(previewClosed, 1);
+});
+
 test('Capri proposes a bounded screenshot click but executes it only after a matching confirmation', async () => {
   const handlers = new Map();
   const frame = {};

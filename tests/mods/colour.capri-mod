@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "id": "ocean",
+  "name": "Ocean",
+  "version": "1.0",
+  "description": "A blue appearance palette.",
+  "platforms": ["win32", "darwin", "linux"],
+  "kind": "colours",
+  "permissions": ["appearance"],
+  "palette": {
+    "hue": 0.55,
+    "mix": 1,
+    "sat": 1,
+    "val": 1,
+    "rim": [0.5, 0.2, 1],
+    "fx": {
+      "red": "#22ccff",
+      "violet": "#3355ff"
+    }
+  }
+}

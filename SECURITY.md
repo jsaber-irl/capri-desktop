@@ -109,6 +109,25 @@ does not have a custom rollback for an interrupted installation. See [SECURITY_A
 for the updater threat model and known limits, and [docs/UPDATES.md](docs/UPDATES.md) for private-key
 handling and the release procedure.
 
+Data mods remain local JSON data and do not execute code. The mode editor sends only an allowlisted
+mod ID and validated palette/accessory fields through the overlay preload. Main checks the overlay
+sender when loading a selected mod for editing and for edit, history, and restore requests, validates the complete mod schema, and restricts
+history filenames to generated timestamp/random names beneath the mod's history directory. Up to 50
+prior versions are retained per mod; restoring a version also snapshots the current one. These
+snapshots are local user-data files and are not encrypted or included in Capri's external backups.
+An HTTPS accessory image remains a separate opt-in network feature; changing its dimensions or
+position does not download or upload the image.
+
+Music modes are imported as validated metadata. Adding a local music folder from either Mods menu
+uses a native folder picker, accepts only supported audio formats, and stores paths relative to the user's home folder;
+it does not grant renderer code a filesystem path. The player receives an opaque mode/track ID, and
+Main resolves it only for an enabled music mode before serving the file through Capri's local
+protocol. Local sources must resolve inside the home folder, including after symlink resolution.
+Imported online sources are direct HTTPS media URLs without embedded credentials; these URLs are
+played by the audio element and disclose the user's network request to that host. Capri does not
+call arbitrary catalog APIs or execute content from a music mode. Only one music mode is active at
+a time.
+
 Capri Cursor is disabled for new configurations, and Discord Rich Presence is opt-in. Main-process
 Discord startup checks the saved preference before connecting; saved values override defaults so an
 upgrade does not silently change an existing user's choice.

@@ -64,9 +64,9 @@ test('renderer fills the integrated library and acknowledges playback only after
     setAttribute(name, value) { this[name] = value; }
     classList = { toggle() {} };
   }
-  const ids = ['track', 'local-tracks', 'detected-tracks', 'service', 'title', 'artist', 'progress', 'current', 'duration', 'playback-state', 'media-tabs', 'library-audio', 'toggle', 'play-selected', 'previous', 'next', 'heart', 'close'];
+  const ids = ['track', 'local-tracks', 'mode-tracks', 'detected-tracks', 'service', 'title', 'artist', 'progress', 'current', 'duration', 'playback-state', 'media-tabs', 'library-audio', 'toggle', 'play-selected', 'previous', 'next', 'heart', 'close'];
   const elements = Object.fromEntries(ids.map((id) => [id, new Element(id)]));
-  elements.track.children = [elements['local-tracks'], elements['detected-tracks']];
+  elements.track.children = [elements['local-tracks'], elements['mode-tracks'], elements['detected-tracks']];
   const image = new Element('art');
   const events = {};
   const acknowledgements = [];
@@ -75,6 +75,10 @@ test('renderer fills the integrated library and acknowledges playback only after
     CapriMusicLibrary: library,
     host: {
       isDev: true,
+      musicPlayerLibrary: async () => ({ ok: true, tracks: [...library, {
+        id: 'music-jazz__track-one', title: 'Side Street', artist: 'Demo Artist', album: null,
+        artwork: null, src: 'capri://music/music-jazz__track-one', mode: 'Jazz collection',
+      }] }),
       musicPlayerReady: async (result) => ({ ok: result.ok }),
       musicPlayerSessions: async () => ({ ok: true, sessions: [] }),
       musicPlayerMedia: async () => { externalMediaCalls += 1; return { ok: false, error: 'Aucun lecteur externe.' }; },
@@ -96,10 +100,11 @@ test('renderer fills the integrated library and acknowledges playback only after
   vm.runInNewContext(instrumentedPlayerScript, context, { filename: 'music-player.js' });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(elements['local-tracks'].children.length, 5);
-  assert.equal(elements.track.options.length, 5);
+  assert.equal(elements.track.options.length, 6);
+  assert.equal(elements['mode-tracks'].children.length, 1);
   assert.ok(elements.track.options.every((option) => option.value));
 
-  elements.track.value = library[0].title;
+  elements.track.value = `local:${library[0].id}`;
   await elements.toggle.listeners.click();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(elements['library-audio'].playCount, 1, 'play starts the selected bundled track before checking external players');
@@ -132,4 +137,11 @@ test('renderer fills the integrated library and acknowledges playback only after
   assert.equal(elements['playback-state'].textContent, 'ARRÊTÉ');
   assert.equal(elements.toggle.hidden, false);
   assert.equal(elements.toggle.textContent, '▶');
+
+  elements.track.value = 'local:music-jazz__track-one';
+  await elements.track.listeners.change();
+  assert.equal(elements['library-audio'].src, 'capri://music/music-jazz__track-one');
+  assert.equal(elements.title.textContent, 'Side Street');
+  assert.equal(elements.artist.textContent, 'Demo Artist');
+  assert.equal(elements['library-audio'].playCount, 4);
 });

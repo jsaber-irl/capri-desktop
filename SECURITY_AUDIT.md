@@ -129,3 +129,25 @@ a development diagnostic; the required main sprite still prevents startup if it 
 This source review does not constitute a Windows runtime animation test or a real cross-platform
 visual test. Asset path checks and automated game tests can establish repository integrity and logic,
 but do not prove GPU, display-scaling, or Electron behavior on Windows/macOS/Linux hardware.
+
+The local data-mod editor loads full details only for the selected mod and permits changes only to
+allowlisted palette values and accessory geometry. Main's detail, update, history, and restore IPC handlers verify the trusted overlay sender; the
+service validates updates against the existing strict schema and only opens history files whose
+names match its generated timestamp/random pattern. Restores verify that the embedded mod ID matches
+the selected mod and preserve the replaced data as another snapshot. History is capped at 50 files
+per mod. Automated service tests exercise update, history, restore, and invalid-field rejection.
+This is source-level validation: no interactive desktop test of dragging the accessory preview or
+the menu's screen-edge/scroll behavior has been performed. Existing import, enable, list, and remove
+handlers retain their previous IPC policy; this change does not claim a uniform sender-validation
+review of every older mods handler.
+
+Music modes add an explicit native folder-picker flow and a strict track schema. Relative paths are
+resolved against the user's home folder, symlinks are resolved before containment checks, and only
+bounded supported audio extensions are accepted. The mini-player receives opaque IDs, while the
+Main-process `capri://music` route resolves IDs only for enabled music modes; arbitrary filesystem
+paths are never accepted from the renderer. Direct HTTPS audio URLs are user-imported metadata and
+are exposed to Chromium's media loader; no API response is parsed, no audio is downloaded to
+persistent storage, and no real API provider was tested. Automated tests exercise music-mode
+validation, selected-folder registration, source resolution, catalog inclusion, and playback
+acknowledgement. Runtime audio decoding, HTTPS provider behavior, and file access across macOS,
+Windows, and Linux were not manually verified.

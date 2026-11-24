@@ -17,6 +17,8 @@ This matrix describes behavior verified in the local application. **Supported** 
 | Local games | Yes | Yes | Yes | Electron | Supported | [src/main/games-window.js](../src/main/games-window.js) | [tests/games.test.js](../tests/games.test.js) |
 | Signed updates | Windows x64 | macOS ARM64/Intel | No documented auto-update | Ed25519 manifest and SHA-512 | Supported for listed targets | [src/main/update-helper.js](../src/main/update-helper.js) | [tests/update-manager.test.js](../tests/update-manager.test.js) |
 | Preparation diagnostics | Yes | Yes | Yes | No network access required | Supported | [src/main/diagnostics.js](../src/main/diagnostics.js) | [tests/diagnostics.test.js](../tests/diagnostics.test.js) |
+| Data-only palette and accessory mods | Yes | Yes | Yes | Local JSON; embedded/relative PNG or optional HTTPS image; appearance permission | Supported | [src/main/data-mods.js](../src/main/data-mods.js) | [tests/data-mods.test.js](../tests/data-mods.test.js) |
+| Capri Remote | No implementation | No implementation | No implementation | Study only; pairing, encryption, relay, and revocation acceptance required | Experimental/Deferred | [CAPRI_REMOTE_DESIGN.md](CAPRI_REMOTE_DESIGN.md) | Security/design review required |
 
 ## Diagnostic workflow
 

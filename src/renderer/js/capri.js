@@ -6,6 +6,7 @@
 // ("peek"), and falling ("fall") when the window under her goes away or you drop her.
 
 import { SpriteRenderer, SPRITE, fitSpriteScale } from './sprite.js';
+import { accessoryLayout } from './accessory-layout.js';
 import { ACTS, FIDGETS, NEUTRAL, Player } from './acting.js';
 import { sleep, rand, pick, clamp, lerp, ease, tween, reducedMotion, today } from './util.js';
 import * as marks from './fx-life.js';
@@ -325,7 +326,23 @@ export class Capri {
     const left = o.x - (SPRITE.pad + P.x) * s;
     const top = o.y - (SPRITE.pad + P.y) * s;
     this.root.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
-    this.canvas.style.transform = `rotate(${this.turn.toFixed(2)}deg) scale(${(this.facing * this.sx).toFixed(3)}, ${this.sy.toFixed(3)})`;
+    const spriteTransform = `rotate(${this.turn.toFixed(2)}deg) scale(${(this.facing * this.sx).toFixed(3)}, ${this.sy.toFixed(3)})`;
+    this.canvas.style.transform = spriteTransform;
+    const accessory = this.root.querySelector('.capri__accessory');
+    if (accessory) {
+      const layout = accessoryLayout({
+        x: Number(accessory.dataset.modX), y: Number(accessory.dataset.modY),
+        width: Number(accessory.dataset.modWidth), height: Number(accessory.dataset.modHeight),
+        anchor: Number(accessory.dataset.modAnchor) === 0 ? 'top-left' : 'center',
+      }, s, { pad: SPRITE.pad, spriteWidth: SPRITE.width, spriteHeight: SPRITE.height });
+      accessory.style.left = `${layout.left}px`;
+      accessory.style.top = `${layout.top}px`;
+      accessory.style.width = `${layout.width}px`;
+      accessory.style.height = `${layout.height}px`;
+      accessory.style.transform = spriteTransform;
+      // Match the canvas transform origin in the shared, untransformed root.
+      accessory.style.transformOrigin = `${layout.transformOriginX}px ${layout.transformOriginY}px`;
+    }
     this.onMove?.(this.head());
   }
 

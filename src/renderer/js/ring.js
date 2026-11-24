@@ -102,6 +102,10 @@ const ICONS = {
   ],
   character: [['path', { d: 'M13.5 2 L5 13.5 H11 L9.5 22 L19 9.5 H13 Z', class: 'is-fill' }]],
   colours: [['path', { d: 'M12 2.8 C12 2.8 5 11 5 15.2 A7 7 0 0 0 19 15.2 C19 11 12 2.8 12 2.8 Z', class: 'is-fill' }]],
+  mods: [
+    ['path', { d: 'M4 5.5 H20 V20 H4 Z M8 5.5 V3 H16 V5.5 M8 12 H16 M8 16 H13' }],
+    ['circle', { cx: 17, cy: 16, r: 2, class: 'is-fill' }],
+  ],
   voice: [
     ['path', { d: 'M3.5 9 H8 L13 5 V19 L8 15 H3.5 Z', class: 'is-fill' }],
     ['path', { d: 'M16 9 Q18.5 12 16 15 M18.8 6.5 Q23 12 18.8 17.5' }],
@@ -264,7 +268,8 @@ export class Ring {
     // around her body: from her head to a little below her hips
     const cx = feet.x;
     const cy = feet.y - 190 * s;
-    const at = place({ cx, cy, size: Math.min(520, Math.max(380, Math.min(vw, vh) * 0.58)), vw, vh });
+    this.layout = { cx, cy, size: Math.min(520, Math.max(380, Math.min(vw, vh) * 0.58)), vw, vh };
+    const at = place({ ...this.layout, cardW: this.cardWidth(this.tab) });
     this.at = at;
 
     const disc = svg('svg', { class: 'ring__disc', viewBox: `0 0 ${VIEW} ${VIEW}`, width: at.size, height: at.size, role: 'menu' });
@@ -272,6 +277,7 @@ export class Ring {
     disc.style.top = `${at.top}px`;
     ORDER.forEach((id, i) => disc.append(this.sector(id, i)));
     root.append(disc);
+    this.disc = disc;
 
     const card = el('section', 'ring__card');
     card.style.left = `${at.cardLeft}px`;
@@ -291,6 +297,7 @@ export class Ring {
     card.append(plate);
     root.append(card);
     this.card = card;
+    this.card.style.width = `${Math.min(this.cardWidth(this.tab), vw - 2 * MARGIN)}px`;
 
     // a click anywhere else closes it (the overlay is click-through otherwise: app.js holds it open)
     root.onpointerdown = (e) => {
@@ -355,6 +362,7 @@ export class Ring {
       this.tab = id;
     }
     for (const g of this.root.querySelectorAll('.ring__sector')) g.classList.toggle('is-on', g.dataset.tab === id);
+    this.positionCard(id);
     this.stay();
     this.refresh();
     this.body.scrollTop = 0;
@@ -389,10 +397,31 @@ export class Ring {
 
   // The card level with the ring's middle, or as near as the screen allows (its height changes with the tab).
   fit() {
+    const availableHeight = Math.max(180, window.innerHeight - 2 * MARGIN);
+    this.card.querySelector('.ring__plate')?.style.setProperty('--card-max', `${Math.min(availableHeight, 640)}px`);
     const h = this.card.offsetHeight;
     const mid = this.at.top + this.at.size / 2;
     const top = Math.max(MARGIN, Math.min(mid - h / 2, window.innerHeight - h - MARGIN));
     this.card.style.top = `${Math.round(top)}px`;
+  }
+
+  cardWidth(id) {
+    return id === 'mods' ? 500 : CARD_W;
+  }
+
+  positionCard(id) {
+    if (!this.layout || !this.card) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const width = Math.min(this.cardWidth(id), vw - 2 * MARGIN);
+    const at = place({ ...this.layout, vw, vh, cardW: width });
+    this.at = at;
+    this.disc.style.left = `${at.left}px`;
+    this.disc.style.top = `${at.top}px`;
+    this.card.style.width = `${width}px`;
+    this.card.style.left = `${at.cardLeft}px`;
+    this.card.style.top = `${at.top}px`;
+    this.card.classList.toggle('ring__card--mods', id === 'mods');
   }
 
   // What a tab gets to work with.
@@ -409,8 +438,10 @@ export class Ring {
       heart: this.heart,
       jealousy: this.jealousy,
       host: this.host,
+      card: this.card,
       state: this.state,
       actions: this.actions,
+      fit: () => this.fit(),
       // change a setting: shown at once, saved through the config like the tray menu does
       set: (patch) => {
         Object.assign(this.cfg, patch);

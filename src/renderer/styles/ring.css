@@ -214,6 +214,164 @@
 }
 
 .ring__note.is-dim { color: var(--paper-3); }
+.ring__mod-error { color: var(--red); }
+.ring__mod-editor {
+  margin: 10px 0 14px;
+  padding: 10px;
+  border: 1px solid var(--ring-line);
+  background: var(--ink-2);
+}
+.ring__mode-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: color-mix(in oklch, var(--ink) 66%, transparent);
+}
+.ring__mode-dialog {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  width: min(360px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid var(--red);
+  background: color-mix(in oklch, var(--ink) 96%, var(--violet));
+  box-shadow: 4px 4px 0 color-mix(in oklch, var(--violet) 72%, transparent);
+}
+.ring__mode-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.ring__mode-dialog-header .ring__h {
+  flex: 1;
+  margin: 0;
+}
+.ring__mode-close {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--ring-line);
+  color: var(--paper);
+  background: var(--ink-2);
+  font: 700 20px/1 var(--font-mono);
+  cursor: pointer;
+}
+.ring__mode-close:hover,
+.ring__mode-close:focus-visible {
+  color: var(--ink);
+  background: var(--red);
+}
+.ring__mode-dialog .ring__h {
+  margin-top: 0;
+}
+
+.ring__mode-dialog > .ring__input {
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+  min-height: 32px;
+  margin: 8px 0;
+}
+
+.ring__mode-dialog > .ring__mode-name {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-height: 34px;
+  margin: 4px 0;
+}
+.ring__mode-dialog > .ring__mode-source {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-height: 34px;
+  margin: 4px 0;
+}
+.ring__accessory-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 8px;
+  min-width: 0;
+  margin: 4px 0 8px;
+}
+.ring__mode-dialog-error { color: var(--red); font-weight: 700; }
+.ring__mod-editor .ring__h:first-child { margin-top: 2px; }
+.ring__mod-colors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 10px; }
+.ring__mod-color { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; min-width: 0; color: var(--paper-2); font-family: var(--font-mono); font-size: var(--text-data); }
+.ring__mod-color > span { min-width: 0; }
+.ring__color-choice {
+  flex: none;
+  width: 36px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--ring-line);
+  background: var(--chosen-color, var(--red));
+  cursor: pointer;
+}
+.ring__color-choice:hover,
+.ring__color-choice:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
+.ring__color-palette {
+  position: absolute;
+  z-index: 10;
+  top: 50%;
+  left: 50%;
+  width: min(300px, calc(100% - 24px));
+  max-height: 86%;
+  overflow: auto;
+  padding: 12px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--red);
+  background: color-mix(in oklch, var(--ink) 98%, var(--violet));
+  box-shadow: 4px 4px 0 color-mix(in oklch, var(--violet) 72%, transparent);
+}
+.ring__color-palette-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; color: var(--paper); font-family: var(--font-mono); }
+.ring__color-swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ring__color-swatch { min-width: 0; aspect-ratio: 1.4; border: 1px solid color-mix(in oklch, var(--paper) 50%, transparent); background: var(--swatch-color); cursor: pointer; }
+.ring__color-swatch:hover,
+.ring__color-swatch:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
+.ring__color-controls { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 5px 7px; align-items: center; width: 100%; min-width: 0; }
+.ring__color-preview { width: 24px; height: 24px; border: 1px solid var(--ring-line); background: var(--chosen-color, var(--red)); }
+.ring__color-hue { width: 100%; min-width: 0; height: 22px; margin: 0; appearance: none; border: 1px solid var(--ring-line); border-radius: 2px; background: linear-gradient(90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); cursor: pointer; }
+.ring__color-hue::-webkit-slider-thumb { width: 12px; height: 20px; appearance: none; border: 1px solid var(--paper); border-radius: 2px; background: var(--ink); }
+.ring__color-hue::-moz-range-thumb { width: 10px; height: 18px; border: 1px solid var(--paper); border-radius: 2px; background: var(--ink); }
+.ring__color-value { grid-column: 1 / -1; box-sizing: border-box; width: 100%; min-width: 0; min-height: 30px; padding: 5px 7px; font: 11px var(--font-mono); }
+.ring__mod-history { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--ring-line); }
+.ring__mod-history .ring__btn { margin: 3px 4px 3px 0; }
+.ring__accessory-preview {
+  position: relative;
+  margin: 8px auto 12px;
+  overflow: hidden;
+  border: 1px solid var(--red);
+  background: color-mix(in oklch, var(--ink) 86%, var(--violet));
+  touch-action: none;
+}
+.ring__accessory-base, .ring__accessory-item {
+  position: absolute;
+  display: block;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.ring__accessory-base { pointer-events: none; }
+.ring__accessory-item { z-index: 2; cursor: grab; touch-action: none; filter: drop-shadow(0 0 4px var(--red)); }
+.ring__accessory-item.is-dragging { cursor: grabbing; }
+.ring__coordinate { display: grid; grid-template-columns: minmax(120px, 1fr) 92px; gap: 8px; align-items: center; margin: 6px 0; color: var(--paper-2); font-family: var(--font-mono); font-size: var(--text-data); }
+.ring__coordinate input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 34px; padding: 4px 8px; border: 1px solid var(--ring-line); color: var(--paper); background: var(--ink); font: inherit; }
+.ring__accessory-fields .ring__coordinate { grid-template-columns: minmax(0, 1fr) 58px; gap: 4px; min-width: 0; font-size: min(var(--text-data), 11px); }
+.ring__accessory-fields .ring__coordinate > span { min-width: 0; overflow-wrap: anywhere; }
 
 .ring__row {
   display: flex;
@@ -536,6 +694,9 @@
   font-size: calc(var(--text-data) + 1px);
   caret-color: var(--red);
   user-select: text;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
   outline: none;
   clip-path: polygon(7px 0, 100% 0, 100% 100%, 0 100%, 0 7px);
 }

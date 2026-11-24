@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' capri:; script-src 'self'; style-src 'self'; img-src 'self' capri: https: http: data: file:; media-src 'self' capri:; connect-src 'self' capri:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' capri:; script-src 'self'; style-src 'self'; img-src 'self' capri: https: http: data: file:; media-src 'self' capri: https:; connect-src 'self' capri:">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Capri // Music</title>
   <link rel="stylesheet" href="music-player.css">
@@ -35,10 +35,11 @@
       <button id="next" type="button" aria-label="Suivant">▶▶</button>
       <button id="heart" class="player__heart" type="button" aria-label="Favori">♥</button>
     </section>
-    <audio id="library-audio" preload="metadata"></audio>
+    <audio id="library-audio" preload="metadata" referrerpolicy="no-referrer"></audio>
     <label class="player__playlist">BIBLIOTHÈQUE / RECHERCHE
       <select id="track">
         <optgroup id="local-tracks" label="MORCEAUX INTÉGRÉS"></optgroup>
+        <optgroup id="mode-tracks" label="MODES MUSICAUX"></optgroup>
         <optgroup id="detected-tracks" label="RECHERCHE / SESSIONS DÉTECTÉES"></optgroup>
       </select>
       <button id="play-selected" class="player__select-play" type="button">LANCER</button>

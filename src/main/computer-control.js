@@ -35,7 +35,7 @@ async function clickAt(point, { platform = process.platform, bounds, systemPrefe
   }
 }
 
-function createComputerControl({ BrowserWindow, ipcMain, desktopCapturer, screen, systemPreferences, config, llm, performClick = clickAt, macAutomationGranted = () => false, platform = process.platform, preload, confirmPreload, protocolUrl = 'capri://app/src/renderer/computer-control.html' }) {
+function createComputerControl({ BrowserWindow, ipcMain, desktopCapturer, screen, systemPreferences, config, llm, performClick = clickAt, macAutomationGranted = () => false, platform = process.platform, preload, confirmPreload, protocolUrl = 'capri://app/src/renderer/computer-control.html', onPreviewClosed = () => {} }) {
   let win = null;
   let confirmWin = null;
   let busy = false;
@@ -183,7 +183,12 @@ function createComputerControl({ BrowserWindow, ipcMain, desktopCapturer, screen
     if (queuedInstruction) win.webContents.once('did-finish-load', () => win?.webContents.send('computer-control:task', queuedInstruction));
     win.loadURL(protocolUrl);
     win.once('ready-to-show', () => win?.show());
-    win.on('closed', () => { win = null; busy = false; });
+    win.on('closed', () => {
+      if (expanded) expanded = false;
+      win = null;
+      busy = false;
+      onPreviewClosed();
+    });
     return win;
   }
   function setSize() {
@@ -223,7 +228,7 @@ function createComputerControl({ BrowserWindow, ipcMain, desktopCapturer, screen
       if (win && !win.isDestroyed()) {
         expanded = false;
         setSize();
-        if (config.load().computerControlPreview !== false) win.showInactive();
+        if (config.load().computerControlPreview === true) win.showInactive();
         else win.hide();
         win.webContents.send('computer-control:refresh');
       }
@@ -265,7 +270,7 @@ function createComputerControl({ BrowserWindow, ipcMain, desktopCapturer, screen
       if (win && !win.isDestroyed()) {
         expanded = false;
         setSize();
-        if (config.load().computerControlPreview !== false) win.showInactive();
+        if (config.load().computerControlPreview === true) win.showInactive();
         else win.hide();
       }
       busy = false;

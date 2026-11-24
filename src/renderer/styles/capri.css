@@ -171,6 +171,14 @@ body {
   display: block;
 }
 
+.capri__accessory {
+  position: absolute;
+  z-index: 3;
+  object-fit: contain;
+  pointer-events: none;
+  image-rendering: auto;
+}
+
 .fx {
   position: fixed;
   inset: 0;

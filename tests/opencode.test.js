@@ -87,7 +87,7 @@ test('OpenCode installer is isolated, idempotent, backed up, and removable', () 
 test('English OpenCode documentation and roadmap status are present', () => {
   const root = path.join(__dirname, '..');
   const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
-  const matrix = fs.readFileSync(path.join(root, 'CAPABILITIES.md'), 'utf8');
+  const matrix = fs.readFileSync(path.join(root, 'documentation/CAPABILITIES.md'), 'utf8');
 
   assert.match(readme, /### OpenCode/);
   assert.match(readme, /OpenCode 1\.18\.29 or later is recommended/);
