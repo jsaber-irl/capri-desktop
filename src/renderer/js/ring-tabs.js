@@ -15,6 +15,21 @@ import { zonedTimeToEpoch } from './reminders.mjs';
 
 export const ORDER = ['bond', 'brain', 'mic', 'senses', 'character', 'colours', 'mods', 'voice', 'more', 'chat'];
 
+// Tabs gathered by category, so the ring and its card can show which family each tab belongs to.
+export const CATEGORIES = {
+  ai: ['brain', 'senses'],
+  system: ['character', 'colours', 'more'],
+  features: ['bond', 'mic', 'voice', 'mods'],
+};
+
+export const TAB_CATEGORY = (() => {
+  const map = {};
+  for (const [cat, tabs] of Object.entries(CATEGORIES)) {
+    for (const id of tabs) map[id] = cat;
+  }
+  return map;
+})();
+
 const isWindows = (host) => (host.platform ? host.platform === 'win32' : /win/i.test(globalThis.navigator?.platform || ''));
 const prettyKey = (key) => String(key || 'Control+Alt+Space').replace(/\bControl\b/g, 'Ctrl').replace(/\bCommandOrControl\b/g, 'Ctrl');
 
@@ -1402,6 +1417,30 @@ const mods = {
         if (!draft) return note(k.loadingEdit || 'Loading mode…', true);
         const editor = el('section', 'ring__mod-editor');
         editor.append(heading(`${k.edit || 'Edit'} · ${mod.name}`));
+        editor.append(row(k.name || 'Name', (() => {
+          const input = el('input', 'ring__input ring__mode-name');
+          input.type = 'text';
+          input.maxLength = 80;
+          input.value = String(draft.name || mod.name || '');
+          input.placeholder = k.modeName || 'Name of the mode';
+          input.setAttribute('aria-label', k.name || 'Name');
+          input.addEventListener('input', () => { draft.name = input.value; });
+          input.addEventListener('pointerdown', (event) => { event.stopPropagation(); c.host.setInteractive?.(true); c.host.focusOverlay?.(true); });
+          input.addEventListener('click', (event) => event.stopPropagation());
+          return input;
+        })()));
+        editor.append(row(k.version || 'Version', (() => {
+          const input = el('input', 'ring__input');
+          input.type = 'text';
+          input.maxLength = 40;
+          input.value = String(draft.version || mod.version || '');
+          input.placeholder = k.modeVersion || 'Version of the mode';
+          input.setAttribute('aria-label', k.version || 'Version');
+          input.addEventListener('input', () => { draft.version = input.value; });
+          input.addEventListener('pointerdown', (event) => { event.stopPropagation(); c.host.setInteractive?.(true); c.host.focusOverlay?.(true); });
+          input.addEventListener('click', (event) => event.stopPropagation());
+          return input;
+        })()));
         if (draft.palette) {
           const defaults = { hue: 0.968, mix: 0.6, sat: 1, val: 1 };
           const paletteColors = el('div', 'ring__mod-colors');
@@ -1431,7 +1470,11 @@ const mods = {
         }
         editor.append(buttons(
           button(k.saveChanges || 'Save changes', async () => {
-            const changes = draft.palette ? { palette: draft.palette } : { appearance: draft.appearance };
+            const changes = {};
+            if (draft.name !== undefined && String(draft.name).trim()) changes.name = String(draft.name).trim();
+            if (draft.version !== undefined) changes.version = String(draft.version || '').trim();
+            if (draft.palette) changes.palette = draft.palette;
+            if (draft.appearance) changes.appearance = draft.appearance;
             c.state.modDraft = null;
             c.state.editModId = '';
             await runModAction(() => c.host.modsUpdate?.(mod.id, changes));
@@ -1466,6 +1509,8 @@ const mods = {
           if (!result?.ok || !result.mod) throw new Error(result?.error || 'This mode could not be loaded for editing.');
           c.state.modDraft = {
             id: mod.id,
+            name: mod.name,
+            version: mod.version || '',
             palette: result.mod.palette ? JSON.parse(JSON.stringify(result.mod.palette)) : null,
             appearance: result.mod.appearance ? JSON.parse(JSON.stringify(result.mod.appearance)) : null,
           };

@@ -1268,6 +1268,218 @@ function buildTray() {
         : [{ label: t.handstandNone, enabled: false }];
   handstandItems.push({ type: 'separator' }, { label: t.stopHandstand, enabled: handstandActive, click: () => sendCommand('stopHandstand') });
 
+  const localGames = [
+    { label: text3('Échecs','Chess','Шахматы'), click: () => chessWindow.show() },
+    { label: text3('Morpion contre Capri','Tic-tac-toe vs Capri','Крестики-нолики с Capri'), click: () => gamesWindow.open('tic-tac-toe') },
+    { label: '2048', click: () => gamesWindow.open('2048') },
+    { type: 'separator' },
+    { label: text3('Tableau de dessin…','Drawing board…','Рисование…'), click: () => drawWindow.show() },
+  ];
+  const voiceModes = [['off', t.voiceOff], ['chat', t.voiceChat], ['all', t.voiceAll]];
+  const voiceModeItems = voiceModes.map(([voiceMode, label]) => ({
+    label, type: 'radio', checked: cfg.voiceMode === voiceMode, click: () => updateConfig({ voiceMode }),
+  }));
+  const voiceEngineItems = [
+    ...Object.keys(tts.ENGINES).map((ttsEngine) => ({
+      label: t.engines[ttsEngine], type: 'radio', checked: cfg.ttsEngine === ttsEngine,
+      click: () => {
+        updateConfig({ ttsEngine });
+        const key = TTS_KEYS[ttsEngine];
+        const missing = (key && !config.load().apiKeys?.[key] && !(ttsEngine === 'openai' && process.env.OPENAI_API_KEY))
+          || (ttsEngine === 'custom' && !config.load().ttsUrl);
+        if (missing) sendCommand('setupVoice');
+      },
+    })),
+    { type: 'separator' },
+    { label: t.voiceFx, type: 'checkbox', checked: cfg.ttsFx !== false, click: (item) => updateConfig({ ttsFx: item.checked }) },
+    { label: t.voiceSetup, click: () => sendCommand('setupVoice') },
+    { label: t.voiceTest, click: () => sendCommand('testVoice') },
+  ];
+  const characterItems = [
+    { label: t.emotions, type: 'checkbox', checked: cfg.emotions !== false, click: (item) => updateConfig({ emotions: item.checked }) },
+    { label: t.life, type: 'checkbox', checked: cfg.life !== false, click: (item) => updateConfig({ life: item.checked }) },
+    { label: t.musicAware, type: 'checkbox', ...checkboxState(process.platform === 'win32', cfg.musicAware !== false), click: (item) => updateConfig({ musicAware: item.checked }) },
+    { label: t.dj, type: 'checkbox', ...checkboxState(process.platform === 'win32' && cfg.musicAware !== false, cfg.dj !== false), click: (item) => updateConfig({ dj: item.checked }) },
+    { label: t.pcReact, type: 'checkbox', checked: cfg.pcReact !== false, click: (item) => updateConfig({ pcReact: item.checked }) },
+    { label: t.breaks, type: 'checkbox', checked: cfg.breaks !== false, click: (item) => updateConfig({ breaks: item.checked }) },
+    { type: 'separator' },
+    { label: t.learn, type: 'checkbox', checked: cfg.learn !== false, click: (item) => updateConfig({ learn: item.checked }) },
+    { label: t.bond, click: () => sendCommand('bond') },
+  ];
+  const senseItems = [
+    { label: t.rhythm, type: 'checkbox', checked: cfg.rhythm === true, click: (item) => updateConfig({ rhythm: item.checked }) },
+    { type: 'separator' },
+    { label: t.ears, type: 'checkbox', checked: cfg.ears === true, click: (item) => updateConfig({ ears: item.checked }) },
+    { label: t.converse, type: 'checkbox', ...checkboxState(cfg.ears === true, cfg.converse === true), click: (item) => updateConfig({ converse: item.checked }) },
+    { label: `${t.pushToTalk}: ${prettyKey(cfg.pushToTalk)}`, enabled: false },
+  ];
+  const screenItems = [
+    { label: t.screenDescription, enabled: false },
+    { label: t.follow, type: 'checkbox', checked: cfg.follow !== false, click: (item) => updateConfig({ follow: item.checked }) },
+    { type: 'separator' },
+    ...screens.map((display, index) => ({
+      label: `${index + 1} — ${display.size.width}×${display.size.height}`,
+      type: 'radio', checked: display.id === current,
+      click: () => updateConfig({ displayId: display.id, follow: false }),
+    })),
+  ];
+  const modeMods = [
+    { label: text3('Modifier les mods…','Edit modes…','Изменить моды…'), click: () => sendCommand('ring', { tab: 'mods' }) },
+    { label: text3('Ajouter un dossier de musique…','Add a music folder…','Добавить папку с музыкой…'), click: async () => {
+      const { canceled, filePaths } = await dialog.showOpenDialog(overlay || undefined, { title: text3('Ajouter un dossier de musique','Add a music folder','Добавить папку с музыкой'), properties: ['openDirectory'] });
+      if (canceled || !filePaths[0]) return;
+      try {
+        const mod = dataModsNow().importMusicFolder(filePaths[0]);
+        musicPlayer.refreshLibrary(); toOverlay('mods:changed', rendererConfig()); rebuildTray(); sendCommand('modsImportDone', { modName: mod.name });
+      } catch (error) { sendCommand('modsImportFailed', { error: error?.message || String(error) }); }
+    } },
+    { type: 'separator' },
+    { label: t.importMod, click: () => {
+      dialog.showOpenDialog(overlay || undefined, { title: t.importMod, properties: ['openFile'], filters: [{ name: 'Capri data mod', extensions: ['capri-mod'] }] })
+        .then(({ canceled, filePaths }) => {
+          if (canceled || !filePaths[0]) return;
+          try {
+            const result = stageDataModImport(filePaths[0]);
+            if (result.needsConfirmation) sendCommand('modsDuplicatePrompt', result);
+            else { rebuildTray(); toOverlay('mods:changed', rendererConfig()); sendCommand('modsImportDone', { modName: result.mod.name }); }
+          } catch (error) { sendCommand('modsImportFailed', { error: error?.message || String(error) }); }
+        }).catch((error) => sendCommand('modsImportFailed', { error: error?.message || String(error) }));
+    } },
+    { type: 'separator' },
+    ...dataModsNow().list().flatMap((mod) => {
+      if (mod.problem) return [
+        { label: `${mod.name}: ${mod.problem}`, enabled: false },
+        { label: `${t.removeMod}: ${mod.name}`, click: () => { try { dataModsNow().uninstall(mod.fileName || mod.id); rebuildTray(); toOverlay('mods:changed', rendererConfig()); } catch (error) { sendCommand('modsActionFailed', { error: error?.message || String(error) }); } } },
+      ];
+      return [
+        { label: `${mod.name}${mod.version ? ` (${mod.version})` : ''}${mod.sourceMissing ? ` — ${t.modSourceMissing}` : ''}`, type: 'checkbox', enabled: !mod.sourceMissing, checked: mod.enabled, click: (item) => {
+          try {
+            const updated = dataModsNow().setEnabled(mod.id, item.checked);
+            const activeMods = dataModsNow().active();
+            if (updated.kind === 'appearance') updateConfig({ activeAppearanceMod: activeMods?.appearanceId || '' });
+            else if (updated.kind === 'palette') updateConfig({ activeDataMod: activeMods?.paletteId || '' });
+            musicPlayer.refreshLibrary();
+            toOverlay('mods:changed', rendererConfig()); rebuildTray();
+          }
+          catch (error) { sendCommand('modsActionFailed', { error: error?.message || String(error) }); }
+        } },
+        { label: `${t.removeMod}: ${mod.name}`, click: () => { try { dataModsNow().uninstall(mod.id); const activeMods = dataModsNow().active(); if (config.load().activeAppearanceMod === mod.id) updateConfig({ activeAppearanceMod: activeMods?.appearanceId || '' }); if (config.load().activeDataMod === mod.id) updateConfig({ activeDataMod: activeMods?.paletteId || '' }); musicPlayer.refreshLibrary(); toOverlay('mods:changed', rendererConfig()); rebuildTray(); } catch (error) { sendCommand('modsActionFailed', { error: error?.message || String(error) }); } } },
+      ];
+    }),
+  ];
+  const generalSettingsItems = [
+    { label: t.cursor, type: 'checkbox', checked: cfg.capriCursor === true, click: (item) => updateConfig({ capriCursor: item.checked }) },
+    { label: text3('Autoriser le contrôle du bureau','Allow desktop control','Разрешить управление рабочим столом'), type: 'checkbox', checked: cfg.computerControl === true, click: (item) => { updateConfig({ computerControl: item.checked }); if (item.checked && config.load().computerControlPreview === true) computerControlWindow.show(); else computerControlWindow.setCompactVisible(false); } },
+    { label: text3('Afficher l’aperçu compact en haut à droite','Show compact top-right preview','Показывать компактный предпросмотр справа вверху'), type: 'checkbox', enabled: cfg.computerControl === true, checked: cfg.computerControlPreview === true, click: (item) => { updateConfig({ computerControlPreview: item.checked }); if (item.checked && config.load().computerControl === true) computerControlWindow.show(); else computerControlWindow.setCompactVisible(false); } },
+    { label: text3('Gaming Mode','Gaming Mode','Игровой режим'), type: 'checkbox', checked: cfg.gamingMode === true, click: (item) => updateConfig({ gamingMode: item.checked }) },
+    { label: t.discord, submenu: [{ label: t.discordPresence, type: 'checkbox', checked: cfg.discordPresence !== false, click: (item) => updateConfig({ discordPresence: item.checked }) }] },
+    { label: t.mods, submenu: modeMods },
+  ];
+  const capricornItems = [
+    { label: t.custom, click: () => sendCommand('customize') },
+    { label: t.watch, submenu: [
+      ...Object.entries(ASSISTANTS).map(([id, { name }]) => ({ label: name, type: 'radio', checked: cfg.claude && watched.id === id, click: () => { const other = watched.id !== id; updateConfig({ claude: true, assistant: id, ...(other && { linked: false, welcomed: false }) }); if (other) sendCommand('assistantChanged'); } })),
+      { label: t.watchNone, type: 'radio', checked: !cfg.claude, click: () => updateConfig({ claude: false }) },
+    ] },
+    { label: t.theme, submenu: WINDOW_THEMES.map((theme) => ({ label: t[`theme${theme === 'nightcity' ? 'NightCity' : 'Classic'}`], type: 'radio', checked: (cfg.theme || 'classic') === theme, click: () => updateConfig({ theme }) })) },
+    { label: t.size, submenu: [[t.small,0.45],[t.medium,0.6],[t.large,0.8]].map(([label, scale]) => ({ label, type: 'radio', checked: Math.abs(cfg.scale - scale) < 0.01, click: () => updateConfig({ scale }) })) },
+    { label: t.colors, submenu: THEMES.map((theme) => ({ label: t.themes[theme], type: 'radio', checked: !cfg.activeDataMod && (cfg.colourTheme || 'classic') === theme, click: () => { if (cfg.activeDataMod) dataModsNow().setEnabled(cfg.activeDataMod, false); updateConfig({ activeDataMod: '', colourTheme: theme }); } })) },
+    { label: text3('Vision','Vision','Зрение'), submenu: [
+      { label: text3('L’autoriser à voir mon écran','Allow Capri to see my screen','Разрешить Capri видеть мой экран'), type: 'checkbox', checked: cfg.vision === true, click: (item) => updateConfig({ vision: item.checked }) },
+      { label: t.lookNow, enabled: cfg.vision === true, click: () => sendCommand('lookNow') },
+    ] },
+    { label: t.voice, submenu: voiceModeItems },
+    { label: t.character, submenu: characterItems },
+    { label: t.emotionalLog, submenu: emotionalLogItems },
+    { label: t.senses, submenu: senseItems },
+    { label: t.hands, submenu: [
+      { label: t.handsOn, type: 'checkbox', ...checkboxState(process.platform === 'win32', cfg.hands === true), click: (item) => updateConfig({ hands: item.checked }) },
+      { label: t.handsType, type: 'checkbox', ...checkboxState(process.platform === 'win32' && cfg.hands === true, cfg.handsType !== false), click: (item) => updateConfig({ handsType: item.checked }) },
+    ] },
+    { label: t.sound, submenu: [
+      { label: t.mute, type: 'checkbox', checked: cfg.muted === true, click: (item) => updateConfig({ muted: item.checked }) },
+      { type: 'separator' },
+      { label: t.soundsDir, click: () => { fs.mkdirSync(userSoundsDir(), { recursive: true }); shell.openPath(userSoundsDir()); } },
+    ] },
+  ];
+  const aiItems = [
+    { label: t.hub, click: () => hub?.show() },
+    { label: t.prepare, click: () => { prepare?.show({ manual: true }); provision.run(); } },
+    { type: 'separator' },
+    { label: t.voiceEngine, submenu: voiceEngineItems },
+    { label: text3('Vision','Vision','Зрение'), submenu: [
+      { label: text3('Modèle de vision…','Vision model…','Модель зрения…'), click: () => sendCommand('setupVision') },
+      { label: text3('Reconnaissance vocale…','Speech recognition…','Распознавание речи…'), click: () => sendCommand('setupEars') },
+    ] },
+    { label: t.chatModel, submenu: [
+      { label: t.aiSetup, click: () => sendCommand('setupChat') }, { type: 'separator' },
+      ...Object.entries(llm.PROVIDERS).map(([provider, p]) => ({ label: p.label, type: 'radio', checked: cfg.provider === provider, click: () => pickProvider(provider) })),
+      { type: 'separator' },
+      ...(chatModels?.length ? chatModels.map((name) => ({ label: llm.modelLabel(cfg.provider, name), type: 'radio', checked: name === pickModel(cfg), click: () => updateConfig({ chatModel: name }) })) : [{ label: (chatError || t.noOllama).slice(0, 80), enabled: false }]),
+      ...(cfg.provider === 'claude' ? [{ type: 'separator' }, { label: `Claude Code: ${cfg.claudeCwd || app.getPath('home')}`, click: pickClaudeFolder }, { label: 'Claude Code permissions', submenu: llm.CLAUDE_MODES.map((mode) => ({ label: mode, type: 'radio', checked: cfg.claudeMode === mode, click: () => updateConfig({ claudeMode: mode }) })) }] : []),
+      { label: t.forget, click: forgetChats }, { label: t.apiKey, click: () => sendCommand('setupKey') },
+    ] },
+  ];
+  const settingsItems = [
+    ...(macPermissionsItem ? [macPermissionsItem] : []),
+    { label: text3('Données et confidentialité…','Data and privacy…','Данные и конфиденциальность…'), click: () => dataWindow.show() },
+    { label: text3('Données et coffre Markdown…','Data and Markdown vault…','Данные и Markdown-хранилище…'), click: () => dataWindow.show() },
+    { label: t.updates, click: () => versionWindow.show() },
+    { label: text3('Curseur virtuel…','Virtual cursor…','Виртуальный курсор…'), click: () => computerControlWindow.show() },
+    { label: t.pcReactTitle || t.pcReact, type: 'checkbox', checked: cfg.pcReact !== false, click: (item) => updateConfig({ pcReact: item.checked }) },
+    { label: t.wander, type: 'checkbox', checked: cfg.wander === true, click: (item) => updateConfig({ wander: item.checked }) },
+    { label: t.possess, type: 'checkbox', checked: cfg.possess === true, click: (item) => updateConfig({ possess: item.checked }) },
+    { label: t.possessMove, type: 'checkbox', ...checkboxState(cfg.possess === true, cfg.possessMove !== false), click: (item) => updateConfig({ possessMove: item.checked }) },
+    { label: t.screen?.title || t.screen, enabled: screens.length > 1, submenu: screenItems },
+    { label: t.rest, submenu: [['corner', t.restCorner], ['taskbar', t.restTaskbar]].map(([rest, label]) => ({ label, type: 'radio', checked: cfg.rest === rest, click: () => updateConfig({ rest }) })) },
+    { label: t.motion, submenu: [['auto',t.motionAuto],['full',t.motionFull],['reduced',t.motionReduced]].map(([motion,label]) => ({ label, type: 'radio', checked: cfg.motion === motion, click: () => updateConfig({ motion, motionAsked: true }) })) },
+    { label: t.display, submenu: [['auto',t.displayAuto],['gl',t.displayGl],['software',t.displaySoftware]].map(([render,label]) => ({ label, type: 'radio', checked: cfg.render === render, click: () => { if (cfg.render === render) return; config.save({ render }); config.flush(); app.relaunch(); app.exit(0); } })) },
+    { label: t.lang, submenu: [[t.auto,'auto'],...LANGS.map((language) => [TRAY[language].name,language])].map(([label, language]) => ({ label, type: 'radio', checked: (LANGS.includes(cfg.lang) ? cfg.lang : 'auto') === language, click: () => updateConfig({ lang: language }) })) },
+    { label: t.startup, type: 'checkbox', checked: app.getLoginItemSettings(loginItemOptions()).openAtLogin, click: (item) => app.setLoginItemSettings({ ...loginItemOptions(), openAtLogin: item.checked }) },
+    { type: 'separator' },
+    ...generalSettingsItems,
+  ];
+  const organizedMenu = Menu.buildFromTemplate([
+    { label: `${t.version} · ${packageInfo.version}`, enabled: false },
+    { label: t.online(PORT), enabled: false },
+    ...(moodState && cfg.emotions !== false ? [{ label: t.mood(t.moods[moodState.mood] || moodState.mood), enabled: false }] : []),
+    { type: 'separator' },
+    { label: t.teleport, click: () => sendCommand('teleport') },
+    { label: t.handstand, submenu: handstandItems },
+    { label: t.satellite, click: () => sendCommand('satellite') },
+    { label: t.demo, click: playDemo },
+    { label: t.translator, click: () => translationWindow.show() },
+    { label: t.musicPlayer, click: () => musicPlayer.show() },
+    { label: t.terminal, click: openTerminal },
+    { label: t.incomingCall, click: () => incomingCall.show() },
+    { label: t.talk, click: () => sendCommand('chat') },
+    { label: t.ring, click: () => sendCommand('ring') },
+    { label: t.reminders, submenu: reminderItems },
+    { type: 'separator' },
+    { label: text3('Jeux locaux','Local games','Локальные игры'), submenu: localGames },
+    { type: 'separator' },
+    { label: text3('Capricorn','Capricorn','Capricorn'), submenu: capricornItems },
+    { type: 'separator' },
+    { label: text3('Capri AI','Capri AI','Capri AI'), submenu: aiItems },
+    { type: 'separator' },
+    { label: text3('Paramètres','Settings','Настройки'), submenu: settingsItems },
+    { type: 'separator' },
+    { label: t.help, click: () => sendCommand('welcome') },
+    ...(cfg.claude ? [{ label: t.report, click: () => sendCommand('report') }] : []),
+    { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
+    ...(cfg.claude ? [
+      { type: 'separator' },
+      hookState.installed ? { label: t.hooksOnFor ? t.hooksOnFor(watched.name) : t.hooksOn, enabled: false } : { label: t.hooksOffFor ? t.hooksOffFor(watched.name) : t.hooksOff, click: () => runHooks('install') },
+      ...(hookState.installed ? [{ label: t.hooksRemoveFor ? t.hooksRemoveFor(watched.name) : t.hooksRemove, click: () => runHooks('uninstall') }] : []),
+    ] : []),
+    { type: 'separator' },
+    { label: t.farewell, click: () => { if (!config.load().visible) toggleVisible(true); farewell.start(); } },
+    { label: t.quit, click: () => app.quit() },
+  ]);
+  tray.setContextMenu(organizedMenu);
+  trayMenu = organizedMenu;
+  return;
+
   const menu = Menu.buildFromTemplate([
     { label: `${t.version} · ${packageInfo.version}`, enabled: false },
     { label: t.online(PORT), enabled: false },

@@ -251,6 +251,7 @@ export const LIFE_LINES = {
     // её круговое меню (ring.js)
     ring: {
       tabs: { bond: 'Связь', brain: 'ИИ', mic: 'Микрофон', senses: 'Чувства', character: 'Характер', colours: 'Цвета', mods: 'Моды', voice: 'Голос', more: 'Ещё', screen: 'Экран', chat: 'Говорить' },
+      categories: { ai: 'ИИ', system: 'Система', features: 'Функции' },
       close: 'Закрыть',
       bond: {
         next: 'До «{name}»: ещё {need}',
@@ -442,7 +443,7 @@ export const LIFE_LINES = {
         mods: 'Моды', importMod: 'Импортировать .capri-mod', addMusicFolder: 'Добавить папку с музыкой…', musicModes: 'Музыкальные режимы', trackCount: '{count} треков', importHint: 'Импортируйте здесь моды палитры, аксессуаров и музыки.', paletteMods: 'Моды палитры', appearanceMods: 'Моды внешности', noMods: 'Моды не установлены', removeMod: 'Удалить',
         newModeName: 'Название нового режима', createPaletteMode: 'Создать цветовой режим', createAccessoryMode: 'Создать режим аксессуара…', createMusicMode: 'Создать музыкальный режим…', createMode: 'Создать режим', closeMode: 'Закрыть создание режима', closePalette: 'Закрыть палитру', accessoryFile: 'PNG-файл', accessoryUrl: 'HTTPS-ссылка', accessoryUrlPlaceholder: 'https://…/accessory.png', accessoryUrlHint: 'Укажите прямую HTTPS-ссылку на изображение.', chooseAccessory: 'Выбрать PNG-аксессуар…', chooseAccessoryFirst: 'Сначала выберите изображение аксессуара.', accessoryPosition: 'Положение аксессуара', musicFolder: 'Папка', musicFile: 'Файл', musicUrl: 'HTTPS-ссылка', musicUrlPlaceholder: 'https://…/track.mp3', musicUrlHint: 'Нужна прямая HTTPS-ссылка на аудио, а не ссылка на веб-страницу.', trackTitle: 'Название трека', trackTitlePlaceholder: 'Название трека', artist: 'Исполнитель (необязательно)', artistPlaceholder: 'Исполнитель (необязательно)', chooseMusicFolder: 'Выбрать папку с музыкой…', chooseMusicFile: 'Выбрать аудиофайл…', chooseMusicFolderFirst: 'Сначала выберите папку с музыкой.', musicFolderHint: 'Поддерживаемые аудиофайлы из папки будут добавлены в библиотеку Capri.', musicFileHint: 'Выбранный аудиофайл будет добавлен как один трек в этот режим.', musicFolderChooseFailed: 'Не удалось выбрать папку с музыкой.', musicFileChooseFailed: 'Не удалось выбрать аудиофайл.', nameTaken: 'Режим с таким названием уже существует.', modeCreateFailed: 'Не удалось создать режим.', accessoryChooseFailed: 'Не удалось выбрать изображение.', sourceMissing: 'Файл .capri-mod отсутствует или перемещён. Импортируйте его снова, чтобы включить режим.',
         hexOrRgb: 'HEX или RGB', invalidColor: 'Введите HEX, например #22ccff, или RGB, например rgb(34, 204, 255).',
-        edit: 'Изменить', loadingEdit: 'Загрузка режима…', saveChanges: 'Сохранить изменения', cancelEdit: 'Отмена', restoreVersion: 'Восстановить {date}', noHistory: 'Сохранённых версий пока нет.', accessoryPosition: 'Положение аксессуара', accessorySize: 'Размер аксессуара', dragHint: 'Перетащи для примерного положения, затем задай X/Y с точностью до пикселя.', paletteColors: 'Цвета палитры', primaryColor: 'Основной цвет', secondaryColor: 'Дополнительный цвет', hue: 'Оттенок', mix: 'Смешивание', saturation: 'Насыщенность', brightness: 'Яркость', x: 'Положение X', y: 'Положение Y', width: 'Ширина', height: 'Высота',
+        edit: 'Изменить', loadingEdit: 'Загрузка режима…', saveChanges: 'Сохранить изменения', cancelEdit: 'Отмена', name: 'Название', version: 'Версия', modeName: 'Название режима', modeVersion: 'Версия режима', restoreVersion: 'Восстановить {date}', noHistory: 'Сохранённых версий пока нет.', accessoryPosition: 'Положение аксессуара', accessorySize: 'Размер аксессуара', dragHint: 'Перетащи для примерного положения, затем задай X/Y с точностью до пикселя.', paletteColors: 'Цвета палитры', primaryColor: 'Основной цвет', secondaryColor: 'Дополнительный цвет', hue: 'Оттенок', mix: 'Смешивание', saturation: 'Насыщенность', brightness: 'Яркость', x: 'Положение X', y: 'Положение Y', width: 'Ширина', height: 'Высота',
         remoteImage: 'Удалённое изображение с {host}; загружается, пока мод включён.',
         duplicatePrompt: 'У меня уже есть «{name}» версии {version}. Импортировать ещё одну копию? Я назову её «{copyName}».',
         importCopy: 'Импортировать копию', cancel: 'Отмена', imported: 'Готово! Я импортировала «{name}».', importFailed: 'Не удалось импортировать мод: {error}', operationFailed: 'Не удалось изменить мод: {error}', unknownVersion: 'без версии',
@@ -752,6 +753,7 @@ export const LIFE_LINES = {
     },
     ring: {
       tabs: { bond: 'Bond', brain: 'AI', mic: 'Mic', senses: 'Senses', character: 'Character', colours: 'Colours', mods: 'Mods', voice: 'Voice', more: 'More', screen: 'Screen', chat: 'Talk' },
+      categories: { ai: 'AI', system: 'System', features: 'Features' },
       close: 'Close',
       bond: {
         next: 'To "{name}": {need} to go',
@@ -943,7 +945,7 @@ export const LIFE_LINES = {
         mods: 'Mods', importMod: 'Import .capri-mod', addMusicFolder: 'Add music folder…', musicModes: 'Music modes', trackCount: '{count} tracks', importHint: 'Import palette, accessory, and music modes here.', paletteMods: 'Palette mods', appearanceMods: 'Appearance mods', noMods: 'No mods installed', removeMod: 'Remove',
         newModeName: 'Name for the new mode', createPaletteMode: 'Create colour mode', createAccessoryMode: 'Create accessory mode…', createMusicMode: 'Create music mode…', createMode: 'Create mode', closeMode: 'Close mode creator', closePalette: 'Close colour palette', accessoryFile: 'PNG file', accessoryUrl: 'HTTPS URL', accessoryUrlPlaceholder: 'https://…/accessory.png', accessoryUrlHint: 'Enter a direct HTTPS URL to an image.', chooseAccessory: 'Choose accessory PNG…', chooseAccessoryFirst: 'Choose an accessory image first.', accessoryPosition: 'Accessory position', musicFolder: 'Folder', musicFile: 'File', musicUrl: 'HTTPS URL', musicUrlPlaceholder: 'https://…/track.mp3', musicUrlHint: 'Use a direct HTTPS audio URL, not a web page link.', trackTitle: 'Track title', trackTitlePlaceholder: 'Track title', artist: 'Artist (optional)', artistPlaceholder: 'Artist (optional)', chooseMusicFolder: 'Choose a music folder…', chooseMusicFile: 'Choose an audio file…', chooseMusicFolderFirst: 'Choose a music folder first.', musicFolderHint: 'Supported audio files in this folder will be added to Capri’s library.', musicFileHint: 'The selected audio file will be added as one track in this mode.', musicFolderChooseFailed: 'The music folder could not be selected.', musicFileChooseFailed: 'The audio file could not be selected.', nameTaken: 'A mode with this name already exists.', modeCreateFailed: 'The mode could not be created.', accessoryChooseFailed: 'The image could not be selected.', sourceMissing: 'The .capri-mod source file is missing or moved. Reimport it to enable this mode.',
         hexOrRgb: 'HEX or RGB', invalidColor: 'Enter HEX such as #22ccff or RGB such as rgb(34, 204, 255).',
-        edit: 'Edit', loadingEdit: 'Loading mode…', saveChanges: 'Save changes', cancelEdit: 'Cancel', restoreVersion: 'Restore {date}', noHistory: 'No saved versions yet.', accessoryPosition: 'Accessory position', accessorySize: 'Accessory size', dragHint: 'Drag to get close, then set X/Y to the exact pixel.', paletteColors: 'Palette colours', primaryColor: 'Primary colour', secondaryColor: 'Secondary colour', hue: 'Hue', mix: 'Mix', saturation: 'Saturation', brightness: 'Brightness', x: 'X position', y: 'Y position', width: 'Width', height: 'Height',
+        edit: 'Edit', loadingEdit: 'Loading mode…', saveChanges: 'Save changes', cancelEdit: 'Cancel', name: 'Name', version: 'Version', modeName: 'Name of the mode', modeVersion: 'Version of the mode', restoreVersion: 'Restore {date}', noHistory: 'No saved versions yet.', accessoryPosition: 'Accessory position', accessorySize: 'Accessory size', dragHint: 'Drag to get close, then set X/Y to the exact pixel.', paletteColors: 'Palette colours', primaryColor: 'Primary colour', secondaryColor: 'Secondary colour', hue: 'Hue', mix: 'Mix', saturation: 'Saturation', brightness: 'Brightness', x: 'X position', y: 'Y position', width: 'Width', height: 'Height',
         remoteImage: 'Remote image from {host}; loaded while this mod is enabled.',
         duplicatePrompt: 'I already have “{name}” version {version}. Import another copy? I’ll call it “{copyName}”.',
         importCopy: 'Import copy', cancel: 'Cancel', imported: 'Done! I imported “{name}”.', importFailed: 'I couldn’t import that mod: {error}', operationFailed: 'I couldn’t manage that mod: {error}', unknownVersion: 'no version',
@@ -1678,6 +1680,11 @@ fr: {
       screen: 'Écran',
       chat: 'Discussion',
     },
+    categories: {
+      ai: 'IA',
+      system: 'Système',
+      features: 'Fonctionnalités',
+    },
 
     close: 'Fermer',
 
@@ -2039,6 +2046,10 @@ fr: {
       loadingEdit: 'Chargement du mode…',
       saveChanges: 'Enregistrer les modifications',
       cancelEdit: 'Annuler',
+      name: 'Nom',
+      version: 'Version',
+      modeName: 'Nom du mode',
+      modeVersion: 'Version du mode',
       restoreVersion: 'Restaurer la version du {date}',
       noHistory: 'Aucune version antérieure enregistrée.',
       accessoryPosition: 'Position de l’accessoire',
