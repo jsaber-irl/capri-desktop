@@ -2,24 +2,75 @@ MIT License
 
 Copyright (c) 2026 Capri Desktop contributors
 
-This license covers the source code of this repository. It does not cover the
-character artwork in assets/capri/ and docs/, which belongs to its respective
-rights holders (see README).
+## Scope of this License
+
+This license applies only to the original source code, modifications, and
+contributions to Capri Desktop that are eligible for distribution under
+the MIT License.
+
+The following materials are expressly excluded from this license and remain
+subject to their respective copyrights, licenses, and terms of use:
+
+- Third-party source code, libraries, and other software components, including
+  code derived from the repositories listed in INFO.md.
+- Character artwork, sprites, emotes, illustrations, and other visual assets,
+  including materials in assets/capri/, assets/sprites/, assets/emotes/,
+  docs/, and other asset directories.
+- Music tracks, audio recordings, voice recordings, and other sound files,
+  including materials in assets/songs/ and voice-default/.
+- Cursor designs, icons, images, and other third-party materials.
+- Trademarks, logos, characters, and other intellectual property belonging
+  to their respective rights holders.
+
+The above exclusions are illustrative and do not constitute an exhaustive
+list of third-party materials.
+
+For information about the origins of third-party materials, their respective
+authors, and applicable licensing conditions, see INFO.md and the relevant
+upstream repositories.
+
+Nothing in this license grants permission to redistribute, modify, sublicense,
+or commercially exploit excluded materials beyond the permissions expressly
+granted by their respective rights holders.
+
+## MIT License Terms
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+of the original source code covered by this license and associated
+documentation files (the "Software"), to deal in the Software without
+restriction, including without limitation the rights to use, copy, modify,
+merge, publish, distribute, sublicense, and/or sell copies of the Software,
+and to permit persons to whom the Software is furnished to do so, subject
+to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+## Third-Party Rights and Attribution
+
+Capri Desktop is an independent, community-developed project. It is not
+affiliated with, endorsed by, sponsored by, or officially associated with
+the creators of the referenced repositories, artists, record labels,
+publishers, or other third-party rights holders.
+
+All third-party trademarks, product names, logos, characters, artwork,
+music, and copyrighted materials remain the property of their respective
+owners.
+
+Attribution information, repository references, and known third-party
+materials are documented in INFO.md.
+
+Where applicable, the original licenses and terms of use of third-party
+materials take precedence over any general attribution statements contained
+in this document.
+
+This license does not replace, override, or expand any permissions granted
+by the original rights holders of third-party materials.
