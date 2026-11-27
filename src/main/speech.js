@@ -1,14 +1,17 @@
 'use strict';
 
 // Her voice from a text-to-speech service: one running on your PC that speaks OpenAI's speech API
-// (Kokoro-FastAPI, openedai-speech…), OpenAI's own, or ElevenLabs'. Windows' own voices need none
-// of this: the overlay speaks those itself (speech.js there). Returns the audio (mp3) for the
+// (Kokoro-FastAPI, openedai-speech…), OpenAI's own, ElevenLabs', or Fish Audio'. Windows' own voices
+// need none of this: the overlay speaks those itself (speech.js there). Returns the audio (mp3) for the
 // overlay to play; the keys never leave this process.
+// Capri's lachydotmcg voice pack (Kokoro ONNX preset) provides voices af_bella, af_heart, af_sky
+// among others; the local Kokoro service can use any of these if the server supports them.
 
 const SERVICES = {
   local: { url: 'http://127.0.0.1:8880/v1', voice: 'af_bella', model: 'kokoro' },
   openai: { url: 'https://api.openai.com/v1', voice: 'shimmer', model: 'gpt-4o-mini-tts' },
   elevenlabs: { url: 'https://api.elevenlabs.io/v1', voice: '', model: 'eleven_flash_v2_5' },
+  fish: { url: 'https://api.fish.audio', voice: '', model: 's2.1-pro-free' },
 };
 
 // How she sounds, for the services that take a direction (OpenAI's gpt-4o-mini-tts)

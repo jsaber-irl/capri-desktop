@@ -16,6 +16,7 @@ const ENGINES = {
   system: { label: 'System (offline)' },
   openai: { label: 'OpenAI', url: 'https://api.openai.com/v1', key: 'openai', env: 'OPENAI_API_KEY' },
   elevenlabs: { label: 'ElevenLabs', url: 'https://api.elevenlabs.io/v1', key: 'elevenlabs', env: 'ELEVENLABS_API_KEY' },
+  fish: { label: 'Fish Audio', url: 'https://api.fish.audio', key: 'fish' },
   chatterbox: { label: 'Chatterbox (on this PC, started by her)' },
   piper: { label: 'Piper (on this PC, light, run by her)' },
   custom: { label: 'OpenAI-compatible server', key: 'tts' },
@@ -25,12 +26,15 @@ const ENGINES = {
 const KEY_PAGES = {
   openai: 'https://platform.openai.com/api-keys',
   elevenlabs: 'https://elevenlabs.io/app/settings/api-keys',
+  fish: 'https://fish.audio/go-api/',
 };
 
 const DEFAULTS = {
   openai: { model: 'gpt-4o-mini-tts', voice: 'nova' },
   // "Domi", one of ElevenLabs' premade voices: young, confident. Any voice id of yours works.
   elevenlabs: { model: 'eleven_multilingual_v2', voice: 'AZnzlk1XvdvUeBnXmlld' },
+  // Fish Audio's free model (s2.1-pro-free), no voice id means it picks its default.
+  fish: { model: 's2.1-pro-free', voice: '' },
   custom: { model: 'tts-1', voice: 'af_bella' },
 };
 
@@ -110,6 +114,19 @@ async function speak(cfg, keys, { text, mood = 'calm', lang = 'en', base: chatte
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(120000), // (a slow card, a long answer)
+    });
+  } else if (engine === 'fish') {
+    if (!key) throw withCode(new Error('no Fish Audio key'), 'nokey');
+    const base = e.url.replace(/\/+$/, '');
+    // Fish Audio selects its model through a header and a saved voice through reference_id.
+    const fishBody = { text: input, format: 'mp3' };
+    const ref = voice || DEFAULTS.fish.voice;
+    if (ref) fishBody.reference_id = ref;
+    res = await fetch(`${base}/v1/tts`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'audio/mpeg', authorization: `Bearer ${key}`, model: model || DEFAULTS.fish.model },
+      body: JSON.stringify(fishBody),
+      signal: AbortSignal.timeout(30000),
     });
   } else if (engine === 'elevenlabs') {
     if (!key) throw withCode(new Error('no ElevenLabs key'), 'nokey');

@@ -1596,7 +1596,7 @@ const voice = {
       onChange: () => c.drop(),
     }));
     root.append(heading(v.engine));
-    root.append(pick(['system', 'piper', 'chatterbox', 'openai', 'elevenlabs', 'custom'].map((id) => ({ id, label: v.engines[id] })), cfg.ttsEngine || 'system', (id) => c.set({ ttsEngine: id })));
+    root.append(pick(['system', 'piper', 'chatterbox', 'openai', 'elevenlabs', 'fish', 'custom'].map((id) => ({ id, label: v.engines[id] })), cfg.ttsEngine || 'system', (id) => c.set({ ttsEngine: id })));
     // Chatterbox, on this PC: whether it is up, which folder, and a button to start it again
     if (cfg.ttsEngine === 'chatterbox' && c.host.chatterboxStatus) {
       const box = el('div');

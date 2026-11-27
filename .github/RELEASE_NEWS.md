@@ -1,5 +1,2 @@
-**### Mod Customization**
-Added the ability to customize the name and version of installed mods.
-
-**### System Menu Reorganization**
-Restructured the system tray menu into dedicated categories for AI, System, Interaction, Appearance, Personality, and Tools, making features easier to find and manage.
+**### Voice System**
+Added support for Fish Audio in the voice system and updated the descriptions of the voice engines in the user interface.

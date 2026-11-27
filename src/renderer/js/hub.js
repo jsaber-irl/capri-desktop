@@ -576,7 +576,7 @@
     sel.model = cur.chatModel && installed.includes(cur.chatModel) ? cur.chatModel : installed[0] || data.rec.mind.best || data.recommended.mind.model || 'gemma3:4b';
     const eng = cur.ttsEngine;
     if (!data.first && ['piper', 'chatterbox', 'system'].includes(eng)) sel.voice = eng;
-    else if (!data.first && ['openai', 'elevenlabs'].includes(eng)) {
+    else if (!data.first && ['openai', 'elevenlabs', 'fish'].includes(eng)) {
       sel.voice = 'cloud';
       $('voiceEngine').value = eng;
     } else sel.voice = data.recommended.voice.engine;

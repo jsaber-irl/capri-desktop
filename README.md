@@ -1,4 +1,4 @@
-## **Project Capricorn (2.6.2)**
+## **Project Capricorn (2.6.3)**
 
 Capri, the construct **Project Capricorn** from *Cyberpunk: Edgerunners* (Season 2), lives on your desktop. She watches your coding assistant — **Claude Code**, **Codex**, or **Antigravity** — teleports around, causes glitches, comments on every action, rushes over when permission is needed, and bursts with joy when the work is finished.
 
@@ -14,7 +14,8 @@ She can also **chat with you** through any AI — **Claude**, Ollama on your com
 
 - **Coding AI monitoring** (Claude Code, Codex, Antigravity, OpenCode): Capri comments on actions, asks for your permission when needed, and reacts when the task is finished.
 - **AI conversation**: local Ollama, Claude, Gemini, GPT, Groq, and other providers. While an answer loads, localized cyberpunk-style commands type out in the chat; simple thanks and apologies receive an immediate reply without waiting for the AI. App-opening confirmations stay brief and are shown only after a successful launch. Capri can speak using Piper, Chatterbox, the system voice, or a cloud service.
-- **AI jealousy**: when enabled, Capri recognizes supported AI names in browser-tab titles and AI desktop-app windows. Detection is available on Windows, macOS, and Linux; closing rival pages remains Windows-only.
+- **AI jealousy**: when enabled
+, Capri recognizes supported AI names in browser-tab titles and AI desktop-app windows. Detection is available on Windows, macOS, and Linux; closing rival pages remains Windows-only.
 - **Reminders**: create one-time or recurring reminders in the circular menu, with an in-app alert and a desktop notification when they are due.
 - **Voice input**: speak to Capri using Groq (Whisper), OpenAI Whisper, or an OpenAI-compatible transcription server, including local Whisper servers.
 - **Desktop life**: she sits on windows or the taskbar, swings her legs, floats, falls, sleeps, teleports, looks at the satellite, and reacts to the cursor.

@@ -4,7 +4,8 @@ out/
 *.log
 .DS_Store
 Thumbs.db
-/.private/
+/.project/
+/.vscode/
 .env
 
 # local debug captures

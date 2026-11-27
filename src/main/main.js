@@ -126,7 +126,7 @@ function performVideoSearch(request = {}) {
 const THEMES = ['classic', 'netrunner', 'toxic', 'violet', 'gold', 'sakura', 'ghost', 'mood'];
 const WINDOW_THEMES = ['classic', 'nightcity'];
 // which saved key each voice engine uses (OpenAI's is the same one as her chat's)
-const TTS_KEYS = { openai: 'openai', elevenlabs: 'elevenlabs', custom: 'tts' };
+const TTS_KEYS = { openai: 'openai', elevenlabs: 'elevenlabs', fish: 'fish', custom: 'tts' };
 // her voice (Chatterbox) and her mind (Ollama), models on this PC: she finds their folders next to her, starts
 // them, keeps them, and gets them ready when something is missing (provision.js, shown by prepare.js)
 const placesNextToHer = () => {
@@ -3251,7 +3251,7 @@ function main() {
       lang: () => resolveLang(config.load().lang),
       connect: useProvider,
       saveVoiceKey: ({ engine, key }) => {
-        if (!['openai', 'elevenlabs'].includes(engine) || !key) return { ok: false, error: 'no key' };
+        if (!['openai', 'elevenlabs', 'fish'].includes(engine) || !key) return { ok: false, error: 'no key' };
         ttsSetup({ engine, key });
         return { ok: true };
       },

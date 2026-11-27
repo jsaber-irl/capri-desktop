@@ -29,7 +29,7 @@ const CLOUD = [
   { id: 'nvidia', tag: 'paid', key: true },
   { id: 'custom', tag: 'own', key: false, url: true },
 ];
-const VOICES = ['piper', 'chatterbox', 'system', 'openai', 'elevenlabs'];
+const VOICES = ['piper', 'chatterbox', 'system', 'openai', 'elevenlabs', 'fish'];
 const MINDS = ['ollama', 'cloud', 'skip'];
 
 const SECTIONS = new Set(['manage']); // the places of the page a button elsewhere can open it at
@@ -69,7 +69,7 @@ function createHub({ BrowserWindow, ipcMain, shell, clipboard, provision, config
       models: rec.rows.map((m) => ({ model: m.model, bytes: m.bytes, vision: m.vision, ru: m.ru, rank: m.rank, heavy: m.rank === 'heavy', have: Boolean(sameModel(have.models || [], m.model)) })),
       rec: { mind: { best: rec.best, alt: rec.alt, bestWhy: rec.bestWhy, altWhy: rec.altWhy }, voice: profiles.recommendVoice(hw) },
       cloud: cloudState(cfg),
-      voiceKeys: { openai: Boolean(cfg.apiKeys?.openai), elevenlabs: Boolean(cfg.apiKeys?.elevenlabs) },
+      voiceKeys: { openai: Boolean(cfg.apiKeys?.openai), elevenlabs: Boolean(cfg.apiKeys?.elevenlabs), fish: Boolean(cfg.apiKeys?.fish) },
       node: { auto: cfg.autoNode !== false },
       tune: mind ? mind.status() : null,
       current: { provider: cfg.provider, chatModel: cfg.chatModel, ttsEngine: cfg.ttsEngine || 'system', customUrl: cfg.customUrl || '' },

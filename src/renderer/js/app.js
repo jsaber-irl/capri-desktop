@@ -919,7 +919,7 @@ async function boot() {
       const cfg = await host.getConfig();
       const engine = await guide.ask({
         face: 'look', line: tv.which, quote: tv.whichHow,
-        actions: [...['system', 'piper', 'chatterbox', 'openai', 'elevenlabs', 'custom'].map((id) => ({ id, label: tv.engines[id], primary: id === cfg.ttsEngine })), { id: 'later', label: tv.later }],
+        actions: [...['system', 'piper', 'chatterbox', 'openai', 'elevenlabs', 'fish', 'custom'].map((id) => ({ id, label: tv.engines[id], primary: id === cfg.ttsEngine })), { id: 'later', label: tv.later }],
       });
       if (!engine || engine === 'later') return;
       if (engine === 'system' || engine === 'piper') { // (nothing to ask: no key, no address; Piper is fetched by her, by the preparation)
@@ -939,11 +939,11 @@ async function boot() {
         if (!got) return;
         if (got.text) choice.url = got.text;
       } else {
-        const slot = engine === 'openai' ? 'openai' : 'elevenlabs';
+        const slot = engine;
         const has = cfg.keys?.includes(slot);
         const name = tv.engines[engine];
         const got = await guide.askText({
-          face: 'look', line: fmt(tv.key, { name }), quote: fmt(tv.keyHow, { name }), secret: true, placeholder: 'sk-… / xi-…',
+          face: 'look', line: fmt(tv.key, { name }), quote: fmt(tv.keyHow, { name }), secret: true, placeholder: 'API key…',
           actions: [{ id: 'where', label: tv.where }, ...(has ? [{ id: 'skip', label: tv.skip }] : [])],
           onAction: (id) => {
             if (id !== 'where') return false;
@@ -954,7 +954,7 @@ async function boot() {
         if (!got || (!got.text && !has)) return;
         if (got.text) choice.key = got.text;
       }
-      const voiceGot = await guide.askText({ face: 'smug', line: tv.voiceId, quote: tv.voiceIdHow, placeholder: cfg.ttsVoice || (engine === 'openai' ? 'nova' : engine === 'elevenlabs' ? 'voice id' : 'af_bella'), actions: [{ id: 'skip', label: tv.skip }] });
+      const voiceGot = await guide.askText({ face: 'smug', line: tv.voiceId, quote: tv.voiceIdHow, placeholder: cfg.ttsVoice || (engine === 'openai' ? 'nova' : engine === 'elevenlabs' || engine === 'fish' ? 'voice ID' : 'af_bella'), actions: [{ id: 'skip', label: tv.skip }] });
       if (voiceGot?.text) choice.voice = voiceGot.text;
       await host.ttsSetup(choice);
       saved = true;
