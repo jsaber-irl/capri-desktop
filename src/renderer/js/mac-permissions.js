@@ -4,6 +4,7 @@
   const $ = (id) => document.getElementById(id);
 
   let currentLang = 'fr';
+  let pendingFocus = null;
 
   const UI_TEXT = {
     fr: {
@@ -28,6 +29,10 @@
       automationGranted: (name) => `Apple Event envoyé à ${name} et autorisation vérifiée.`,
       automationUnknownResult: 'La requête a été envoyée, mais son résultat ne permet pas de confirmer l’autorisation. Consultez les instructions macOS.',
       automationNotSent: 'Aucun Apple Event envoyé. Vérifiez que l’application cible est ouverte.',
+      automationRequest: 'Demander l’autorisation',
+      automationSettings: 'Ouvrir les Réglages Système',
+      automationVerify: 'Vérifier à nouveau',
+      focusRequested: 'Cible demandée par la fenêtre de traduction : demandez l’autorisation pour lire la page active.',
       refreshFailed: (err) => `Impossible de vérifier les permissions : ${err}`,
     },
     en: {
@@ -52,6 +57,10 @@
       automationGranted: (name) => `Apple Event sent to ${name}; permission verified.`,
       automationUnknownResult: 'The request was sent, but its result cannot confirm permission. See macOS instructions.',
       automationNotSent: 'No Apple Event was sent. Check that the target application is open.',
+      automationRequest: 'Request Permission',
+      automationSettings: 'Open System Settings',
+      automationVerify: 'Check Again',
+      focusRequested: 'Requested by the translation window: allow access to read the active page.',
       refreshFailed: (err) => `Could not check permissions: ${err}`,
     },
   };
@@ -135,17 +144,88 @@
     const hint = $('summaryHint');
     if (hint && perms.automation?.status === 'unknown') hint.textContent = t('automationUnknown');
     for (const target of state.automationTargets || []) renderAutomationTarget(target);
+    applyFocus();
+  }
+
+  function makeButton(label, marker, className) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `btn ${className}`;
+    button.dataset[marker] = '';
+    button.textContent = label;
+    return button;
+  }
+
+  function ensureAutomationTarget(target) {
+    let row = document.querySelector(`[data-target="${target.targetId}"]`);
+    if (row) return row;
+    const container = target.browser ? $('browser-targets') : $('automation-targets');
+    if (!container) return null;
+    row = document.createElement('article');
+    row.className = 'automation-target';
+    row.dataset.target = target.targetId;
+
+    const head = document.createElement('div');
+    head.className = 'automation-target-head';
+    const name = document.createElement('strong');
+    name.dataset.targetName = '';
+    const badge = document.createElement('span');
+    badge.className = 'badge badge--unknown';
+    badge.dataset.targetStatus = '';
+    badge.textContent = t('unknown');
+    head.append(name, badge);
+
+    const description = document.createElement('p');
+    description.dataset.targetDesc = '';
+
+    const actions = document.createElement('div');
+    actions.className = 'perm-actions';
+    actions.append(
+      makeButton(t('automationRequest'), 'targetRequest', 'btn--action'),
+      makeButton(t('automationSettings'), 'targetSettings', 'btn--secondary'),
+      makeButton(t('automationVerify'), 'targetVerify', 'btn--secondary'),
+    );
+    row.append(head, description, actions);
+    container.append(row);
+    return row;
   }
 
   function renderAutomationTarget(target) {
-    const row = document.querySelector(`[data-target="${target.targetId}"]`);
+    const row = ensureAutomationTarget(target);
     if (!row) return;
+    const isEn = currentLang === 'en';
+    const name = row.querySelector('[data-target-name], .automation-target-head strong');
+    if (name) name.textContent = isEn ? (target.nameEn || target.targetApp) : (target.nameFr || target.targetApp);
+    const description = row.querySelector('[data-target-desc], p');
+    if (description && (target.descFr || target.descEn)) {
+      description.textContent = isEn ? (target.descEn || target.descFr) : (target.descFr || target.descEn);
+    }
     const badge = row.querySelector('[data-target-status]');
     if (badge) {
       badge.className = badgeClass(target.status);
       badge.textContent = t(target.status || 'unknown');
     }
     row.dataset.status = target.status || 'unknown';
+    const request = row.querySelector('[data-target-request]');
+    if (request) request.textContent = t('automationRequest');
+    const settings = row.querySelector('[data-target-settings]');
+    if (settings) settings.textContent = t('automationSettings');
+    const verify = row.querySelector('[data-target-verify]');
+    if (verify) verify.textContent = t('automationVerify');
+  }
+
+  function applyFocus() {
+    if (!pendingFocus) return;
+    const row = document.querySelector(`[data-target="${pendingFocus.targetId}"]`);
+    if (!row) return;
+    const focus = pendingFocus;
+    pendingFocus = null;
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    row.classList.add('is-focus');
+    setTimeout(() => row.classList.remove('is-focus'), 3200);
+    const hint = $('summaryHint');
+    if (hint) hint.textContent = t('focusRequested');
+    if (focus.request) probeAutomation(focus.targetId, true);
   }
 
   async function probeAutomation(targetId, verify = false) {
@@ -156,8 +236,11 @@
     if (result) result.textContent = t('automationLoading');
     try {
       const response = await window.macPermissions.automationProbe(targetId, verify);
-      if (response.automationTargets) response.automationTargets.forEach(renderAutomationTarget);
-      else if (response.targetId) renderAutomationTarget(response);
+      if (Array.isArray(response.automationTargets) && response.automationTargets.length) {
+        response.automationTargets.forEach(renderAutomationTarget);
+      } else if (response.targetId) {
+        renderAutomationTarget(response);
+      }
       if (result) {
         if (response.status === 'granted') result.textContent = t('automationGranted', response.targetApp || targetId);
         else if (response.status === 'denied') result.textContent = t('automationDenied');
@@ -328,17 +411,26 @@
 
   $('btn-settings-screen')?.addEventListener('click', () => handleSettings('screen'));
 
-  document.querySelectorAll('[data-target]').forEach((row) => {
+  $('automation-targets')?.addEventListener('click', (event) => {
+    const row = event.target.closest?.('[data-target]');
+    if (!row) return;
     const targetId = row.dataset.target;
-    row.querySelector('[data-target-request]')?.addEventListener('click', () => probeAutomation(targetId, false));
-    row.querySelector('[data-target-verify]')?.addEventListener('click', () => probeAutomation(targetId, true));
-    row.querySelector('[data-target-settings]')?.addEventListener('click', () => handleSettings('automation'));
+    if (event.target.closest('[data-target-request]')) probeAutomation(targetId, false);
+    else if (event.target.closest('[data-target-verify]')) probeAutomation(targetId, true);
+    else if (event.target.closest('[data-target-settings]')) handleSettings('automation');
   });
 
   $('testWindowsBtn')?.addEventListener('click', testWindows);
 
   if (window.macPermissions?.onStatusChange) {
     window.macPermissions.onStatusChange((state) => render(state));
+  }
+  if (window.macPermissions?.onFocusTarget) {
+    window.macPermissions.onFocusTarget((focus) => {
+      if (!focus || !focus.targetId) return;
+      pendingFocus = focus;
+      applyFocus();
+    });
   }
 
   // Initial load

@@ -116,7 +116,8 @@ function createMusicController({ platform = process.platform, adapters = createP
       return { ok: true, status: action === 'play' ? 'playing' : action === 'pause' ? 'paused' : 'controlled', action, session: target };
     } catch (error) {
       const permission = /(-1743|not authorized|not permitted|permission|access denied)/i.test(`${error.message} ${error.stderr || ''}`);
-      return { ok: false, status: permission ? 'permission_required' : 'error', session: target, error: permission ? 'macOS doit autoriser Capri à contrôler Spotify dans Réglages Système > Confidentialité et sécurité > Automatisation.' : error.message };
+      const appName = target.app || (target.service === 'deezer' ? 'Deezer' : 'Spotify');
+      return { ok: false, status: permission ? 'permission_required' : 'error', session: target, error: permission ? `macOS doit autoriser Capri à contrôler ${appName} dans Réglages Système > Confidentialité et sécurité > Automatisation.` : error.message };
     }
   }
 

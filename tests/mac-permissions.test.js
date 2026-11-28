@@ -21,6 +21,7 @@ const {
   focusMacWindow,
   closeMacApp,
   createMacPermissionsWindow,
+  AUTOMATION_TARGETS,
 } = require('../src/main/mac-permissions');
 const { TRAY } = require('../src/main/labels');
 
@@ -134,7 +135,13 @@ test('automation requests send a read-only Apple Event to an allowlisted target 
   const spotify = await requestAutomationTarget('spotify', { exec: success, platform: 'darwin' });
   assert.equal(spotify.status, 'granted');
   assert.equal(calls[1].command, 'osascript');
-  assert.match(calls[1].args[1], /get player state/);
+  assert.match(calls[1].args[1], /tell application "Spotify" to get player state/);
+
+  calls.length = 0;
+  const deezer = await requestAutomationTarget('deezer', { exec: success, platform: 'darwin' });
+  assert.equal(deezer.status, 'granted');
+  assert.deepEqual(calls[0].args, ['-x', 'Deezer']);
+  assert.match(calls[1].args[1], /tell application "Deezer" to get player state/);
 
   let sent = false;
   const notRunning = await requestAutomationTarget('spotify', {
@@ -159,11 +166,46 @@ test('Section 13 exposes per-target request, settings, verification, and macOS i
   const html = fs.readFileSync(path.join(__dirname, '../src/renderer/mac-permissions.html'), 'utf8');
   assert.match(html, /data-target="systemEvents"/);
   assert.match(html, /data-target="spotify"/);
-  assert.equal((html.match(/data-target-request/g) || []).length, 2);
-  assert.equal((html.match(/data-target-settings/g) || []).length, 2);
-  assert.equal((html.match(/data-target-verify/g) || []).length, 2);
+  assert.match(html, /data-target="deezer"/);
+  assert.match(html, /id="browser-targets"/);
+  assert.equal((html.match(/data-target-request/g) || []).length, 3);
+  assert.equal((html.match(/data-target-settings/g) || []).length, 3);
+  assert.equal((html.match(/data-target-verify/g) || []).length, 3);
   assert.match(html, /<summary class="inst-label">Instructions macOS<\/summary>/);
   assert.match(PERMISSIONS_META.automation.instructionsFr, /Réglages Système → Confidentialité et sécurité → Automatisation/);
+  for (const id of ['chrome', 'brave', 'edge', 'vivaldi', 'opera', 'safari']) {
+    assert.equal(AUTOMATION_TARGETS[id].browser, true, id);
+  }
+  assert.equal(AUTOMATION_TARGETS.chrome.targetApp, 'Google Chrome');
+  assert.equal(AUTOMATION_TARGETS.safari.targetApp, 'Safari');
+});
+
+test('browser automation probes only a running allowlisted browser and reads its window count', async () => {
+  const calls = [];
+  const success = (command, args, _opts, cb) => {
+    calls.push({ command, args });
+    if (command === 'pgrep') return cb(null, '123');
+    cb(null, '2');
+  };
+  const chrome = await requestAutomationTarget('chrome', { exec: success, platform: 'darwin' });
+  assert.equal(chrome.status, 'granted');
+  assert.equal(chrome.requestSent, true);
+  assert.deepEqual(calls[0].args, ['-x', 'Google Chrome']);
+  assert.equal(calls[1].command, 'osascript');
+  assert.match(calls[1].args[1], /tell application "Google Chrome" to count windows/);
+
+  let sent = false;
+  const notRunning = await requestAutomationTarget('safari', {
+    exec: (command, _args, _opts, cb) => {
+      if (command === 'osascript') sent = true;
+      cb(new Error('not running'));
+    },
+    platform: 'darwin',
+  });
+  assert.equal(notRunning.status, 'unknown');
+  assert.equal(notRunning.requestSent, false);
+  assert.equal(sent, false);
+  assert.match(notRunning.error, /Safari/);
 });
 
 test('checkAllPermissions aggregates global status and counts', async () => {
@@ -282,8 +324,9 @@ test('permissions IPC rejects renderer callers outside its dedicated window', as
   const state = await handlers.get('macPermissions:getStatus')(authorized);
   assert.equal(state.isMac, true);
   assert.equal(state.permissions.automation.status, 'unknown');
-  assert.equal(state.automationTargets.length, 2);
+  assert.equal(state.automationTargets.length, 9);
   assert.equal(state.automationTargets[0].status, 'unknown');
+  assert.equal(state.automationTargets.find((target) => target.targetId === 'chrome').browser, true);
   assert.equal(await handlers.get('macPermissions:openSettings')(authorized, 'arbitrary'), false);
   const probeResult = await handlers.get('macPermissions:automationProbe')(authorized, { targetId: 'systemEvents', verify: false });
   assert.equal(probeResult.status, 'granted');
@@ -303,6 +346,109 @@ test('permissions IPC rejects renderer callers outside its dedicated window', as
   assert.equal((await handlers.get('macPermissions:automationProbe')(authorized, { targetId: 'arbitrary', verify: false })).ok, false);
   listeners.get('macPermissions:close')({ ...unauthorized });
   assert.equal(api.isOpen(), true);
+});
+
+test('a previously authorised target opens as granted and a new grant is remembered', async () => {
+  const handlers = new Map();
+  const saved = [];
+  const execCalls = [];
+  const cache = { spotify: true };
+  const ipcMain = { handle: (channel, handler) => handlers.set(channel, handler), on() {} };
+  class FakeWindow {
+    constructor() {
+      this.destroyed = false;
+      this.webContents = { mainFrame: {}, send() {}, once() {} };
+    }
+    isDestroyed() { return this.destroyed; }
+    isMinimized() { return false; }
+    show() {}
+    focus() {}
+    removeMenu() {}
+    loadURL() {}
+    once() {}
+    on() {}
+    close() { this.destroyed = true; }
+  }
+  const api = createMacPermissionsWindow({
+    BrowserWindow: FakeWindow,
+    ipcMain,
+    shell: { openExternal: async () => true },
+    systemPreferences: { isTrustedAccessibilityClient: () => true, getMediaAccessStatus: () => 'granted' },
+    platform: 'darwin',
+    getAutomationCache: () => cache,
+    setAutomationGranted: (targetId, granted) => saved.push({ targetId, granted }),
+    exec: (command, _args, _opts, callback) => {
+      execCalls.push(command);
+      if (command === 'pgrep') return callback(null, '123');
+      callback(null, 'playing');
+    },
+  });
+  const win = api.show();
+  const authorized = { sender: win.webContents, senderFrame: win.webContents.mainFrame };
+  const state = await handlers.get('macPermissions:getStatus')(authorized);
+  const spotify = state.automationTargets.find((target) => target.targetId === 'spotify');
+  const deezer = state.automationTargets.find((target) => target.targetId === 'deezer');
+  assert.equal(spotify.status, 'granted');
+  assert.equal(spotify.cached, true);
+  assert.equal(deezer.status, 'unknown');
+  assert.equal(state.permissions.automation.status, 'granted');
+  assert.deepEqual(execCalls, [], 'opening the window does not send any Apple Event');
+
+  // A feature used meanwhile (Spotify/Deezer, a browser tab) records its grant;
+  // the permissions window picks it up without another check.
+  cache.deezer = true;
+  const external = await handlers.get('macPermissions:getStatus')(authorized);
+  assert.equal(external.automationTargets.find((target) => target.targetId === 'deezer').status, 'granted');
+  assert.deepEqual(execCalls, [], 'an already authorised target needs no new Apple Event');
+
+  const probe = await handlers.get('macPermissions:automationProbe')(authorized, { targetId: 'deezer', verify: false });
+  assert.equal(probe.status, 'granted');
+  assert.deepEqual(saved, [{ targetId: 'deezer', granted: true }]);
+  const after = await handlers.get('macPermissions:getStatus')(authorized);
+  assert.equal(after.automationTargets.find((target) => target.targetId === 'deezer').status, 'granted');
+});
+
+test('the permissions window focuses and requests the browser target asked by translation', () => {
+  const sent = [];
+  let loaded = null;
+  let ready = null;
+  class FakeWindow {
+    constructor() {
+      this.destroyed = false;
+      this.webContents = {
+        mainFrame: {},
+        send: (channel, payload) => sent.push({ channel, payload }),
+        once: (event, callback) => { if (event === 'did-finish-load') loaded = callback; },
+      };
+    }
+    isDestroyed() { return this.destroyed; }
+    isMinimized() { return false; }
+    show() {}
+    focus() {}
+    removeMenu() {}
+    loadURL() {}
+    once(event, callback) { if (event === 'ready-to-show') ready = callback; }
+    on() {}
+    close() { this.destroyed = true; }
+  }
+  const api = createMacPermissionsWindow({
+    BrowserWindow: FakeWindow,
+    ipcMain: { handle() {}, on() {} },
+    shell: { openExternal: async () => true },
+    systemPreferences: { isTrustedAccessibilityClient: () => true, getMediaAccessStatus: () => 'granted' },
+    platform: 'darwin',
+    exec: (_command, _args, _opts, cb) => cb(null, '1'),
+  });
+  api.show({ targetId: 'safari', request: true });
+  loaded?.();
+  ready?.();
+  assert.deepEqual(sent.find((entry) => entry.channel === 'macPermissions:focusTarget'), {
+    channel: 'macPermissions:focusTarget',
+    payload: { targetId: 'safari', request: true },
+  });
+  sent.length = 0;
+  api.show({ targetId: 'not-a-browser', request: true });
+  assert.equal(sent.some((entry) => entry.channel === 'macPermissions:focusTarget'), false);
 });
 
 test('listMacWindows parses window output or reports a blocked System Events request', async () => {

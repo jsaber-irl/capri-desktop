@@ -349,6 +349,12 @@ html, body {
   border: 1px solid rgba(142, 164, 211, 0.2);
   border-radius: 8px;
   background: rgba(9, 14, 27, 0.62);
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+.automation-target.is-focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px var(--cyan-dim), 0 0 18px rgba(0, 240, 255, 0.18);
 }
 
 .automation-target-head {

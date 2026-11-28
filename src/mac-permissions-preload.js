@@ -16,5 +16,10 @@ contextBridge.exposeInMainWorld('macPermissions', {
     ipcRenderer.on('macPermissions:statusChange', handler);
     return () => ipcRenderer.removeListener('macPermissions:statusChange', handler);
   },
+  onFocusTarget: (callback) => {
+    const handler = (_event, target) => callback(target);
+    ipcRenderer.on('macPermissions:focusTarget', handler);
+    return () => ipcRenderer.removeListener('macPermissions:focusTarget', handler);
+  },
 });
 

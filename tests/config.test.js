@@ -26,6 +26,7 @@ test('the Capri cursor is opt-in until the user enables it', () => {
   assert.equal(config.DEFAULTS.discordPresence, false);
   assert.equal(config.DEFAULTS.computerControl, false);
   assert.equal(config.DEFAULTS.computerControlPreview, false);
+  assert.deepEqual(config.DEFAULTS.macAutomationGranted, {});
 });
 
 test('compact preview stays disabled when the key is missing or is not true', () => {

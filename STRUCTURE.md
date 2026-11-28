@@ -61,6 +61,11 @@ capri-desktop/
 │   │   ├── documents.js     Safe text-document creation
 │   │   ├── llm.js           AI provider requests
 │   │   ├── web-search.js    Browser searches and short Wikipedia answers
+│   │   ├── translation-window.js  Compact page/document translation window IPC
+│   │   ├── translator.js    Translation providers and ordered batch segments
+│   │   ├── translation-page.js  Public-page fetch, readable blocks and page results
+│   │   ├── translation-document.js  Local HTML/Markdown/text translation and preview building
+│   │   ├── active-page.js / active-page.ps1  Read-only active browser tab detection
 │   │   ├── stt.js / tts.js  Speech recognition and synthesis
 │   │   ├── screen.js        Screen capture and display support
 │   │   └── bridge.js        Loopback coding-assistant hook bridge
@@ -86,6 +91,7 @@ capri-desktop/
 │   │   ├── computer-confirm.html / .js / .css     Lower-right allow/refuse prompt for a pending click
 │   │   ├── computer-cursor.html / .css             Transparent click-through cursor overlay
 │   │   ├── music-player.html / music-player.js / music-player.css  Local and system media controls
+│   │   ├── translation.html / translation.js / translation.css  Conversational page/document translator
 │   │   ├── music-library.js Shared bundled MP3 catalog and local asset URLs
 │   │   ├── hub.html         Main settings window
 │   │   ├── terminal.html    Command terminal
@@ -163,6 +169,25 @@ its sender-validated preload IPC, then signals readiness before Main dispatches 
 The selector is populated from that catalog, and playback acknowledgements are returned only after
 the audio element's `play()` promise resolves; asynchronous audio errors update the visible player
 state without changing the catalog or accepting arbitrary file paths.
+
+### Page and document translation
+
+`translation-window.js` owns a single compact window with two paths. For a web page,
+`active-page.js` reads the foreground browser's active tab (AppleScript on macOS, UI Automation on
+Windows). On macOS it identifies the browser through `lsappinfo` (no Automation permission needed),
+remembers it before Capri takes focus, and asks only that browser for the active tab address. When
+macOS refuses the Apple Event, the renderer offers an "Allow in macOS Permissions" action that opens
+the macOS Permissions window on the matching browser target and sends the explicit permission
+request there; the window still accepts a pasted address when no browser can be read.
+`translation-page.js` fetches only public HTTP(S) addresses, follows redirects manually so a page
+cannot bounce into a private network, strips scripts/navigation/footers, and keeps headings,
+paragraphs and list items as ordered blocks. `translation-document.js` translates local HTML while
+preserving block structure, inline tags and tables, translates Markdown outside fenced code, and
+reduces RTF to readable text. Local images are inlined as data URLs into a sanitized preview shown
+in a sandboxed frame; the source file is never modified. Both paths report real read/scan/translate
+progress over sender-checked IPC, and errors return a stable code so the renderer can answer in
+Capri's voice rather than exposing provider text. `translation:save` opens a native save dialog and
+writes only the last successful result; `translation:openResult` opens that file or a temporary copy.
 
 Factual questions recognized by `chat.js` use `webAnswer` through preload and a sender-validated
 Main IPC handler. `web-search.js` queries the fixed Wikipedia Action API in the selected language,

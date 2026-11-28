@@ -2,33 +2,154 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' capri:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' capri: data: https:; font-src 'self'; connect-src 'self' capri:; frame-src 'self' data: blob:">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Capri // Traduction</title>
   <link rel="stylesheet" href="translation.css">
 </head>
 <body>
-  <main class="translator">
-    <header class="translator__header"><strong>CAPRI // TRANSLATOR</strong><button id="close" type="button">×</button></header>
-    <section class="translator__settings">
-      <label>API<select id="provider"><option value="mymemory">MyMemory — gratuit</option><option value="deepl">DeepL</option><option value="google">Google Cloud Translation</option><option value="libretranslate">LibreTranslate</option><option value="custom">Service personnalisé</option></select></label>
-      <label>Source<select id="sourceLang"><option value="auto">Détection automatique</option><option value="fr">Français</option><option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="it">Italiano</option><option value="ja">日本語</option></select></label>
-      <label>Cible<select id="targetLang"><option value="fr">Français</option><option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="it">Italiano</option><option value="ja">日本語</option></select></label>
-    </section>
-    <section class="translator__credentials">
-      <input id="apiKey" type="password" placeholder="Clé API (optionnelle pour MyMemory)">
-      <input id="apiUrl" type="url" placeholder="URL API LibreTranslate ou personnalisée">
-      <button id="saveSettings" type="button">Enregistrer API</button>
-    </section>
-    <section class="translator__source">
-      <div class="translator__buttons"><button id="urlMode" type="button" class="active">Page web</button><button id="fileMode" type="button">Fichier</button><button id="textMode" type="button">Texte</button></div>
-      <input id="url" type="url" placeholder="https://exemple.com/page">
-      <button id="chooseFile" type="button" hidden>Choisir un fichier</button>
-      <textarea id="input" placeholder="Colle un texte à traduire…" hidden></textarea>
-      <p id="fileName" hidden></p>
-    </section>
-    <button id="translate" class="translator__go" type="button">TRADUIRE</button>
-    <p id="status" role="status"></p>
-    <article id="output" class="translator__output" aria-live="polite"></article>
+  <main class="app" id="app" data-state="idle" data-mode="page">
+    <header class="titlebar">
+      <span class="brand">CAPRI <i>//</i> <span id="brandLabel">TRADUCTION</span></span>
+      <span class="engine" id="engine">MYMEMORY</span>
+      <button class="close" id="close" type="button" aria-label="Fermer">×</button>
+    </header>
+
+    <div class="viewport">
+      <section class="talk" aria-label="Capri">
+        <div class="face" id="faceWrap">
+          <img id="face" src="../../assets/capri/face-calm.png" alt="">
+        </div>
+        <div class="bubble">
+          <span class="bubble__name">Capri</span>
+          <p id="line" aria-live="polite">Je regarde ce que tu veux traduire…</p>
+          <span class="bubble__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        </div>
+      </section>
+
+      <nav class="modes" id="modes" aria-label="Source">
+        <button class="mode is-active" id="pageMode" type="button" data-mode="page"><span aria-hidden="true">◫</span><span data-i18n="tabPage">Page web</span></button>
+        <button class="mode" id="docMode" type="button" data-mode="document"><span aria-hidden="true">▤</span><span data-i18n="tabDocument">Document</span></button>
+      </nav>
+
+      <section class="workspace" id="workspace">
+        <div class="source" id="pageSource">
+          <div class="page" id="pageCard">
+            <span class="page__mark" id="siteMark">◎</span>
+            <div class="page__text">
+              <strong id="pageTitle" data-i18n="activePage">Page active</strong>
+              <span class="page__host" id="pageHost">—</span>
+            </div>
+            <button class="ghost" id="detect" type="button" title="Actualiser" aria-label="Actualiser">⟳</button>
+          </div>
+          <label class="url">
+            <span data-i18n="webAddress">Adresse de la page</span>
+            <input id="pageUrl" type="url" placeholder="https://…" spellcheck="false" autocomplete="off">
+          </label>
+          <button class="permission" id="openPermissions" type="button" hidden>
+            <span aria-hidden="true">⚙</span>
+            <span data-i18n="openPermissions">Autoriser dans Permissions macOS</span>
+          </button>
+          <div class="scan" aria-hidden="true">
+            <span class="scan__grid"></span>
+            <span class="scan__line"></span>
+            <span class="scan__tag">SCAN</span>
+            <span class="scan__glyphs">◇ 01 ▚ // ICE ◢ 0x NET</span>
+          </div>
+        </div>
+
+        <div class="source" id="docSource" hidden>
+          <button class="drop" id="pickFile" type="button">
+            <span class="drop__icon" aria-hidden="true">▤</span>
+            <strong data-i18n="chooseFile">Choisis un document</strong>
+            <small data-i18n="chooseFileHint">HTML, Markdown, texte, CSV, JSON…</small>
+          </button>
+          <div class="filecard" id="fileCard" hidden>
+            <span class="filecard__icon" id="fileExt">TXT</span>
+            <div class="filecard__text">
+              <strong id="fileName">—</strong>
+              <span id="fileMeta">—</span>
+            </div>
+            <button class="ghost" id="changeFile" type="button" data-i18n="change">Changer</button>
+          </div>
+          <p class="hint"><span class="dot" aria-hidden="true"></span><span data-i18n="localOnly">Le fichier reste sur ton ordinateur.</span></p>
+          <div class="scan" aria-hidden="true">
+            <span class="scan__grid"></span>
+            <span class="scan__line"></span>
+            <span class="scan__tag">SCAN</span>
+            <span class="scan__glyphs">◇ 01 ▚ // ICE ◢ 0x NET</span>
+          </div>
+        </div>
+
+        <div class="controls">
+          <label class="target">
+            <span data-i18n="translateTo">Traduire vers</span>
+            <select id="targetLang"></select>
+          </label>
+          <button class="go" id="go" type="button"><span data-i18n="translate">Traduire</span><i aria-hidden="true">→</i></button>
+        </div>
+
+        <div class="progress" id="progress" hidden>
+          <div class="progress__bar"><i id="progressFill"></i></div>
+          <span id="progressText">—</span>
+        </div>
+
+        <details class="settings" id="settings">
+          <summary data-i18n="settings">Réglages</summary>
+          <div class="settings__grid">
+            <label><span data-i18n="provider">Service</span>
+              <select id="provider">
+                <option value="mymemory">MyMemory — gratuit</option>
+                <option value="deepl">DeepL</option>
+                <option value="google">Google Cloud</option>
+                <option value="libretranslate">LibreTranslate</option>
+                <option value="custom">Personnalisé</option>
+              </select>
+            </label>
+            <label><span data-i18n="sourceLang">Langue source</span>
+              <select id="sourceLang">
+                <option value="auto" data-i18n="auto">Détection automatique</option>
+                <option value="fr">Français</option>
+                <option value="en">English</option>
+                <option value="de">Deutsch</option>
+                <option value="es">Español</option>
+                <option value="it">Italiano</option>
+                <option value="ja">日本語</option>
+                <option value="ru">Русский</option>
+                <option value="zh">中文</option>
+              </select>
+            </label>
+            <label class="wide"><span data-i18n="apiKey">Clé API (si le service en demande)</span>
+              <input id="apiKey" type="password" placeholder="••••••••" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="wide"><span data-i18n="apiUrl">Adresse du service</span>
+              <input id="apiUrl" type="url" placeholder="https://…" autocomplete="off" spellcheck="false">
+            </label>
+            <button class="ghost wide" id="saveSettings" type="button" data-i18n="saveSettings">Enregistrer</button>
+          </div>
+          <p class="settings__note" id="settingsNote" hidden></p>
+        </details>
+      </section>
+
+      <section class="result" id="result" hidden>
+        <header class="result__head">
+          <button class="ghost" id="back" type="button" aria-label="Retour">←</button>
+          <div>
+            <strong id="resultTitle">—</strong>
+            <span id="resultMeta">—</span>
+          </div>
+        </header>
+        <article class="result__body" id="pageResult"></article>
+        <iframe class="result__frame" id="docPreview" sandbox="" referrerpolicy="no-referrer" title="Aperçu du document traduit" hidden></iframe>
+        <p class="result__note" id="resultNote" hidden></p>
+        <footer class="result__actions">
+          <button class="primary" id="saveResult" type="button" data-i18n="save">Enregistrer…</button>
+          <button id="openResult" type="button" data-i18n="open">Ouvrir</button>
+        </footer>
+      </section>
+    </div>
+
+    <p class="toast" id="toast" role="status" hidden></p>
   </main>
   <script src="translation.js"></script>
 </body>

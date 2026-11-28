@@ -1,5 +1,6 @@
 import { Capri } from './capri.js';
 import { FxLayer, GRAB_FRAMES } from './fx.js';
+import { scan as scanScreen } from './fx-life.js';
 import { Chip, Mask } from './chip.js';
 import { Panel } from './panel.js';
 import { Voice } from './voice.js';
@@ -1102,9 +1103,36 @@ async function boot() {
     if (!shown) cancel();
   }
 
+  let translationScanTimer = 0;
+  const translationScanEffects = [];
+  const stopTranslationScan = () => {
+    if (!translationScanTimer) return;
+    clearInterval(translationScanTimer);
+    translationScanTimer = 0;
+    for (const effect of translationScanEffects.splice(0)) effect.life = 0;
+  };
+  const startTranslationScan = () => {
+    if (translationScanTimer) return;
+    if (capri.dormant) capri.wake();
+    const sweep = () => {
+      const effect = scanScreen(fx, { life: 3200 });
+      if (effect) {
+        translationScanEffects.push(effect);
+        if (translationScanEffects.length > 3) translationScanEffects.splice(0, translationScanEffects.length - 3);
+      }
+    };
+    sweep();
+    translationScanTimer = setInterval(sweep, 3000);
+    capri.perform?.('curious', capri.towardCenter?.());
+  };
+
   async function runCommand(cmd) {
     const t = brain.t;
     switch (cmd.name) {
+      case 'translationScan':
+        if (cmd.on) startTranslationScan();
+        else stopTranslationScan();
+        break;
       case 'modsDuplicatePrompt':
         await showModsDuplicatePrompt(cmd);
         break;

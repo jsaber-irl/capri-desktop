@@ -98,7 +98,7 @@ const OPEN_ASK = /\b(open|launch|start|run|ouvre|lance|démarre)\b|открой|
 const OPEN_PATH_ASK = /\b(?:open|ouvre|ouvrir|lance|démarre)\b\s+(?:(?:the|le|la|l'|un|une|des|les)\s+)?(?:files?|fichiers?|folders?|dossiers?|directories|répertoires?|images?|documents?)\s+(?:called\s+|nommé(?:e)?\s+|named\s+)?["“]?(.+?)["”]?(?:\s+(?:dans|with|in)\s+(?:finder|explorer|file explorer|le gestionnaire de fichiers))?\s*[.!?]*$/iu;
 const OPEN_DIRECT_PATH_ASK = /\b(?:open|ouvre|ouvrir|lance|démarre)\b\s+(.+)/iu;
 const MUSIC_PLAYER_ASK = /\b(?:open|launch|start|show|ouvre|ouvrir|lance|affiche)\b.*\b(?:(?:mini\s+)?(?:music|musique)\s+(?:player|lecteur)|mini[-\s]?lecteur)\b|\b(?:(?:mini\s+)?(?:music|musique)\s+(?:player|lecteur)|mini[-\s]?lecteur)\b.*\b(?:open|ouvre|lance|affiche)\b/i;
-const TRANSLATION_ASK = /\b(?:translate|traduire|traduis|translation|traduction)\b.*\b(?:file|fichier|document|page|web|site|url)\b|\b(?:file|fichier|document|page|web|site|url)\b.*\b(?:translate|traduire|traduis|translation|traduction)\b/i;
+const TRANSLATION_ASK = /\b(?:translate|traduire|traduis|traduit|traduisez|translation|traduction)\b.*\b(?:file|fichier|document|page|web|site|url)\b|\b(?:file|fichier|document|page|web|site|url)\b.*\b(?:translate|traduire|traduis|traduit|traduisez|translation|traduction)\b/i;
 const CHESS_ASK = /\b(?:play|let'?s play|chess)\b|\b(?:jouons|jouer|partie|échecs|echecs)\b|шахмат/iu;
 const LATEST_VIDEO_ASK = /\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b.*\b(?:video|vid[eé]o)\b|\b(?:video|vid[eé]o)\b.*\b(?:latest|newest|most recent|last|derni[eè]re|r[eé]cente)\b/iu;
 const WEB_SEARCH_ASK = /\b(?:search|look\s+up|find|recherche|rechercher|cherche|trouve)\b.*\b(?:online|on the web|sur internet|en ligne|sur le web)\b/iu;
@@ -243,6 +243,7 @@ function cleanRequestedPath(value) {
     .replace(/["”]\s*[.!?]*$/u, '')
     .replace(/\s+(?:dans|with|in)\s+(?:finder|explorer|file explorer|le gestionnaire de fichiers)\s*[.!?]*$/iu, '')
     .replace(/\s+(?:qui\s+est\s+|se trouve\s+|situé\s+|situe\s+)?sur\s+(?:mon|le)\s+(?:bureau|desktop)\s*[.!?]*$/iu, '')
+    .replace(/\s+(?:qui\s+est\s+|se trouve\s+|situé\s+|situe\s+)?(?:dans|sur)\s+(?:mes|mon|le|la)\s+(?:documents?|téléchargements?|telechargements?|downloads?)\s*[.!?]*$/iu, '')
     .replace(/[.!?]$/u, '');
 }
 // sites asked for by name ("open youtube") when no app on the PC goes by it: the address is hers, not
@@ -972,8 +973,23 @@ export class Chat {
     if (TRANSLATION_ASK.test(text)) {
       const url = /(https?:\/\/[^\s"'<>]+)/i.exec(text)?.[1]?.replace(/[.,!?;:]+$/u, '');
       const quotedPath = /["“]([^"”]+)["”]/u.exec(text)?.[1];
-      const path = quotedPath || (/\b(?:file|fichier|document)\b\s+(.+?)(?:\s+(?:into|en|vers)\s+\w+)?[.!?]*$/iu.exec(text)?.[1]?.trim());
-      return { kind: 'translation', source: url ? { kind: 'url', value: url } : path ? { kind: 'file', value: path } : null };
+      const rawPath = quotedPath || (/\b(?:file|fichier|document)\b\s+(.+?)(?:\s+(?:into|en|vers)\s+\w+)?[.!?]*$/iu.exec(text)?.[1]?.trim());
+      const path = cleanRequestedPath(rawPath);
+      const location = /(?:\bsur\s+(?:mon|le)\s+(?:bureau|desktop)\b)/iu.test(text)
+        ? 'desktop'
+        : /\b(?:dans|sur)\s+(?:mes|mon|le)\s+(?:documents?)\b/iu.test(text)
+          ? 'documents'
+          : /\b(?:dans|sur)\s+(?:mes|mon|le)\s+(?:téléchargements?|telechargements?|downloads?)\b/iu.test(text)
+            ? 'downloads'
+            : '';
+      return {
+        kind: 'translation',
+        source: url
+          ? { kind: 'url', value: url }
+          : path
+            ? { kind: 'file', value: path, ...(location ? { location } : {}) }
+            : null,
+      };
     }
     const directPath = OPEN_DIRECT_PATH_ASK.exec(text)?.[1]?.trim();
     if (directPath && /(?:^|[\s"'“])(?:~|\/|[A-Za-z]:[\\/])/.test(directPath)) {

@@ -41,7 +41,7 @@ const { Cleanup } = require('./cleanup');
 const nodeCheck = require('./node-check');
 const { createPrepare } = require('./prepare');
 const { createHub } = require('./hub');
-const { createMacPermissionsWindow, macPermissionsMenuItem, listMacWindows } = require('./mac-permissions');
+const { AUTOMATION_TARGETS, createMacPermissionsWindow, macPermissionsMenuItem, listMacWindows } = require('./mac-permissions');
 const { createIncomingCall } = require('./incoming-call');
 const { createChessWindow } = require('./chess-window');
 const { createGamesWindow } = require('./games-window');
@@ -56,7 +56,9 @@ const { createVersionWindow } = require('./version-window');
 const { createUpdateManager } = require('./update-manager');
 const { runUpdateHelper, recordFailure } = require('./update-helper');
 const { createStructuredMemory } = require('./structured-memory');
-const { translateSource } = require('./translator');
+const { translatePage } = require('./translation-page');
+const { translateDocument } = require('./translation-document');
+const { readActivePage } = require('./active-page');
 const { createTextDocument } = require('./documents');
 const { search: searchFiles, open: openFile, screenshot: takeScreenshot } = require('./files');
 
@@ -354,7 +356,29 @@ let chatErrorCode = null; // 'nokey' or 'nourl': what her setup should ask for
 const chats = new Map(); // id -> AbortController of an answer being streamed
 let moodState = null;   // how she feels (the overlay says), for her menu's top line
 let mediaWatch = null;  // what's playing (media.js), while she's allowed to know
+
+// macOS gives no passive Automation status. Every successful read/control is
+// therefore also recorded here, so the permissions window does not show
+// "INCONNU" for an app Capri has already been allowed to drive.
+function rememberMacAutomation(targetId, granted) {
+  if (!Object.hasOwn(AUTOMATION_TARGETS, targetId)) return;
+  const current = { ...(config.load().macAutomationGranted || {}) };
+  if (granted) current[targetId] = true;
+  else delete current[targetId];
+  updateConfig({ macAutomationGranted: current });
+}
+
 const musicControl = createMusicController();
+const runMusicCommand = musicControl.command.bind(musicControl);
+musicControl.command = async (request) => {
+  const result = await runMusicCommand(request);
+  const session = result?.session;
+  if (session?.mode === 'native' && ['spotify', 'deezer'].includes(session.service)) {
+    if (result.status === 'permission_required') rememberMacAutomation(session.service, false);
+    else if (result.ok) rememberMacAutomation(session.service, true);
+  }
+  return result;
+};
 const browserTabCloser = createBrowserTabCloser();
 async function confirmMediaAction(action, session = {}) {
   const label = session.title || session.url || 'cet onglet média';
@@ -440,21 +464,46 @@ const translationWindow = createTranslationWindow({
   BrowserWindow,
   ipcMain,
   dialog,
+  shell,
+  app,
   preload: path.join(__dirname, '..', 'preload.js'),
   protocolUrl: 'capri://app/src/renderer/translation.html',
-  translateSource,
+  translatePage,
+  translateDocument,
+  readActivePage: async (options) => {
+    const result = await readActivePage(options);
+    if (result?.browser) {
+      if (result.ok) rememberMacAutomation(result.browser, true);
+      else if (result.code === 'permission') rememberMacAutomation(result.browser, false);
+    }
+    return result;
+  },
+  openMacPermissions: (options) => {
+    if (process.platform !== 'darwin' || !macPermissions) return false;
+    const target = AUTOMATION_TARGETS[options?.targetId];
+    if (!target?.browser) return false;
+    macPermissions.show({ targetId: target.id, request: true });
+    return true;
+  },
   getSettings: () => {
     const cfg = config.load();
-    return { provider: cfg.translationProvider || 'mymemory', apiUrl: cfg.translationApiUrl || '', hasKey: Boolean(cfg.translationApiKey) };
+    return { provider: cfg.translationProvider || 'mymemory', apiUrl: cfg.translationApiUrl || '', hasKey: Boolean(cfg.translationApiKey), lang: resolveLang(cfg.lang) };
   },
   getTranslationOptions: () => {
     const cfg = config.load();
     const [apiKey] = Object.values(setup.openKeys({ translation: cfg.translationApiKey || '' }));
     return { provider: cfg.translationProvider || 'mymemory', apiKey: apiKey || '', apiUrl: cfg.translationApiUrl || '' };
   },
+  onTranslationActivity: (update = {}) => {
+    if (!update.phase) return;
+    const on = ['reading', 'scanning', 'translating'].includes(update.phase);
+    if (on || update.phase === 'done' || update.phase === 'error') {
+      sendCommand('translationScan', { on, phase: update.phase, requestId: update.requestId || '' });
+    }
+  },
   setSettings: (settings = {}) => {
     try {
-      const provider = ['mymemory', 'deepl', 'google', 'libretranslate'].includes(String(settings.provider)) ? String(settings.provider) : 'mymemory';
+      const provider = ['mymemory', 'deepl', 'google', 'libretranslate', 'custom'].includes(String(settings.provider)) ? String(settings.provider) : 'mymemory';
       const patch = { translationProvider: provider, translationApiUrl: String(settings.apiUrl || '').trim().slice(0, 500) };
       if (String(settings.apiKey || '').trim()) patch.translationApiKey = setup.sealKey(String(settings.apiKey).trim().slice(0, 500));
       updateConfig(patch);
@@ -2820,7 +2869,9 @@ function registerIpc() {
   });
   ipcMain.handle('music:command', (_e, request) => musicControl.command(request || {}));
   ipcMain.handle('translation:open', (_e, source) => {
-    translationWindow.show(source || null);
+    // From the chat, "translate this page" has no source attached: ask the
+    // window for the active page instead of leaving a previous result on screen.
+    translationWindow.show(source && typeof source === 'object' ? source : { kind: 'active-page' });
     return { ok: true };
   });
   ipcMain.handle('music-player:open', () => {
@@ -3214,6 +3265,9 @@ function main() {
     }
     serveProtocol();
     registerIpc();
+    // Keep the last browser in front, even while Capri itself is focused: the
+    // translation window and the chat both need it to find "the page I am on".
+    translationWindow.startTracking();
     createOverlay();
     startFollowingPointer();
     createTray();
@@ -3272,6 +3326,10 @@ function main() {
         screen,
         lang: () => resolveLang(config.load().lang),
         protocolUrl: 'capri://app/src/renderer/mac-permissions.html',
+        // macOS has no passive query for Automation. Keep the last verified
+        // grants so reopening the window does not ask the user to verify again.
+        getAutomationCache: () => config.load().macAutomationGranted || {},
+        setAutomationGranted: (targetId, granted) => rememberMacAutomation(targetId, granted),
       });
     }
     // The first time (nothing chosen yet), her main menu opens and nothing is fetched until you press its button.
@@ -3315,6 +3373,7 @@ function main() {
     clearTimeout(trayTimer);
     globalShortcut.unregisterAll();
     windowWatch?.stop();
+    translationWindow.stopTracking();
     mover?.stop(); // a window she is holding goes back where it was
     mediaWatch?.stop();
     clearInterval(presenceTimer);

@@ -95,6 +95,7 @@ const DEFAULTS = {
   handsType: true,   // she may type (messages, text); off: only open/close/arrange windows
   computerControl: false, // explicit click control from the local virtual-cursor panel; user-enabled only
   computerControlPreview: false, // show the compact upper-right screen preview while desktop control is enabled
+  macAutomationGranted: {}, // Apple Events targets already authorised ({ spotify: true, deezer: true… }): shown as authorised when the macOS permissions window opens
   ears: false,       // she listens to your microphone and writes down what you say (stt.js, ears.js)
   sttEngine: 'groq', // who turns your voice into text: 'groq', 'openai' or 'custom' (OpenAI-compatible)
   sttUrl: '',        // 'custom': http://127.0.0.1:8000/v1 (whisper.cpp, faster-whisper…)

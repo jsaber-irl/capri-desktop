@@ -14,8 +14,15 @@ const SETTINGS_URLS = {
 // These are the applications Capri currently addresses with Apple Events. The renderer only
 // receives these stable IDs; a caller cannot pass an arbitrary AppleScript application name.
 const AUTOMATION_TARGETS = Object.freeze({
-  systemEvents: { id: 'systemEvents', targetApp: 'System Events', nameFr: 'Événements système (System Events)', nameEn: 'System Events', probe: 'systemEvents' },
-  spotify: { id: 'spotify', targetApp: 'Spotify', nameFr: 'Spotify', nameEn: 'Spotify', probe: 'spotify' },
+  systemEvents: { id: 'systemEvents', targetApp: 'System Events', nameFr: 'Événements système (System Events)', nameEn: 'System Events', probe: 'systemEvents', descFr: 'Vérifie la lecture des processus visibles utilisée par Capri pour observer et contrôler les fenêtres.', descEn: 'Verifies the visible-process query Capri uses to observe and control windows.' },
+  spotify: { id: 'spotify', targetApp: 'Spotify', nameFr: 'Spotify', nameEn: 'Spotify', probe: 'spotify', descFr: 'La vérification interroge l’état de lecture de Spotify, uniquement si l’application est déjà ouverte.', descEn: 'The check reads Spotify playback state, only while the app is already running.' },
+  deezer: { id: 'deezer', targetApp: 'Deezer', nameFr: 'Deezer', nameEn: 'Deezer', probe: 'deezer', descFr: 'La vérification interroge l’état de lecture de Deezer, uniquement si l’application est déjà ouverte.', descEn: 'The check reads Deezer playback state, only while the app is already running.' },
+  chrome: { id: 'chrome', targetApp: 'Google Chrome', nameFr: 'Google Chrome — page active', nameEn: 'Google Chrome — active page', probe: 'browser', running: 'Google Chrome', browser: true, descFr: 'Autorise Capri à lire l’adresse et le titre de l’onglet actif. Aucune page n’est modifiée.', descEn: 'Allows Capri to read the active tab address and title. No page is modified.' },
+  brave: { id: 'brave', targetApp: 'Brave Browser', nameFr: 'Brave — page active', nameEn: 'Brave — active page', probe: 'browser', running: 'Brave Browser', browser: true, descFr: 'Autorise Capri à lire l’adresse et le titre de l’onglet actif. Aucune page n’est modifiée.', descEn: 'Allows Capri to read the active tab address and title. No page is modified.' },
+  edge: { id: 'edge', targetApp: 'Microsoft Edge', nameFr: 'Microsoft Edge — page active', nameEn: 'Microsoft Edge — active page', probe: 'browser', running: 'Microsoft Edge', browser: true, descFr: 'Autorise Capri à lire l’adresse et le titre de l’onglet actif. Aucune page n’est modifiée.', descEn: 'Allows Capri to read the active tab address and title. No page is modified.' },
+  vivaldi: { id: 'vivaldi', targetApp: 'Vivaldi', nameFr: 'Vivaldi — page active', nameEn: 'Vivaldi — active page', probe: 'browser', running: 'Vivaldi', browser: true, descFr: 'Autorise Capri à lire l’adresse et le titre de l’onglet actif. Aucune page n’est modifiée.', descEn: 'Allows Capri to read the active tab address and title. No page is modified.' },
+  opera: { id: 'opera', targetApp: 'Opera', nameFr: 'Opera — page active', nameEn: 'Opera — active page', probe: 'browser', running: 'Opera', browser: true, descFr: 'Autorise Capri à lire l’adresse et le titre de l’onglet actif. Aucune page n’est modifiée.', descEn: 'Allows Capri to read the active tab address and title. No page is modified.' },
+  safari: { id: 'safari', targetApp: 'Safari', nameFr: 'Safari — page active', nameEn: 'Safari — active page', probe: 'browser', running: 'Safari', browser: true, descFr: 'Autorise Capri à lire l’adresse et le titre de l’onglet actif. Aucune page n’est modifiée.', descEn: 'Allows Capri to read the active tab address and title. No page is modified.' },
 });
 const AUTOMATION_TCC_DENIED = /(-1743|not permitted|not allowed|not authorized to send apple events)/i;
 
@@ -99,12 +106,14 @@ const PERMISSIONS_META = {
     affectedFr: [
       'Fermeture d’applications à la demande',
       'Pilotage des fenêtres système via System Events',
-      'Contrôle de lecture multimédia dans les applications compatibles'
+      'Contrôle de lecture multimédia dans les applications compatibles',
+      'Lecture de l’adresse et du titre de l’onglet actif du navigateur (traduction de page)'
     ],
     affectedEn: [
       'Graceful application closing upon user confirmation',
       'System window orchestration via System Events',
-      'Media playback control in compatible apps'
+      'Media playback control in compatible apps',
+      'Reading the browser active tab address and title (page translation)'
     ],
     instructionsFr: 'Ouvrez Réglages Système → Confidentialité et sécurité → Automatisation, puis vérifiez que Capri est autorisé à contrôler les applications cibles, notamment Événements système lorsque cette autorisation est nécessaire. L’autorisation est accordée séparément pour chaque application et peut être demandée lors du premier Apple Event. Après une modification manuelle, vérifiez à nouveau ou redémarrez Capri. L’entrée Capri/Electron dépend de la façon dont l’application est exécutée, empaquetée et signée.',
     instructionsEn: 'Open System Settings → Privacy & Security → Automation, then verify Capri is allowed to control the target apps, including System Events when needed. Permission is granted separately for each app and may be requested on the first Apple Event. After a manual change, check again or restart Capri. Whether Capri/Electron appears depends on how the app is run, packaged, and signed.',
@@ -204,15 +213,27 @@ async function checkAutomation({ targetId = 'systemEvents', targetApp, exec = cp
   // macOS's Automation prompt, so only run it after an explicit user action.
   if (!probe) return { id: 'automation', status: 'unknown', granted: false, targetId: target.id, targetApp: target.targetApp, error: 'macOS does not expose Automation status without sending an Apple Event.' };
 
-  // Spotify is probed only if already running: tell-application can launch a target, which would
-  // be surprising from a permission button. System Events is queried for a read-only visible-process name.
-  if (target.probe === 'spotify') {
-    const running = await new Promise((resolve) => exec('pgrep', ['-x', 'Spotify'], { timeout: 3000 }, (err) => resolve(!err)));
-    if (!running) return { id: 'automation', status: 'unknown', granted: false, targetId: target.id, targetApp: target.targetApp, requestSent: false, error: 'Lancez Spotify avant de tester son autorisation Apple Events.' };
+  // Media players and browsers are probed only if already running: tell-application can launch
+  // a target, which would be surprising from a permission button. System Events is queried for a
+  // read-only visible-process name; browsers answer with a harmless window count.
+  if (['spotify', 'deezer', 'browser'].includes(target.probe)) {
+    const runningName = target.running || target.targetApp;
+    const running = await new Promise((resolve) => exec('pgrep', ['-x', runningName], { timeout: 3000 }, (err) => resolve(!err)));
+    if (!running) {
+      return {
+        id: 'automation', status: 'unknown', granted: false, targetId: target.id, targetApp: target.targetApp,
+        requestSent: false,
+        error: target.probe === 'browser'
+          ? `Ouvrez ${target.targetApp} avant de demander l’autorisation de lire sa page active.`
+          : `Lancez ${target.targetApp} avant de tester son autorisation Apple Events.`,
+      };
+    }
   }
   const script = target.probe === 'systemEvents'
     ? 'tell application "System Events" to get name of first process whose visible is true'
-    : 'tell application "Spotify" to get player state';
+    : target.probe === 'browser'
+      ? `tell application "${target.targetApp}" to count windows`
+      : `tell application "${target.targetApp}" to get player state`;
   return new Promise((resolve) => {
     // Leave enough time for the native TCC dialog and the user's choice. execFile is async, so
     // this does not block Electron's main thread.
@@ -228,7 +249,7 @@ async function checkAutomation({ targetId = 'systemEvents', targetApp, exec = cp
           details: String(stdout || '').trim(),
         });
       }
-      const msg = String(err.message || '');
+      const msg = String(err.stderr || err.message || '');
       if (AUTOMATION_TCC_DENIED.test(msg)) {
         return resolve({
           id: 'automation',
@@ -559,17 +580,37 @@ function createMacPermissionsWindow({
   screen,
   lang = () => 'fr',
   protocolUrl = 'capri://app/src/renderer/mac-permissions.html',
+  getAutomationCache = () => ({}),
+  setAutomationGranted = () => {},
 }) {
   let win = null;
-  const automationTargets = Object.fromEntries(Object.values(AUTOMATION_TARGETS).map((target) => [target.id, {
-    targetId: target.id,
-    targetApp: target.targetApp,
-    nameFr: target.nameFr,
-    nameEn: target.nameEn,
-    status: 'unknown',
-    granted: false,
-    requestSent: false,
-  }]));
+  let pendingFocus = null;
+  let automationCache = {};
+  try { automationCache = getAutomationCache() || {}; } catch { automationCache = {}; }
+  const rememberAutomation = (targetId, granted) => {
+    if (!Object.hasOwn(AUTOMATION_TARGETS, targetId)) return;
+    const next = { ...automationCache };
+    if (granted) next[targetId] = true;
+    else delete next[targetId];
+    automationCache = next;
+    try { setAutomationGranted(targetId, granted); } catch { /* status still shown for this session */ }
+  };
+  const automationTargets = Object.fromEntries(Object.values(AUTOMATION_TARGETS).map((target) => {
+    const granted = automationCache[target.id] === true;
+    return [target.id, {
+      targetId: target.id,
+      targetApp: target.targetApp,
+      nameFr: target.nameFr,
+      nameEn: target.nameEn,
+      descFr: target.descFr || '',
+      descEn: target.descEn || '',
+      browser: Boolean(target.browser),
+      status: granted ? 'granted' : 'unknown',
+      granted,
+      cached: granted,
+      requestSent: false,
+    }];
+  }));
 
   function assertPanelSender(event) {
     if (!win || win.isDestroyed() || event.sender !== win.webContents || event.senderFrame !== event.sender.mainFrame) {
@@ -579,19 +620,54 @@ function createMacPermissionsWindow({
 
   async function getFullState() {
     const check = await checkAllPermissions({ systemPreferences, exec, platform });
+    // Another Capri feature (a translated page, Spotify/Deezer playback) may
+    // have recorded a grant since this window was created.
+    try {
+      const stored = getAutomationCache();
+      if (stored && typeof stored === 'object') automationCache = { ...automationCache, ...stored };
+    } catch { /* the in-memory cache is still valid */ }
+    for (const target of Object.values(automationTargets)) {
+      if (automationCache[target.targetId] === true && !target.granted) {
+        target.status = 'granted';
+        target.granted = true;
+        target.cached = true;
+      }
+    }
+    const targets = Object.values(automationTargets).map((target) => ({ ...target }));
+    // A target verified earlier in this app (or in a previous session, through the
+    // saved cache) is already authorised: no need to send its Apple Event again
+    // just to paint the window.
+    const known = targets.filter((target) => target.status === 'granted' || target.status === 'denied');
+    if (known.length) {
+      const everyKnownGranted = known.every((target) => target.granted);
+      check.permissions.automation.status = everyKnownGranted ? 'granted' : 'action_required';
+      check.permissions.automation.granted = everyKnownGranted;
+    }
+    const list = Object.values(check.permissions);
+    check.grantedCount = list.filter((permission) => permission.granted).length;
+    check.allGranted = check.grantedCount === list.length;
     const currentLang = typeof lang === 'function' ? lang() : lang;
     return {
       ...check,
-      automationTargets: Object.values(automationTargets).map((target) => ({ ...target })),
+      automationTargets: targets,
       lang: currentLang,
     };
   }
 
-  function show() {
+  function sendPendingFocus() {
+    if (!pendingFocus || !win || win.isDestroyed()) return;
+    const focus = pendingFocus;
+    pendingFocus = null;
+    win.webContents.send('macPermissions:focusTarget', focus);
+  }
+
+  function show({ targetId = '', request = false } = {}) {
+    if (targetId && Object.hasOwn(AUTOMATION_TARGETS, targetId)) pendingFocus = { targetId, request: Boolean(request) };
     if (win && !win.isDestroyed()) {
       if (win.isMinimized()) win.restore();
       win.show();
       win.focus();
+      sendPendingFocus();
       return win;
     }
 
@@ -618,8 +694,16 @@ function createMacPermissionsWindow({
     });
 
     win.removeMenu?.();
+    let loaded = false;
+    let ready = false;
+    const revealAndFocus = () => {
+      if (!loaded || !ready || !win || win.isDestroyed()) return;
+      win.show();
+      sendPendingFocus();
+    };
     win.loadURL(protocolUrl);
-    win.once('ready-to-show', () => win?.show());
+    win.once('ready-to-show', () => { ready = true; revealAndFocus(); });
+    win.webContents.once?.('did-finish-load', () => { loaded = true; revealAndFocus(); });
     win.on('focus', () => {
       // Returning from System Settings is a common way permissions change.
       if (win && !win.isDestroyed()) getFullState().then((state) => win?.webContents.send('macPermissions:statusChange', state));
@@ -658,14 +742,14 @@ function createMacPermissionsWindow({
       Object.assign(prior, {
         status: result.status,
         granted: Boolean(result.granted),
+        cached: false,
         requestSent: Boolean(result.requestSent),
         error: result.error || '',
         message: result.message || '',
       });
+      if (result.status === 'granted') rememberAutomation(request.targetId, true);
+      else if (result.status === 'denied') rememberAutomation(request.targetId, false);
       const state = await getFullState();
-      state.permissions.automation.status = result.status;
-      state.permissions.automation.granted = Boolean(result.granted);
-      state.permissions.automation.error = result.error || '';
       win?.webContents.send('macPermissions:statusChange', state);
       return { ...result, automationTargets: state.automationTargets };
     });
@@ -678,7 +762,9 @@ function createMacPermissionsWindow({
 
     ipcMain.handle('macPermissions:listWindows', async (event) => {
       assertPanelSender(event);
-      return listMacWindows();
+      const result = await listMacWindows();
+      if (result.ok) rememberAutomation('systemEvents', true);
+      return result;
     });
     ipcMain.handle('macPermissions:focusWindow', async (event, appName) => {
       assertPanelSender(event);
@@ -701,6 +787,7 @@ function createMacPermissionsWindow({
 
   return {
     show,
+    focusTarget: (targetId, request = true) => show({ targetId, request }),
     isOpen: () => Boolean(win && !win.isDestroyed()),
     checkAll: () => checkAllPermissions({ systemPreferences, exec, platform }),
     computerControlGranted: () => Boolean(platform === 'darwin' && checkAccessibility({ systemPreferences, platform }).granted && automationTargets.systemEvents.granted),

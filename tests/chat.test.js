@@ -323,6 +323,13 @@ test('translation requests from chat open the translator with a file or web page
   const chat = Object.assign(Object.create(Chat.prototype), { hands: null, askedToClose: () => null, mediaAsked: Chat.prototype.mediaAsked, life: { media: { playing: false } } });
   assert.deepEqual(chat.asked('Traduis le fichier "/tmp/notes.txt".'), { kind: 'translation', source: { kind: 'file', value: '/tmp/notes.txt' } });
   assert.deepEqual(chat.asked('Translate this web page https://example.com/help.'), { kind: 'translation', source: { kind: 'url', value: 'https://example.com/help' } });
+  assert.deepEqual(chat.asked('Traduit moi cette page web.'), { kind: 'translation', source: null });
+  assert.deepEqual(chat.asked('Traduit moi le fichier test.pdf qui est sur mon bureau.'), {
+    kind: 'translation', source: { kind: 'file', value: 'test.pdf', location: 'desktop' },
+  });
+  assert.deepEqual(chat.asked('Traduis le document rapport.docx dans mes documents.'), {
+    kind: 'translation', source: { kind: 'file', value: 'rapport.docx', location: 'documents' },
+  });
   assert.deepEqual(chat.asked('Ouvre la page de traduction.'), { kind: 'translation', source: null });
 });
 
